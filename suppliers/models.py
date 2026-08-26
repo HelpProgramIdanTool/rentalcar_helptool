@@ -36,6 +36,7 @@ class SupplierLocation(models.Model):
         BRANCH = "BRANCH", "Branch"
         AIRPORT = "AIRPORT", "Airport"
         HOTEL_DELIVERY = "HOTEL_DELIVERY", "Hotel delivery"
+        ADDRESS_DELIVERY = "ADDRESS_DELIVERY", "Address delivery"
         SEASONAL_POINT = "SEASONAL_POINT", "Seasonal point"
         CUSTOM_POINT = "CUSTOM_POINT", "Custom point"
         OTHER = "OTHER", "Other"

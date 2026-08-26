@@ -190,3 +190,59 @@ class CarFreeLocationImportTests(TestCase):
         call_command("import_carfree_locations", self.file_path, stdout=StringIO())
 
         self.assertEqual(SupplierLocation.objects.count(), 4)
+
+
+class AddressDeliveryLocationTests(TestCase):
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="03",
+            supplier_name="Car Free",
+        )
+        SupplierLocation.objects.create(
+            supplier=self.supplier,
+            location_code="KRK",
+            location_name="Kraków Balice",
+            city="Kraków Balice",
+            location_type=SupplierLocation.LocationType.AIRPORT,
+        )
+        SupplierLocation.objects.create(
+            supplier=self.supplier,
+            location_code="KRAKOW-BUS",
+            location_name="Kraków",
+            city="Kraków",
+            location_type=SupplierLocation.LocationType.BRANCH,
+        )
+
+    def test_preview_does_not_create_virtual_location(self):
+        output = StringIO()
+
+        call_command("create_address_delivery_locations", "--preview", stdout=output)
+
+        self.assertEqual(
+            SupplierLocation.objects.filter(
+                location_type=SupplierLocation.LocationType.ADDRESS_DELIVERY
+            ).count(),
+            0,
+        )
+        self.assertIn("Preview only: 1 virtual locations", output.getvalue())
+
+    def test_two_physical_locations_in_one_city_create_one_virtual_location(self):
+        call_command("create_address_delivery_locations", stdout=StringIO())
+
+        delivery = SupplierLocation.objects.get(location_code="KRAKOW-DELIVERY")
+        self.assertEqual(
+            delivery.location_type,
+            SupplierLocation.LocationType.ADDRESS_DELIVERY,
+        )
+        self.assertFalse(delivery.has_rental_desk)
+        self.assertTrue(delivery.supports_address_delivery)
+        self.assertEqual(delivery.address, "")
+
+    def test_repeated_creation_updates_without_duplicates(self):
+        call_command("create_address_delivery_locations", stdout=StringIO())
+        call_command("create_address_delivery_locations", stdout=StringIO())
+
+        self.assertEqual(
+            SupplierLocation.objects.filter(location_code="KRAKOW-DELIVERY").count(),
+            1,
+        )
