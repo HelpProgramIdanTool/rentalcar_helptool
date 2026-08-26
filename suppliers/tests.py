@@ -249,3 +249,38 @@ class AddressDeliveryLocationTests(TestCase):
             SupplierLocation.objects.filter(location_code="KRAKOW-DELIVERY").count(),
             1,
         )
+
+
+class OneRentLocationImportTests(TestCase):
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="02",
+            supplier_name="One Rent",
+        )
+
+    def test_preview_does_not_save_locations(self):
+        output = StringIO()
+
+        call_command("import_one_rent_locations", "--preview", stdout=output)
+
+        self.assertEqual(SupplierLocation.objects.count(), 0)
+        self.assertIn("Preview only: 11 locations, nothing saved.", output.getvalue())
+
+    def test_import_separates_krakow_terminal_and_tina_parking(self):
+        call_command("import_one_rent_locations", stdout=StringIO())
+
+        terminal = SupplierLocation.objects.get(location_code="KRK-DELIVERY")
+        tina = SupplierLocation.objects.get(location_code="KRK-TINA")
+        self.assertTrue(terminal.supports_pickup)
+        self.assertFalse(terminal.supports_return)
+        self.assertTrue(terminal.supports_terminal_delivery)
+        self.assertTrue(tina.supports_pickup)
+        self.assertTrue(tina.supports_return)
+        self.assertTrue(tina.has_rental_desk)
+        self.assertTrue(tina.supports_self_return_via_key_box)
+
+    def test_repeated_import_updates_without_duplicates(self):
+        call_command("import_one_rent_locations", stdout=StringIO())
+        call_command("import_one_rent_locations", stdout=StringIO())
+
+        self.assertEqual(SupplierLocation.objects.count(), 11)
