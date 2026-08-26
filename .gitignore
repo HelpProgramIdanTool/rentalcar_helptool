@@ -1,3 +1,29 @@
 # Supplier price lists and other private source documents
 supplyer price lists/
 input/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Local databases
+*.db
+*.sqlite3
+
+# Secrets / environment
+.env
+.env.*
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors / OS
+.idea/
+.DS_Store

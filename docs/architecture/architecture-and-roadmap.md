@@ -1,7 +1,7 @@
 # Idan Rent a Car — Architecture & Build Roadmap
 
 > **What this document is.** A navigable, diagram-driven architecture built *on top of* Idan's
-> detailed spec (`idan_rent_a_car_system_architecture_summary.md`). His document remains the
+> detailed spec (`system-architecture-summary.md`, in this same folder). His document remains the
 > exhaustive, field-by-field source of truth. **This document is the map**: it shows how the
 > pieces fit, why the key decisions are right, how the money flows, and — critically — the
 > **order** in which a solo builder should build it so each step leaves something usable.
