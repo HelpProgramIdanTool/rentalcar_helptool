@@ -63,6 +63,7 @@ class SupplierLocation(models.Model):
     supports_terminal_delivery = models.BooleanField(default=False)
     supports_address_delivery = models.BooleanField(default=False)
     supports_after_hours = models.BooleanField(default=False)
+    supports_self_return_via_key_box = models.BooleanField(default=False)
     requires_prepayment = models.BooleanField(default=False)
     default_pickup_instructions = models.TextField(blank=True)
     default_return_instructions = models.TextField(blank=True)

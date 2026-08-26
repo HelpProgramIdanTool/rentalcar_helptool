@@ -18,6 +18,7 @@ class SupplierLocationAdmin(admin.ModelAdmin):
         "city",
         "location_type",
         "has_rental_desk",
+        "supports_self_return_via_key_box",
         "is_active",
     )
     list_filter = (
@@ -26,6 +27,7 @@ class SupplierLocationAdmin(admin.ModelAdmin):
         "has_rental_desk",
         "supports_terminal_delivery",
         "supports_address_delivery",
+        "supports_self_return_via_key_box",
         "is_active",
         "country",
     )

@@ -55,6 +55,7 @@ class SupplierLocationTests(TestCase):
         self.assertFalse(location.has_rental_desk)
         self.assertFalse(location.supports_terminal_delivery)
         self.assertFalse(location.supports_address_delivery)
+        self.assertFalse(location.supports_self_return_via_key_box)
 
     def test_location_can_record_each_service_method(self):
         location = SupplierLocation.objects.create(
@@ -65,11 +66,13 @@ class SupplierLocationTests(TestCase):
             has_rental_desk=True,
             supports_terminal_delivery=True,
             supports_address_delivery=True,
+            supports_self_return_via_key_box=True,
         )
 
         self.assertTrue(location.has_rental_desk)
         self.assertTrue(location.supports_terminal_delivery)
         self.assertTrue(location.supports_address_delivery)
+        self.assertTrue(location.supports_self_return_via_key_box)
 
     def test_same_location_code_can_be_used_by_different_suppliers(self):
         other_supplier = Supplier.objects.create(
