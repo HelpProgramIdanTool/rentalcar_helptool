@@ -57,6 +57,7 @@ class SupplierLocation(models.Model):
         default=LocationType.BRANCH,
     )
     airport_code = models.CharField(max_length=3, blank=True)
+    phone = models.CharField(max_length=40, blank=True)
     supports_pickup = models.BooleanField(default=True)
     supports_return = models.BooleanField(default=True)
     has_rental_desk = models.BooleanField(default=False)

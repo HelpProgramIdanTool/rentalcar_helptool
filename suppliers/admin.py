@@ -16,6 +16,7 @@ class SupplierLocationAdmin(admin.ModelAdmin):
         "location_name",
         "supplier",
         "city",
+        "phone",
         "location_type",
         "has_rental_desk",
         "supports_self_return_via_key_box",
@@ -36,5 +37,6 @@ class SupplierLocationAdmin(admin.ModelAdmin):
         "location_code",
         "city",
         "airport_code",
+        "phone",
         "supplier__supplier_name",
     )

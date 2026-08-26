@@ -56,6 +56,7 @@ class SupplierLocationTests(TestCase):
         self.assertFalse(location.supports_terminal_delivery)
         self.assertFalse(location.supports_address_delivery)
         self.assertFalse(location.supports_self_return_via_key_box)
+        self.assertEqual(location.phone, "")
 
     def test_location_can_record_each_service_method(self):
         location = SupplierLocation.objects.create(
@@ -284,3 +285,39 @@ class OneRentLocationImportTests(TestCase):
         call_command("import_one_rent_locations", stdout=StringIO())
 
         self.assertEqual(SupplierLocation.objects.count(), 11)
+
+
+class KaizenLocationImportTests(TestCase):
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="01",
+            supplier_name="Kaizen Rent",
+        )
+
+    def test_preview_does_not_save_locations(self):
+        output = StringIO()
+
+        call_command("import_kaizen_locations", "--preview", stdout=output)
+
+        self.assertEqual(SupplierLocation.objects.count(), 0)
+        self.assertIn("Preview only: 12 locations, nothing saved.", output.getvalue())
+
+    def test_import_maps_desks_meetings_key_boxes_and_phone(self):
+        call_command("import_kaizen_locations", stdout=StringIO())
+
+        waw = SupplierLocation.objects.get(location_code="WAW")
+        wmi = SupplierLocation.objects.get(location_code="WMI")
+        krk = SupplierLocation.objects.get(location_code="KRK-AIRPORT")
+        self.assertTrue(waw.has_rental_desk)
+        self.assertFalse(wmi.has_rental_desk)
+        self.assertTrue(wmi.supports_terminal_delivery)
+        self.assertTrue(krk.supports_self_return_via_key_box)
+        self.assertEqual(krk.phone, "+48 881 212 968")
+        self.supplier.refresh_from_db()
+        self.assertEqual(self.supplier.phone, "+48 76 727 99 99")
+
+    def test_repeated_import_updates_without_duplicates(self):
+        call_command("import_kaizen_locations", stdout=StringIO())
+        call_command("import_kaizen_locations", stdout=StringIO())
+
+        self.assertEqual(SupplierLocation.objects.count(), 12)
