@@ -1,6 +1,12 @@
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 from django.contrib import admin
+from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from openpyxl import Workbook
 
 from .models import Supplier, SupplierLocation
 
@@ -114,3 +120,73 @@ class SupplierLocationTests(TestCase):
 
     def test_location_is_available_in_admin(self):
         self.assertIn(SupplierLocation, admin.site._registry)
+
+
+class CarFreeLocationImportTests(TestCase):
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="03",
+            supplier_name="Car Free",
+        )
+        self.temporary_directory = TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.file_path = Path(self.temporary_directory.name) / "carfree.xlsx"
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "CarFree Departments"
+        worksheet.append(["City", "Type", "Address"])
+        worksheet.append(
+            [
+                "Kraków Balice",
+                "Office at the airport - In Terminal",
+                "Airport address, Poland",
+            ]
+        )
+        worksheet.append(["Warszawa", "Office in the city", "First address, Poland"])
+        worksheet.append(["Warszawa", "Office in the city", "Second address, Poland"])
+        worksheet.append(["City", "Type", "Address"])
+        worksheet.append(
+            [
+                "Pardubice Airport",
+                "Meet & Greet",
+                "Airport address, Czech Republic",
+            ]
+        )
+        workbook.save(self.file_path)
+
+    def test_preview_does_not_save_locations(self):
+        output = StringIO()
+
+        call_command("import_carfree_locations", self.file_path, "--preview", stdout=output)
+
+        self.assertEqual(SupplierLocation.objects.count(), 0)
+        self.assertIn("Preview only: 4 locations, nothing saved.", output.getvalue())
+
+    def test_import_maps_location_types_and_service_methods(self):
+        call_command("import_carfree_locations", self.file_path, stdout=StringIO())
+
+        airport = SupplierLocation.objects.get(location_code="KRK")
+        meet_and_greet = SupplierLocation.objects.get(location_code="PED")
+        self.assertEqual(airport.location_type, SupplierLocation.LocationType.AIRPORT)
+        self.assertTrue(airport.has_rental_desk)
+        self.assertEqual(airport.airport_code, "KRK")
+        self.assertFalse(meet_and_greet.has_rental_desk)
+        self.assertTrue(meet_and_greet.supports_terminal_delivery)
+        self.assertEqual(meet_and_greet.country, "Czech Republic")
+
+    def test_import_generates_unique_codes_for_two_city_offices(self):
+        call_command("import_carfree_locations", self.file_path, stdout=StringIO())
+
+        self.assertTrue(
+            SupplierLocation.objects.filter(location_code="WARSZAWA-CITY").exists()
+        )
+        self.assertTrue(
+            SupplierLocation.objects.filter(location_code="WARSZAWA-CITY-2").exists()
+        )
+
+    def test_repeated_import_updates_without_duplicates(self):
+        call_command("import_carfree_locations", self.file_path, stdout=StringIO())
+        call_command("import_carfree_locations", self.file_path, stdout=StringIO())
+
+        self.assertEqual(SupplierLocation.objects.count(), 4)
