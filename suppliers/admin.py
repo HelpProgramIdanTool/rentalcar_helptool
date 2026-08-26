@@ -17,9 +17,18 @@ class SupplierLocationAdmin(admin.ModelAdmin):
         "supplier",
         "city",
         "location_type",
+        "has_rental_desk",
         "is_active",
     )
-    list_filter = ("supplier", "location_type", "is_active", "country")
+    list_filter = (
+        "supplier",
+        "location_type",
+        "has_rental_desk",
+        "supports_terminal_delivery",
+        "supports_address_delivery",
+        "is_active",
+        "country",
+    )
     search_fields = (
         "location_name",
         "location_code",
