@@ -211,6 +211,7 @@ class SupplierExtraRate(models.Model):
         on_delete=models.CASCADE,
         related_name="rates",
     )
+    rate_code = models.CharField(max_length=50, default="DEFAULT")
     location = models.ForeignKey(
         SupplierLocation,
         on_delete=models.PROTECT,
@@ -254,6 +255,12 @@ class SupplierExtraRate(models.Model):
 
     class Meta:
         ordering = ["extra", "-priority", "-valid_from"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["extra", "rate_code"],
+                name="unique_rate_code_per_extra",
+            )
+        ]
 
     def clean(self):
         super().clean()

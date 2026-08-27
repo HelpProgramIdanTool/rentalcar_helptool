@@ -26,6 +26,12 @@ from .management.commands.import_vehicle_groups import (
     split_brand_and_model,
     transmission_from_acriss,
 )
+from .management.commands.import_supplier_extras import (
+    car_free_records,
+    extra,
+    rate,
+    upsert_supplier_extras,
+)
 
 
 class SupplierTests(TestCase):
@@ -421,6 +427,7 @@ class SupplierExtraTests(TestCase):
     def test_rate_stores_final_customer_price_including_vat(self):
         rate = SupplierExtraRate.objects.create(
             extra=self.extra,
+            rate_code="DAILY",
             calculation_type=SupplierExtraRate.CalculationType.PER_DAY,
             amount_gross=Decimal("25.00"),
             currency="PLN",
@@ -442,6 +449,7 @@ class SupplierExtraTests(TestCase):
         )
         rate = SupplierExtraRate.objects.create(
             extra=self.extra,
+            rate_code="RENTAL_1_7",
             location=location,
             calculation_type=SupplierExtraRate.CalculationType.PER_RENTAL,
             amount_gross=Decimal("100.00"),
@@ -466,6 +474,7 @@ class SupplierExtraTests(TestCase):
         )
         rate = SupplierExtraRate(
             extra=self.extra,
+            rate_code="OTHER_LOCATION",
             location=other_location,
             calculation_type=SupplierExtraRate.CalculationType.FIXED,
             amount_gross=Decimal("50.00"),
@@ -478,6 +487,63 @@ class SupplierExtraTests(TestCase):
     def test_extra_and_rate_are_available_in_admin(self):
         self.assertIn(SupplierExtra, admin.site._registry)
         self.assertIn(SupplierExtraRate, admin.site._registry)
+
+    def test_import_updates_existing_extra_and_rate_without_duplicates(self):
+        records = [
+            extra(
+                "TEST_EXTRA",
+                "Test extra",
+                "TEST",
+                "Source extra",
+                [
+                    rate(
+                        20,
+                        SupplierExtraRate.CalculationType.PER_DAY,
+                        rate_code="DAILY",
+                    )
+                ],
+            )
+        ]
+        source_values = {"Source extra": "20 PLN per day"}
+
+        upsert_supplier_extras(
+            self.supplier,
+            records,
+            source_values,
+            date(2026, 1, 1),
+            "test.xlsx",
+        )
+        upsert_supplier_extras(
+            self.supplier,
+            records,
+            source_values,
+            date(2026, 1, 1),
+            "test.xlsx",
+        )
+
+        self.assertEqual(
+            SupplierExtra.objects.filter(
+                supplier=self.supplier,
+                extra_code="TEST_EXTRA",
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            SupplierExtraRate.objects.filter(extra__extra_code="TEST_EXTRA").count(),
+            1,
+        )
+
+    def test_car_free_cross_border_rate_includes_daily_charge(self):
+        cross_border = next(
+            item for item in car_free_records() if item["extra_code"] == "CROSS_BORDER"
+        )
+        cross_border_rate = cross_border["rates"][0]
+
+        self.assertEqual(cross_border_rate["amount_gross"], Decimal("299"))
+        self.assertEqual(
+            cross_border_rate["formula_config"]["per_rental_day_gross"],
+            "30.00",
+        )
 
 
 class VehicleGroupImportRuleTests(TestCase):

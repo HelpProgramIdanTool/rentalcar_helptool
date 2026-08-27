@@ -98,6 +98,7 @@ class SupplierExtraAdmin(admin.ModelAdmin):
 class SupplierExtraRateAdmin(admin.ModelAdmin):
     list_display = (
         "extra",
+        "rate_code",
         "calculation_type",
         "amount_gross",
         "currency",
@@ -112,5 +113,10 @@ class SupplierExtraRateAdmin(admin.ModelAdmin):
         "currency",
         "is_active",
     )
-    search_fields = ("extra__name", "extra__extra_code", "extra__supplier__supplier_name")
+    search_fields = (
+        "rate_code",
+        "extra__name",
+        "extra__extra_code",
+        "extra__supplier__supplier_name",
+    )
     date_hierarchy = "valid_from"
