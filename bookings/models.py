@@ -46,6 +46,20 @@ class Booking(models.Model):
         on_delete=models.PROTECT,
         related_name="bookings",
     )
+    created_by_employee = models.ForeignKey(
+        "employees.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_bookings",
+    )
+    salesperson_employee = models.ForeignKey(
+        "employees.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sold_bookings",
+    )
     supplier = models.ForeignKey(
         "suppliers.Supplier",
         on_delete=models.PROTECT,
@@ -204,7 +218,9 @@ class Booking(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        if self._state.adding:
+        is_new = self._state.adding
+        old_values = self._history_values() if not is_new else {}
+        if is_new:
             self._copy_customer_snapshot()
         if self.pickup_location and not self.pickup_location_text:
             self.pickup_location_text = self._location_snapshot(self.pickup_location)
@@ -225,6 +241,121 @@ class Booking(models.Model):
         self._sync_mandatory_extras()
         self.sync_after_hours_extra()
         self.recalculate_extra_prices()
+        self._record_history(is_new, old_values)
+
+    def _history_values(self):
+        fields = (
+            "status",
+            "supplier_booking_number",
+            "supplier_id",
+            "vehicle_group_id",
+            "pickup_datetime",
+            "return_datetime",
+            "pickup_location_id",
+            "return_location_id",
+            "pickup_address",
+            "return_address",
+            "flight_number",
+            "manual_vehicle_price_gross",
+            "manual_price_override_reason",
+        )
+        return type(self).objects.filter(pk=self.pk).values(*fields).get()
+
+    def _record_history(self, is_new, old_values):
+        actor = getattr(self, "_history_actor", None)
+        if is_new:
+            self.log_history(
+                BookingHistoryEvent.EventType.CREATED,
+                "Booking created",
+                created_by=actor or self.created_by_employee,
+            )
+            if self.manual_vehicle_price_gross is not None:
+                self.log_history(
+                    BookingHistoryEvent.EventType.PRICE_OVERRIDE,
+                    "Vehicle price manually overridden when booking was created",
+                    changes={
+                        "manual_vehicle_price_gross": {
+                            "old": None,
+                            "new": str(self.manual_vehicle_price_gross),
+                        },
+                        "reason": {
+                            "old": "",
+                            "new": self.manual_price_override_reason,
+                        },
+                    },
+                    created_by=actor or self.created_by_employee,
+                )
+            return
+        new_values = {
+            key: getattr(self, key)
+            for key in old_values
+        }
+        if old_values["status"] != new_values["status"]:
+            event_type = BookingHistoryEvent.EventType.STATUS_CHANGED
+            if new_values["status"] == self.Status.CANCELLED:
+                event_type = BookingHistoryEvent.EventType.CANCELLED
+            elif new_values["status"] == self.Status.NO_SHOW:
+                event_type = BookingHistoryEvent.EventType.NO_SHOW
+            self.log_history(
+                event_type,
+                f"Status changed from {old_values['status']} to {new_values['status']}",
+                old_status=old_values["status"],
+                new_status=new_values["status"],
+                created_by=actor,
+            )
+        price_fields = ("manual_vehicle_price_gross", "manual_price_override_reason")
+        price_changes = self._changed_values(old_values, new_values, price_fields)
+        if price_changes:
+            self.log_history(
+                BookingHistoryEvent.EventType.PRICE_OVERRIDE,
+                "Manual vehicle price changed",
+                changes=price_changes,
+                created_by=actor,
+            )
+        detail_fields = tuple(
+            key
+            for key in old_values
+            if key not in {"status", *price_fields}
+        )
+        detail_changes = self._changed_values(old_values, new_values, detail_fields)
+        if detail_changes:
+            self.log_history(
+                BookingHistoryEvent.EventType.DETAILS_CHANGED,
+                "Booking details changed",
+                changes=detail_changes,
+                created_by=actor,
+            )
+
+    @staticmethod
+    def _changed_values(old_values, new_values, fields):
+        changes = {}
+        for field in fields:
+            if old_values[field] != new_values[field]:
+                changes[field] = {
+                    "old": str(old_values[field]) if old_values[field] is not None else None,
+                    "new": str(new_values[field]) if new_values[field] is not None else None,
+                }
+        return changes
+
+    def log_history(
+        self,
+        event_type,
+        description,
+        *,
+        changes=None,
+        old_status="",
+        new_status="",
+        created_by=None,
+    ):
+        return BookingHistoryEvent.objects.create(
+            booking=self,
+            event_type=event_type,
+            description=description,
+            changes=changes or {},
+            old_status=old_status,
+            new_status=new_status,
+            created_by=created_by,
+        )
 
     def _copy_customer_snapshot(self):
         customer = self.customer
@@ -536,10 +667,15 @@ class BookingDriver(models.Model):
         return f"{self.first_name} {self.last_name} ({self.get_role_display()})"
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
         super().save(*args, **kwargs)
         self.booking.sync_additional_driver_extra()
         self.booking.sync_young_driver_extras()
         self.booking.recalculate_extra_prices()
+        self.booking.log_history(
+            BookingHistoryEvent.EventType.DRIVER_CHANGED,
+            f"Driver {'added' if is_new else 'updated'}: {self.first_name} {self.last_name}",
+        )
 
     def delete(self, *args, **kwargs):
         booking = self.booking
@@ -547,6 +683,10 @@ class BookingDriver(models.Model):
         booking.sync_additional_driver_extra()
         booking.sync_young_driver_extras()
         booking.recalculate_extra_prices()
+        booking.log_history(
+            BookingHistoryEvent.EventType.DRIVER_CHANGED,
+            f"Driver removed: {self.first_name} {self.last_name}",
+        )
         return result
 
 
@@ -640,7 +780,8 @@ class BookingExtra(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        if self._state.adding:
+        is_new = self._state.adding
+        if is_new:
             self.customer_visible_name = self.extra.name
             self.supplier_visible_name = self.extra.name
             self.calculation_type_snapshot = self.rate.calculation_type
@@ -653,11 +794,23 @@ class BookingExtra(models.Model):
         self.calculated_price_gross = self._calculate_price()
         super().save(*args, **kwargs)
         self.booking.recalculate_totals()
+        self.booking.log_history(
+            BookingHistoryEvent.EventType.EXTRA_CHANGED,
+            f"Extra {'added' if is_new else 'updated'}: {self.customer_visible_name}",
+            changes={
+                "quantity": str(self.quantity),
+                "calculated_price_gross": str(self.calculated_price_gross),
+            },
+        )
 
     def delete(self, *args, **kwargs):
         booking = self.booking
         result = super().delete(*args, **kwargs)
         booking.recalculate_totals()
+        booking.log_history(
+            BookingHistoryEvent.EventType.EXTRA_CHANGED,
+            f"Extra removed: {self.customer_visible_name}",
+        )
         return result
 
     def _calculate_price(self):
@@ -721,3 +874,41 @@ class BookingExtra(models.Model):
 
     def __str__(self):
         return f"{self.booking} - {self.customer_visible_name}"
+
+
+class BookingHistoryEvent(models.Model):
+    class EventType(models.TextChoices):
+        CREATED = "CREATED", "Created"
+        STATUS_CHANGED = "STATUS_CHANGED", "Status changed"
+        CANCELLED = "CANCELLED", "Cancelled"
+        NO_SHOW = "NO_SHOW", "No-show"
+        DETAILS_CHANGED = "DETAILS_CHANGED", "Details changed"
+        PRICE_OVERRIDE = "PRICE_OVERRIDE", "Price overridden"
+        DRIVER_CHANGED = "DRIVER_CHANGED", "Driver changed"
+        EXTRA_CHANGED = "EXTRA_CHANGED", "Extra changed"
+        NOTE = "NOTE", "Note"
+
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name="history_events",
+    )
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    description = models.TextField()
+    changes = models.JSONField(default=dict, blank=True)
+    old_status = models.CharField(max_length=30, blank=True)
+    new_status = models.CharField(max_length=30, blank=True)
+    created_by = models.ForeignKey(
+        "employees.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="booking_history_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.booking} - {self.get_event_type_display()}"

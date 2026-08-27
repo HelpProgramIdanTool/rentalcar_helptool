@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from bookings.models import Booking
+
 from .models import Customer, CustomerEvent
 
 
@@ -15,6 +17,27 @@ class CustomerEventInline(admin.TabularInline):
         "is_resolved",
     )
     show_change_link = True
+
+
+class CustomerBookingInline(admin.TabularInline):
+    model = Booking
+    fk_name = "customer"
+    extra = 0
+    can_delete = False
+    fields = (
+        "booking_number",
+        "status",
+        "supplier",
+        "pickup_datetime",
+        "return_datetime",
+        "total_price_gross",
+        "currency",
+    )
+    readonly_fields = fields
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Customer)
@@ -46,7 +69,7 @@ class CustomerAdmin(admin.ModelAdmin):
         "phone_3",
     )
     readonly_fields = ("created_at", "updated_at")
-    inlines = (CustomerEventInline,)
+    inlines = (CustomerEventInline, CustomerBookingInline)
     fieldsets = (
         (
             "Customer",

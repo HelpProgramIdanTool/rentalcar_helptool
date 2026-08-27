@@ -3,6 +3,8 @@ from datetime import date
 from django.contrib import admin
 from django.test import TestCase
 
+from bookings.models import Booking
+
 from .models import Customer, CustomerEvent
 
 
@@ -77,3 +79,10 @@ class CustomerTests(TestCase):
     def test_customer_and_events_are_available_in_admin(self):
         self.assertIn(Customer, admin.site._registry)
         self.assertIn(CustomerEvent, admin.site._registry)
+
+    def test_customer_admin_shows_related_booking_history(self):
+        customer_admin = admin.site._registry[Customer]
+
+        self.assertTrue(
+            any(inline.model is Booking for inline in customer_admin.inlines)
+        )

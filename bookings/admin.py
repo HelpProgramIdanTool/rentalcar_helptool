@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Booking, BookingDriver, BookingExtra
+from .models import Booking, BookingDriver, BookingExtra, BookingHistoryEvent
 
 
 class BookingDriverInline(admin.TabularInline):
@@ -23,6 +23,24 @@ class BookingExtraInline(admin.TabularInline):
         "currency_snapshot",
         "is_mandatory_snapshot",
     )
+
+
+class BookingHistoryEventInline(admin.TabularInline):
+    model = BookingHistoryEvent
+    extra = 0
+    can_delete = False
+    fields = (
+        "created_at",
+        "event_type",
+        "description",
+        "old_status",
+        "new_status",
+        "created_by",
+    )
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Booking)
@@ -80,6 +98,8 @@ class BookingAdmin(admin.ModelAdmin):
                     "supplier_booking_number",
                     "status",
                     "customer",
+                    "created_by_employee",
+                    "salesperson_employee",
                     "supplier",
                     "vehicle_group",
                     "pickup_datetime",
@@ -149,7 +169,14 @@ class BookingAdmin(admin.ModelAdmin):
         ),
         ("System", {"fields": ("created_at", "updated_at")}),
     )
-    inlines = (BookingDriverInline, BookingExtraInline)
+    inlines = (BookingDriverInline, BookingExtraInline, BookingHistoryEventInline)
+
+    def save_model(self, request, obj, form, change):
+        employee = getattr(request.user, "employee_profile", None)
+        if not obj.created_by_employee and employee:
+            obj.created_by_employee = employee
+        obj._history_actor = employee
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(BookingDriver)
@@ -203,3 +230,32 @@ class BookingExtraAdmin(admin.ModelAdmin):
         "formula_snapshot",
         "is_mandatory_snapshot",
     )
+
+
+@admin.register(BookingHistoryEvent)
+class BookingHistoryEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "booking",
+        "event_type",
+        "description",
+        "created_by",
+    )
+    list_filter = ("event_type", "created_by")
+    search_fields = ("booking__booking_number", "description")
+    readonly_fields = (
+        "booking",
+        "event_type",
+        "description",
+        "changes",
+        "old_status",
+        "new_status",
+        "created_by",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

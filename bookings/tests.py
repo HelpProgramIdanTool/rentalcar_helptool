@@ -2,11 +2,13 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from customers.models import Customer
+from employees.models import Employee
 from suppliers.models import (
     Supplier,
     SupplierExtra,
@@ -19,7 +21,7 @@ from suppliers.models import (
     VehicleRate,
 )
 
-from .models import Booking, BookingDriver, BookingExtra
+from .models import Booking, BookingDriver, BookingExtra, BookingHistoryEvent
 
 
 class BookingTests(TestCase):
@@ -670,6 +672,92 @@ class BookingTests(TestCase):
 
         self.assertEqual(booking.customer_email_snapshot, "original@example.com")
         self.assertEqual(booking.invoice_tax_id_snapshot, "ORIGINAL-TAX-ID")
+
+    def test_booking_creation_is_recorded_in_history(self):
+        booking = self.create_booking()
+
+        event = booking.history_events.get(event_type=BookingHistoryEvent.EventType.CREATED)
+
+        self.assertEqual(event.description, "Booking created")
+
+    def test_status_change_and_cancellation_are_recorded(self):
+        booking = self.create_booking()
+        booking.status = Booking.Status.WAITING_CONFIRMATION
+        booking.save()
+        booking.status = Booking.Status.CANCELLED
+        booking.save()
+
+        status_event = booking.history_events.get(
+            event_type=BookingHistoryEvent.EventType.STATUS_CHANGED
+        )
+        cancellation_event = booking.history_events.get(
+            event_type=BookingHistoryEvent.EventType.CANCELLED
+        )
+
+        self.assertEqual(status_event.old_status, Booking.Status.DRAFT)
+        self.assertEqual(status_event.new_status, Booking.Status.WAITING_CONFIRMATION)
+        self.assertEqual(cancellation_event.old_status, Booking.Status.WAITING_CONFIRMATION)
+        self.assertEqual(cancellation_event.new_status, Booking.Status.CANCELLED)
+
+    def test_manual_price_change_and_reason_are_recorded(self):
+        booking = self.create_booking()
+        booking.manual_vehicle_price_gross = Decimal("750.00")
+        booking.manual_price_override_reason = "Supplier approved special price"
+        booking.save()
+
+        event = booking.history_events.get(
+            event_type=BookingHistoryEvent.EventType.PRICE_OVERRIDE
+        )
+
+        self.assertEqual(
+            event.changes["manual_vehicle_price_gross"]["new"],
+            "750.00",
+        )
+        self.assertEqual(
+            event.changes["manual_price_override_reason"]["new"],
+            "Supplier approved special price",
+        )
+
+    def test_booking_date_change_is_recorded(self):
+        booking = self.create_booking()
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking.pickup_datetime = pickup
+        booking.return_datetime = pickup + timedelta(days=3)
+        booking.save()
+
+        event = booking.history_events.get(
+            event_type=BookingHistoryEvent.EventType.DETAILS_CHANGED
+        )
+
+        self.assertIn("pickup_datetime", event.changes)
+        self.assertIn("return_datetime", event.changes)
+
+    def test_booking_keeps_creator_and_salesperson_as_employees(self):
+        creator = Employee.objects.create(
+            first_name="Creator",
+            last_name="Employee",
+            role=Employee.Role.OPERATOR,
+        )
+        salesperson = Employee.objects.create(
+            first_name="Sales",
+            last_name="Employee",
+            role=Employee.Role.SALES,
+        )
+
+        booking = self.create_booking(
+            created_by_employee=creator,
+            salesperson_employee=salesperson,
+        )
+        created_event = booking.history_events.get(
+            event_type=BookingHistoryEvent.EventType.CREATED
+        )
+
+        self.assertEqual(booking.created_by_employee, creator)
+        self.assertEqual(booking.salesperson_employee, salesperson)
+        self.assertEqual(created_event.created_by, creator)
+
+    def test_booking_history_is_available_in_admin(self):
+        self.assertIn(BookingHistoryEvent, admin.site._registry)
 
     def test_booking_accepts_main_and_second_driver(self):
         booking = self.create_booking()
