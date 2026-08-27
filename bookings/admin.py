@@ -71,6 +71,84 @@ class BookingAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
+    fieldsets = (
+        (
+            "Booking",
+            {
+                "fields": (
+                    "booking_number",
+                    "supplier_booking_number",
+                    "status",
+                    "customer",
+                    "supplier",
+                    "vehicle_group",
+                    "pickup_datetime",
+                    "return_datetime",
+                    "rental_days",
+                    "pickup_location",
+                    "return_location",
+                    "pickup_location_text",
+                    "return_location_text",
+                    "pickup_address",
+                    "return_address",
+                    "hotel_name",
+                    "flight_number",
+                )
+            },
+        ),
+        (
+            "Price",
+            {
+                "fields": (
+                    "calculated_vehicle_price_gross",
+                    "manual_vehicle_price_gross",
+                    "manual_price_override_reason",
+                    "vehicle_price_gross",
+                    "extras_total_gross",
+                    "total_price_gross",
+                    "currency",
+                    "price_calculation_status",
+                    "vehicle_daily_rate_gross_snapshot",
+                    "vehicle_rate",
+                    "price_list_version_snapshot",
+                    "price_season_snapshot",
+                    "price_day_range_snapshot",
+                )
+            },
+        ),
+        (
+            "Customer snapshot",
+            {
+                "fields": (
+                    "customer_name_snapshot",
+                    "customer_email_snapshot",
+                    "customer_phone_1_snapshot",
+                    "customer_phone_2_snapshot",
+                    "customer_phone_3_snapshot",
+                    "customer_country_snapshot",
+                    "customer_city_snapshot",
+                    "customer_address_snapshot",
+                    "customer_postal_code_snapshot",
+                )
+            },
+        ),
+        (
+            "Invoice snapshot",
+            {
+                "fields": (
+                    "wants_invoice_snapshot",
+                    "invoice_name_snapshot",
+                    "invoice_tax_id_snapshot",
+                    "invoice_country_snapshot",
+                    "invoice_city_snapshot",
+                    "invoice_address_snapshot",
+                    "invoice_postal_code_snapshot",
+                    "invoice_email_snapshot",
+                )
+            },
+        ),
+        ("System", {"fields": ("created_at", "updated_at")}),
+    )
     inlines = (BookingDriverInline, BookingExtraInline)
 
 

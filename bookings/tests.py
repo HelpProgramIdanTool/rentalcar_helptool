@@ -629,6 +629,48 @@ class BookingTests(TestCase):
 
         self.assertEqual(fee.calculated_price_gross, Decimal("200.00"))
 
+    def test_booking_copies_customer_and_invoice_details(self):
+        self.customer.email = "customer@example.com"
+        self.customer.phone_2 = "+972 222 222 222"
+        self.customer.country = "Israel"
+        self.customer.city = "Tel Aviv"
+        self.customer.address = "Customer Street 1"
+        self.customer.postal_code = "61000"
+        self.customer.wants_invoice = True
+        self.customer.invoice_name = "Customer Company Ltd"
+        self.customer.invoice_tax_id = "IL123456789"
+        self.customer.invoice_country = "Israel"
+        self.customer.invoice_city = "Tel Aviv"
+        self.customer.invoice_address = "Invoice Street 2"
+        self.customer.invoice_postal_code = "62000"
+        self.customer.invoice_email = "invoice@example.com"
+        self.customer.save()
+
+        booking = self.create_booking()
+
+        self.assertEqual(booking.customer_email_snapshot, "customer@example.com")
+        self.assertEqual(booking.customer_phone_2_snapshot, "+972 222 222 222")
+        self.assertEqual(booking.customer_address_snapshot, "Customer Street 1")
+        self.assertTrue(booking.wants_invoice_snapshot)
+        self.assertEqual(booking.invoice_tax_id_snapshot, "IL123456789")
+        self.assertEqual(booking.invoice_address_snapshot, "Invoice Street 2")
+
+    def test_customer_changes_do_not_rewrite_existing_booking_snapshot(self):
+        self.customer.email = "original@example.com"
+        self.customer.invoice_tax_id = "ORIGINAL-TAX-ID"
+        self.customer.save()
+        booking = self.create_booking()
+
+        self.customer.email = "new@example.com"
+        self.customer.invoice_tax_id = "NEW-TAX-ID"
+        self.customer.save()
+        booking.status = Booking.Status.WAITING_CONFIRMATION
+        booking.save()
+        booking.refresh_from_db()
+
+        self.assertEqual(booking.customer_email_snapshot, "original@example.com")
+        self.assertEqual(booking.invoice_tax_id_snapshot, "ORIGINAL-TAX-ID")
+
     def test_booking_accepts_main_and_second_driver(self):
         booking = self.create_booking()
         BookingDriver.objects.create(

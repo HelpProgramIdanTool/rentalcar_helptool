@@ -144,6 +144,23 @@ class Booking(models.Model):
         editable=False,
     )
     currency = models.CharField(max_length=3, default="PLN")
+    customer_name_snapshot = models.CharField(max_length=200, blank=True)
+    customer_email_snapshot = models.EmailField(blank=True)
+    customer_phone_1_snapshot = models.CharField(max_length=30, blank=True)
+    customer_phone_2_snapshot = models.CharField(max_length=30, blank=True)
+    customer_phone_3_snapshot = models.CharField(max_length=30, blank=True)
+    customer_country_snapshot = models.CharField(max_length=100, blank=True)
+    customer_city_snapshot = models.CharField(max_length=100, blank=True)
+    customer_address_snapshot = models.CharField(max_length=255, blank=True)
+    customer_postal_code_snapshot = models.CharField(max_length=20, blank=True)
+    wants_invoice_snapshot = models.BooleanField(default=False)
+    invoice_name_snapshot = models.CharField(max_length=200, blank=True)
+    invoice_tax_id_snapshot = models.CharField(max_length=50, blank=True)
+    invoice_country_snapshot = models.CharField(max_length=100, blank=True)
+    invoice_city_snapshot = models.CharField(max_length=100, blank=True)
+    invoice_address_snapshot = models.CharField(max_length=255, blank=True)
+    invoice_postal_code_snapshot = models.CharField(max_length=20, blank=True)
+    invoice_email_snapshot = models.EmailField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -187,6 +204,8 @@ class Booking(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        if self._state.adding:
+            self._copy_customer_snapshot()
         if self.pickup_location and not self.pickup_location_text:
             self.pickup_location_text = self._location_snapshot(self.pickup_location)
         if self.return_location and not self.return_location_text:
@@ -206,6 +225,26 @@ class Booking(models.Model):
         self._sync_mandatory_extras()
         self.sync_after_hours_extra()
         self.recalculate_extra_prices()
+
+    def _copy_customer_snapshot(self):
+        customer = self.customer
+        self.customer_name_snapshot = str(customer)
+        self.customer_email_snapshot = customer.email
+        self.customer_phone_1_snapshot = customer.phone_1
+        self.customer_phone_2_snapshot = customer.phone_2
+        self.customer_phone_3_snapshot = customer.phone_3
+        self.customer_country_snapshot = customer.country
+        self.customer_city_snapshot = customer.city
+        self.customer_address_snapshot = customer.address
+        self.customer_postal_code_snapshot = customer.postal_code
+        self.wants_invoice_snapshot = customer.wants_invoice
+        self.invoice_name_snapshot = customer.invoice_name
+        self.invoice_tax_id_snapshot = customer.invoice_tax_id
+        self.invoice_country_snapshot = customer.invoice_country
+        self.invoice_city_snapshot = customer.invoice_city
+        self.invoice_address_snapshot = customer.invoice_address
+        self.invoice_postal_code_snapshot = customer.invoice_postal_code
+        self.invoice_email_snapshot = customer.invoice_email
 
     @staticmethod
     def _location_snapshot(location):
