@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 
 
@@ -168,3 +170,114 @@ class VehicleModel(models.Model):
 
     def __str__(self):
         return " ".join(part for part in (self.brand, self.model) if part)
+
+
+class SupplierExtra(models.Model):
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="extras",
+    )
+    extra_code = models.CharField(max_length=40)
+    name = models.CharField(max_length=150)
+    category = models.CharField(max_length=80, blank=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["supplier__supplier_name", "category", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["supplier", "extra_code"],
+                name="unique_extra_code_per_supplier",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.supplier.supplier_name} — {self.name}"
+
+
+class SupplierExtraRate(models.Model):
+    class CalculationType(models.TextChoices):
+        FIXED = "FIXED", "Fixed"
+        PER_DAY = "PER_DAY", "Per day"
+        PER_RENTAL = "PER_RENTAL", "Per rental"
+        PER_UNIT = "PER_UNIT", "Per unit"
+        PER_DRIVER_DAY = "PER_DRIVER_DAY", "Per driver per day"
+        FORMULA = "FORMULA", "Formula"
+
+    extra = models.ForeignKey(
+        SupplierExtra,
+        on_delete=models.CASCADE,
+        related_name="rates",
+    )
+    location = models.ForeignKey(
+        SupplierLocation,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="extra_rates",
+    )
+    calculation_type = models.CharField(
+        max_length=20,
+        choices=CalculationType.choices,
+    )
+    amount_gross = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Final customer price including VAT.",
+    )
+    currency = models.CharField(max_length=3, default="PLN")
+    days_from = models.PositiveSmallIntegerField(null=True, blank=True)
+    days_to = models.PositiveSmallIntegerField(null=True, blank=True)
+    minimum_amount_gross = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+    maximum_amount_gross = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+    valid_from = models.DateField()
+    valid_to = models.DateField(null=True, blank=True)
+    priority = models.PositiveSmallIntegerField(default=0)
+    formula_config = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["extra", "-priority", "-valid_from"]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.location_id and self.extra_id:
+            if self.location.supplier_id != self.extra.supplier_id:
+                errors["location"] = "The location must belong to the same supplier."
+        if self.days_from and self.days_to and self.days_to < self.days_from:
+            errors["days_to"] = "The last rental day cannot be before the first."
+        if self.valid_to and self.valid_to < self.valid_from:
+            errors["valid_to"] = "The end date cannot be before the start date."
+        if (
+            self.minimum_amount_gross is not None
+            and self.maximum_amount_gross is not None
+            and self.maximum_amount_gross < self.minimum_amount_gross
+        ):
+            errors["maximum_amount_gross"] = (
+                "The maximum amount cannot be below the minimum amount."
+            )
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return (
+            f"{self.extra} — {self.amount_gross} {self.currency} "
+            f"({self.get_calculation_type_display()})"
+        )

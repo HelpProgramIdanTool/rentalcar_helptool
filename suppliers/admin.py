@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Supplier, SupplierLocation, VehicleGroup, VehicleModel
+from .models import (
+    Supplier,
+    SupplierExtra,
+    SupplierExtraRate,
+    SupplierLocation,
+    VehicleGroup,
+    VehicleModel,
+)
 
 
 @admin.register(Supplier)
@@ -72,3 +79,38 @@ class VehicleModelAdmin(admin.ModelAdmin):
         "vehicle_group__group_name",
         "vehicle_group__group_code",
     )
+
+
+class SupplierExtraRateInline(admin.TabularInline):
+    model = SupplierExtraRate
+    extra = 0
+
+
+@admin.register(SupplierExtra)
+class SupplierExtraAdmin(admin.ModelAdmin):
+    list_display = ("name", "extra_code", "supplier", "category", "is_active")
+    list_filter = ("supplier", "category", "is_active")
+    search_fields = ("name", "extra_code", "supplier__supplier_name")
+    inlines = (SupplierExtraRateInline,)
+
+
+@admin.register(SupplierExtraRate)
+class SupplierExtraRateAdmin(admin.ModelAdmin):
+    list_display = (
+        "extra",
+        "calculation_type",
+        "amount_gross",
+        "currency",
+        "location",
+        "valid_from",
+        "valid_to",
+        "is_active",
+    )
+    list_filter = (
+        "extra__supplier",
+        "calculation_type",
+        "currency",
+        "is_active",
+    )
+    search_fields = ("extra__name", "extra__extra_code", "extra__supplier__supplier_name")
+    date_hierarchy = "valid_from"

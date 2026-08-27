@@ -1,14 +1,24 @@
 from io import StringIO
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from openpyxl import Workbook
 
-from .models import Supplier, SupplierLocation, VehicleGroup, VehicleModel
+from .models import (
+    Supplier,
+    SupplierExtra,
+    SupplierExtraRate,
+    SupplierLocation,
+    VehicleGroup,
+    VehicleModel,
+)
 from .management.commands.import_vehicle_groups import (
     add_record,
     body_type_from_acriss,
@@ -385,6 +395,89 @@ class VehicleGroupTests(TestCase):
     def test_vehicle_group_and_model_are_available_in_admin(self):
         self.assertIn(VehicleGroup, admin.site._registry)
         self.assertIn(VehicleModel, admin.site._registry)
+
+
+class SupplierExtraTests(TestCase):
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="EXTRAS",
+            supplier_name="Extras Test Supplier",
+        )
+        self.extra = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="CHILD_SEAT",
+            name="Child seat",
+            category="CHILD_EQUIPMENT",
+        )
+
+    def test_extra_codes_are_unique_inside_one_supplier(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            SupplierExtra.objects.create(
+                supplier=self.supplier,
+                extra_code="CHILD_SEAT",
+                name="Another child seat",
+            )
+
+    def test_rate_stores_final_customer_price_including_vat(self):
+        rate = SupplierExtraRate.objects.create(
+            extra=self.extra,
+            calculation_type=SupplierExtraRate.CalculationType.PER_DAY,
+            amount_gross=Decimal("25.00"),
+            currency="PLN",
+            valid_from=date(2026, 1, 1),
+        )
+
+        self.assertEqual(rate.amount_gross, Decimal("25.00"))
+        self.assertEqual(
+            SupplierExtraRate._meta.get_field("amount_gross").help_text,
+            "Final customer price including VAT.",
+        )
+
+    def test_rate_supports_location_and_rental_day_range(self):
+        location = SupplierLocation.objects.create(
+            supplier=self.supplier,
+            location_code="WAW",
+            location_name="Warsaw",
+            city="Warsaw",
+        )
+        rate = SupplierExtraRate.objects.create(
+            extra=self.extra,
+            location=location,
+            calculation_type=SupplierExtraRate.CalculationType.PER_RENTAL,
+            amount_gross=Decimal("100.00"),
+            days_from=1,
+            days_to=7,
+            valid_from=date(2026, 1, 1),
+        )
+
+        self.assertEqual(rate.location, location)
+        self.assertEqual(rate.days_to, 7)
+
+    def test_rate_rejects_location_of_another_supplier(self):
+        other_supplier = Supplier.objects.create(
+            supplier_code="OTHER-EXTRAS",
+            supplier_name="Other Extras Supplier",
+        )
+        other_location = SupplierLocation.objects.create(
+            supplier=other_supplier,
+            location_code="KRK",
+            location_name="Krakow",
+            city="Krakow",
+        )
+        rate = SupplierExtraRate(
+            extra=self.extra,
+            location=other_location,
+            calculation_type=SupplierExtraRate.CalculationType.FIXED,
+            amount_gross=Decimal("50.00"),
+            valid_from=date(2026, 1, 1),
+        )
+
+        with self.assertRaises(ValidationError):
+            rate.full_clean()
+
+    def test_extra_and_rate_are_available_in_admin(self):
+        self.assertIn(SupplierExtra, admin.site._registry)
+        self.assertIn(SupplierExtraRate, admin.site._registry)
 
 
 class VehicleGroupImportRuleTests(TestCase):
