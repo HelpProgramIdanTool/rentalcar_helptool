@@ -25,6 +25,14 @@ class Customer(models.Model):
     address = models.CharField(max_length=255, blank=True)
     postal_code = models.CharField(max_length=20, blank=True)
     preferred_language = models.CharField(max_length=50, blank=True)
+    wants_invoice = models.BooleanField(default=False)
+    invoice_name = models.CharField(max_length=200, blank=True)
+    invoice_tax_id = models.CharField(max_length=50, blank=True)
+    invoice_country = models.CharField(max_length=100, blank=True)
+    invoice_city = models.CharField(max_length=100, blank=True)
+    invoice_address = models.CharField(max_length=255, blank=True)
+    invoice_postal_code = models.CharField(max_length=20, blank=True)
+    invoice_email = models.EmailField(blank=True)
     preferred_supplier = models.ForeignKey(
         "suppliers.Supplier",
         on_delete=models.SET_NULL,
@@ -122,4 +130,3 @@ class CustomerEvent(models.Model):
 
     def __str__(self):
         return f"{self.customer}: {self.title}"
-

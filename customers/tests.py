@@ -40,6 +40,25 @@ class CustomerTests(TestCase):
 
         self.assertEqual(second_customer.email, "shared@example.com")
 
+    def test_customer_can_store_invoice_preference_and_details(self):
+        customer = Customer.objects.create(
+            first_name="Anna",
+            last_name="Nowak",
+            phone_1="+48 111 111 111",
+            wants_invoice=True,
+            invoice_name="Example Company Sp. z o.o.",
+            invoice_tax_id="PL1234567890",
+            invoice_country="Poland",
+            invoice_city="Warsaw",
+            invoice_address="Business Street 2",
+            invoice_postal_code="00-002",
+            invoice_email="invoice@example.com",
+        )
+
+        self.assertTrue(customer.wants_invoice)
+        self.assertEqual(customer.invoice_tax_id, "PL1234567890")
+        self.assertEqual(customer.invoice_address, "Business Street 2")
+
     def test_customer_event_is_visible_in_customer_history(self):
         customer = Customer.objects.create(
             first_name="Anna",
@@ -58,4 +77,3 @@ class CustomerTests(TestCase):
     def test_customer_and_events_are_available_in_admin(self):
         self.assertIn(Customer, admin.site._registry)
         self.assertIn(CustomerEvent, admin.site._registry)
-
