@@ -6,7 +6,6 @@ from .models import Booking, BookingDriver
 class BookingDriverInline(admin.TabularInline):
     model = BookingDriver
     extra = 1
-    max_num = 2
 
 
 @admin.register(Booking)
@@ -42,4 +41,3 @@ class BookingDriverAdmin(admin.ModelAdmin):
         "last_name",
         "phone_snapshot",
     )
-

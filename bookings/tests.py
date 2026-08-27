@@ -80,27 +80,22 @@ class BookingTests(TestCase):
         self.assertEqual(booking.drivers.count(), 2)
         self.assertEqual(second_driver.role, BookingDriver.Role.ADDITIONAL)
 
-    def test_third_driver_is_rejected(self):
+    def test_booking_can_have_more_than_two_drivers(self):
         booking = self.create_booking()
-        for order, role in ((1, BookingDriver.Role.MAIN), (2, BookingDriver.Role.ADDITIONAL)):
+        for order in range(1, 6):
             BookingDriver.objects.create(
                 booking=booking,
                 first_name=f"Driver {order}",
                 last_name="Test",
-                role=role,
+                role=(
+                    BookingDriver.Role.MAIN
+                    if order == 1
+                    else BookingDriver.Role.ADDITIONAL
+                ),
                 display_order=order,
             )
 
-        third_driver = BookingDriver(
-            booking=booking,
-            first_name="Driver 3",
-            last_name="Test",
-            role=BookingDriver.Role.ADDITIONAL,
-            display_order=3,
-        )
-
-        with self.assertRaises(ValidationError):
-            third_driver.full_clean()
+        self.assertEqual(booking.drivers.count(), 5)
 
     def test_only_one_main_driver_is_allowed(self):
         booking = self.create_booking()

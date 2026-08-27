@@ -107,13 +107,5 @@ class BookingDriver(models.Model):
             )
         ]
 
-    def clean(self):
-        super().clean()
-        if self.booking_id:
-            other_drivers = self.booking.drivers.exclude(pk=self.pk)
-            if other_drivers.count() >= 2:
-                raise ValidationError("A booking can have no more than two drivers.")
-
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.get_role_display()})"
-
