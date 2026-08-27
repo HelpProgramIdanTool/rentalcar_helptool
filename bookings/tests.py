@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -389,6 +390,244 @@ class BookingTests(TestCase):
             booking.price_calculation_status,
             Booking.PriceCalculationStatus.OVERRIDDEN,
         )
+
+    def test_car_free_cross_border_formula_adds_base_and_daily_charge(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(days=4),
+        )
+        cross_border = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="CROSS_BORDER",
+            name="Travel abroad",
+        )
+        cross_border_rate = SupplierExtraRate.objects.create(
+            extra=cross_border,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.FORMULA,
+            amount_gross=Decimal("299.00"),
+            valid_from=date(2026, 1, 1),
+            formula_config={
+                "per_rental_gross": "299.00",
+                "per_rental_day_gross": "30.00",
+            },
+        )
+
+        booking_extra = BookingExtra.objects.create(
+            booking=booking,
+            extra=cross_border,
+            rate=cross_border_rate,
+        )
+
+        self.assertEqual(booking_extra.calculated_price_gross, Decimal("419.00"))
+        self.assertTrue(booking_extra.calculation_complete)
+
+    def test_distance_formula_is_incomplete_until_kilometres_are_entered(self):
+        booking = self.create_booking()
+        delivery = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="OUTSIDE_CITY_DELIVERY",
+            name="Delivery outside city",
+        )
+        delivery_rate = SupplierExtraRate.objects.create(
+            extra=delivery,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.FORMULA,
+            amount_gross=Decimal("100.00"),
+            valid_from=date(2026, 1, 1),
+            formula_config={"per_km_gross": "2.50"},
+        )
+        booking_extra = BookingExtra.objects.create(
+            booking=booking,
+            extra=delivery,
+            rate=delivery_rate,
+        )
+        booking.refresh_from_db()
+
+        self.assertFalse(booking_extra.calculation_complete)
+        self.assertEqual(booking.extras_total_gross, Decimal("0.00"))
+
+        booking_extra.distance_km = Decimal("10.00")
+        booking_extra.save()
+        booking.refresh_from_db()
+
+        self.assertTrue(booking_extra.calculation_complete)
+        self.assertEqual(booking_extra.calculated_price_gross, Decimal("125.00"))
+        self.assertEqual(booking.extras_total_gross, Decimal("125.00"))
+
+    def test_first_two_drivers_are_free_and_later_drivers_use_supplier_rate(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(days=3),
+        )
+        driver_extra = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="ADDITIONAL_DRIVER",
+            name="Additional driver",
+        )
+        SupplierExtraRate.objects.create(
+            extra=driver_extra,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_DAY,
+            amount_gross=Decimal("15.00"),
+            valid_from=date(2026, 1, 1),
+        )
+        BookingDriver.objects.create(
+            booking=booking,
+            first_name="Driver 1",
+            last_name="Test",
+            role=BookingDriver.Role.MAIN,
+        )
+        BookingDriver.objects.create(
+            booking=booking,
+            first_name="Driver 2",
+            last_name="Test",
+            role=BookingDriver.Role.ADDITIONAL,
+        )
+
+        self.assertFalse(booking.extras.filter(extra=driver_extra).exists())
+
+        BookingDriver.objects.create(
+            booking=booking,
+            first_name="Driver 3",
+            last_name="Test",
+            role=BookingDriver.Role.ADDITIONAL,
+        )
+        paid_driver_extra = booking.extras.get(extra=driver_extra)
+        self.assertEqual(paid_driver_extra.calculated_price_gross, Decimal("45.00"))
+
+        BookingDriver.objects.create(
+            booking=booking,
+            first_name="Driver 4",
+            last_name="Test",
+            role=BookingDriver.Role.ADDITIONAL,
+        )
+        paid_driver_extra.refresh_from_db()
+        self.assertEqual(paid_driver_extra.quantity, Decimal("2.00"))
+        self.assertEqual(paid_driver_extra.calculated_price_gross, Decimal("90.00"))
+
+    def test_young_driver_fee_uses_matching_drivers_and_rental_days(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(days=3),
+        )
+        young_driver_extra = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="YOUNG_DRIVER",
+            name="Young driver",
+        )
+        SupplierExtraRate.objects.create(
+            extra=young_driver_extra,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_DRIVER_DAY,
+            amount_gross=Decimal("29.99"),
+            valid_from=date(2026, 1, 1),
+        )
+        for order in range(1, 3):
+            BookingDriver.objects.create(
+                booking=booking,
+                first_name=f"Young {order}",
+                last_name="Driver",
+                role=(
+                    BookingDriver.Role.MAIN
+                    if order == 1
+                    else BookingDriver.Role.ADDITIONAL
+                ),
+                young_driver_status=True,
+            )
+
+        fee = booking.extras.get(extra=young_driver_extra)
+
+        self.assertEqual(fee.calculated_price_gross, Decimal("179.94"))
+
+    def test_night_service_counts_pickup_and_return_events(self):
+        night_extra = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="NIGHT_SERVICE",
+            name="Night service",
+        )
+        SupplierExtraRate.objects.create(
+            extra=night_extra,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_UNIT,
+            amount_gross=Decimal("70.00"),
+            valid_from=date(2026, 1, 1),
+        )
+        warsaw = ZoneInfo("Europe/Warsaw")
+
+        booking = self.create_booking(
+            pickup_datetime=datetime(2026, 9, 1, 21, 0, tzinfo=warsaw),
+            return_datetime=datetime(2026, 9, 2, 7, 0, tzinfo=warsaw),
+        )
+        fee = booking.extras.get(extra=night_extra)
+
+        self.assertEqual(fee.quantity, Decimal("2.00"))
+        self.assertEqual(fee.calculated_price_gross, Decimal("140.00"))
+
+    def test_kaizen_selected_airports_do_not_charge_night_service(self):
+        self.supplier.supplier_name = "Kaizen Rent"
+        self.supplier.save(update_fields=["supplier_name"])
+        airport = SupplierLocation.objects.create(
+            supplier=self.supplier,
+            location_code="KRK-AIRPORT",
+            location_name="Krakow Airport",
+            city="Krakow",
+            location_type=SupplierLocation.LocationType.AIRPORT,
+            airport_code="KRK",
+        )
+        night_extra = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="NIGHT_SERVICE",
+            name="Night service",
+        )
+        SupplierExtraRate.objects.create(
+            extra=night_extra,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_UNIT,
+            amount_gross=Decimal("70.00"),
+            valid_from=date(2026, 1, 1),
+        )
+        warsaw = ZoneInfo("Europe/Warsaw")
+
+        booking = self.create_booking(
+            pickup_datetime=datetime(2026, 9, 1, 21, 0, tzinfo=warsaw),
+            return_datetime=datetime(2026, 9, 2, 7, 0, tzinfo=warsaw),
+            pickup_location=airport,
+            return_location=airport,
+        )
+
+        self.assertFalse(booking.extras.filter(extra=night_extra).exists())
+
+    def test_daily_extra_respects_maximum_price(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(days=15),
+        )
+        child_seat = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="CHILD_SEAT_CAP",
+            name="Child seat",
+        )
+        child_seat_rate = SupplierExtraRate.objects.create(
+            extra=child_seat,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_DAY,
+            amount_gross=Decimal("20.00"),
+            maximum_amount_gross=Decimal("200.00"),
+            valid_from=date(2026, 1, 1),
+        )
+
+        fee = BookingExtra.objects.create(
+            booking=booking,
+            extra=child_seat,
+            rate=child_seat_rate,
+        )
+
+        self.assertEqual(fee.calculated_price_gross, Decimal("200.00"))
 
     def test_booking_accepts_main_and_second_driver(self):
         booking = self.create_booking()

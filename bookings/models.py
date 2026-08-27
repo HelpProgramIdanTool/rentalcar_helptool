@@ -204,7 +204,8 @@ class Booking(models.Model):
             self.booking_number = BookingNumberSequence.next_number(timezone.now().year)
         super().save(*args, **kwargs)
         self._sync_mandatory_extras()
-        self.recalculate_totals()
+        self.sync_after_hours_extra()
+        self.recalculate_extra_prices()
 
     @staticmethod
     def _location_snapshot(location):
@@ -212,31 +213,21 @@ class Booking(models.Model):
         return ", ".join(part for part in parts if part)
 
     def _sync_mandatory_extras(self):
-        from suppliers.models import SupplierExtraRate
-
         self.extras.filter(is_mandatory_snapshot=True).exclude(
             extra__supplier=self.supplier,
             extra__is_mandatory=True,
         ).delete()
         effective_date = (
-            self.pickup_datetime.date() if self.pickup_datetime else timezone.localdate()
+            timezone.localtime(self.pickup_datetime).date()
+            if self.pickup_datetime
+            else timezone.localdate()
         )
         mandatory_extras = self.supplier.extras.filter(
             is_active=True,
             is_mandatory=True,
         )
         for extra in mandatory_extras:
-            rates = extra.rates.filter(
-                is_active=True,
-                valid_from__lte=effective_date,
-            ).filter(Q(valid_to__isnull=True) | Q(valid_to__gte=effective_date))
-            if self.pickup_location_id:
-                rates = rates.filter(
-                    Q(location__isnull=True) | Q(location=self.pickup_location)
-                )
-            else:
-                rates = rates.filter(location__isnull=True)
-            selected_rate = rates.order_by("-priority", "-valid_from").first()
+            selected_rate = self._select_extra_rate(extra, effective_date)
             if selected_rate:
                 BookingExtra.objects.get_or_create(
                     booking=self,
@@ -244,13 +235,139 @@ class Booking(models.Model):
                     defaults={"rate": selected_rate, "quantity": 1},
                 )
 
+    def _select_extra_rate(self, extra, effective_date=None):
+        effective_date = effective_date or (
+            timezone.localtime(self.pickup_datetime).date()
+            if self.pickup_datetime
+            else timezone.localdate()
+        )
+        rates = extra.rates.filter(
+            is_active=True,
+            valid_from__lte=effective_date,
+        ).filter(Q(valid_to__isnull=True) | Q(valid_to__gte=effective_date))
+        if self.pickup_location_id:
+            rates = rates.filter(
+                Q(location__isnull=True) | Q(location=self.pickup_location)
+            )
+        else:
+            rates = rates.filter(location__isnull=True)
+        return rates.order_by("-priority", "-valid_from").first()
+
+    def sync_additional_driver_extra(self):
+        paid_driver_count = max(self.drivers.count() - 2, 0)
+        try:
+            extra = self.supplier.extras.get(
+                extra_code="ADDITIONAL_DRIVER",
+                is_active=True,
+            )
+        except self.supplier.extras.model.DoesNotExist:
+            return
+        existing = self.extras.filter(extra=extra).first()
+        if paid_driver_count == 0:
+            if existing:
+                existing.delete()
+            return
+        selected_rate = self._select_extra_rate(extra)
+        if selected_rate:
+            booking_extra, _ = BookingExtra.objects.get_or_create(
+                booking=self,
+                extra=extra,
+                defaults={"rate": selected_rate, "quantity": paid_driver_count},
+            )
+            if booking_extra.quantity != paid_driver_count:
+                booking_extra.quantity = paid_driver_count
+                booking_extra.save()
+
+    def sync_young_driver_extras(self):
+        young_driver_count = self.drivers.filter(young_driver_status=True).count()
+        extras = self.supplier.extras.filter(
+            extra_code__in=("YOUNG_DRIVER", "YOUNG_DRIVER_21_24"),
+            is_active=True,
+        )
+        for extra in extras:
+            existing = self.extras.filter(extra=extra).first()
+            if young_driver_count == 0:
+                if existing:
+                    existing.delete()
+                continue
+            selected_rate = self._select_extra_rate(extra)
+            if selected_rate:
+                booking_extra, _ = BookingExtra.objects.get_or_create(
+                    booking=self,
+                    extra=extra,
+                    defaults={"rate": selected_rate, "quantity": young_driver_count},
+                )
+                if booking_extra.quantity != young_driver_count:
+                    booking_extra.quantity = young_driver_count
+                    booking_extra.save()
+
+    def sync_after_hours_extra(self):
+        events = (
+            (self.pickup_datetime, self.pickup_location),
+            (self.return_datetime, self.return_location),
+        )
+        event_count = sum(
+            self._needs_after_hours_charge(value, location)
+            for value, location in events
+            if value
+        )
+        extras = self.supplier.extras.filter(
+            extra_code__in=("NIGHT_SERVICE", "OUT_OF_HOURS"),
+            is_active=True,
+        )
+        for extra in extras:
+            existing = self.extras.filter(extra=extra).first()
+            if event_count == 0:
+                if existing:
+                    existing.delete()
+                continue
+            selected_rate = self._select_extra_rate(extra)
+            if selected_rate:
+                booking_extra, _ = BookingExtra.objects.get_or_create(
+                    booking=self,
+                    extra=extra,
+                    defaults={"rate": selected_rate, "quantity": event_count},
+                )
+                if booking_extra.quantity != event_count:
+                    booking_extra.quantity = event_count
+                    booking_extra.save()
+
+    @staticmethod
+    def _is_after_hours(value):
+        local_hour = timezone.localtime(value).hour
+        return local_hour >= 20 or local_hour < 8
+
+    def _needs_after_hours_charge(self, value, location):
+        if not self._is_after_hours(value):
+            return False
+        if (
+            self.supplier.supplier_name == "Kaizen Rent"
+            and location
+            and location.airport_code.upper() in {"GDN", "KTW", "KRK", "WAW"}
+        ):
+            return False
+        return True
+
+    def recalculate_extra_prices(self):
+        for item in self.extras.all():
+            price = item._calculate_price()
+            BookingExtra.objects.filter(pk=item.pk).update(
+                calculated_price_gross=price,
+                calculation_complete=item.calculation_complete,
+                calculation_warning=item.calculation_warning,
+            )
+        self.recalculate_totals()
+
     def recalculate_totals(self):
         if not self.pk:
             return
         extras_total = sum(
             (
                 item.calculated_price_gross
-                for item in self.extras.filter(included_in_total=True)
+                for item in self.extras.filter(
+                    included_in_total=True,
+                    calculation_complete=True,
+                )
             ),
             Decimal("0.00"),
         )
@@ -282,7 +399,7 @@ class Booking(models.Model):
             self._clear_vehicle_price(self.PriceCalculationStatus.NOT_CALCULATED)
             self._apply_manual_vehicle_price()
             return
-        pickup_date = self.pickup_datetime.date()
+        pickup_date = timezone.localtime(self.pickup_datetime).date()
         rates = VehicleRate.objects.filter(
             is_active=True,
             vehicle_group=self.vehicle_group,
@@ -379,6 +496,20 @@ class BookingDriver(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.get_role_display()})"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.booking.sync_additional_driver_extra()
+        self.booking.sync_young_driver_extras()
+        self.booking.recalculate_extra_prices()
+
+    def delete(self, *args, **kwargs):
+        booking = self.booking
+        result = super().delete(*args, **kwargs)
+        booking.sync_additional_driver_extra()
+        booking.sync_young_driver_extras()
+        booking.recalculate_extra_prices()
+        return result
+
 
 class BookingExtra(models.Model):
     booking = models.ForeignKey(
@@ -402,6 +533,28 @@ class BookingExtra(models.Model):
         default=1,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
+    distance_km = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+    formula_units = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Special units used by a formula, for example missing fuel litres.",
+    )
+    actual_cost_gross = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
     customer_visible_name = models.CharField(max_length=150)
     supplier_visible_name = models.CharField(max_length=150)
     calculation_type_snapshot = models.CharField(max_length=20)
@@ -419,6 +572,8 @@ class BookingExtra(models.Model):
         blank=True,
     )
     calculated_price_gross = models.DecimalField(max_digits=12, decimal_places=2)
+    calculation_complete = models.BooleanField(default=True, editable=False)
+    calculation_warning = models.CharField(max_length=250, blank=True, editable=False)
     currency_snapshot = models.CharField(max_length=3)
     formula_snapshot = models.JSONField(default=dict, blank=True)
     is_mandatory_snapshot = models.BooleanField(default=False)
@@ -467,18 +622,62 @@ class BookingExtra(models.Model):
         return result
 
     def _calculate_price(self):
+        self.calculation_complete = True
+        self.calculation_warning = ""
         calculation_type = self.calculation_type_snapshot
         days = Decimal(self.booking.rental_days or 1)
-        if calculation_type in ("PER_DAY", "PER_DRIVER_DAY"):
+        formula = self.formula_snapshot or {}
+        if self.extra.extra_code == "ADDITIONAL_DRIVER":
+            paid_drivers = Decimal(max(self.booking.drivers.count() - 2, 0))
+            if calculation_type in ("PER_DAY", "PER_DRIVER_DAY"):
+                price = self.unit_price_gross_snapshot * paid_drivers * days
+            else:
+                price = self.unit_price_gross_snapshot * paid_drivers
+        elif calculation_type == "PER_DRIVER_DAY":
+            matching_drivers = Decimal(
+                self.booking.drivers.filter(young_driver_status=True).count()
+            )
+            price = self.unit_price_gross_snapshot * matching_drivers * days
+        elif calculation_type == "PER_DAY":
             price = self.unit_price_gross_snapshot * self.quantity * days
         elif calculation_type == "PER_UNIT":
             price = self.unit_price_gross_snapshot * self.quantity
+        elif calculation_type == "FORMULA":
+            price = self._calculate_formula(formula, days)
         else:
             price = self.unit_price_gross_snapshot * self.quantity
         if self.minimum_amount_gross_snapshot is not None:
             price = max(price, self.minimum_amount_gross_snapshot)
         if self.maximum_amount_gross_snapshot is not None:
             price = min(price, self.maximum_amount_gross_snapshot)
+        return price
+
+    def _calculate_formula(self, formula, days):
+        if "total_per_rental_gross" in formula:
+            return Decimal(str(formula["total_per_rental_gross"])) * self.quantity
+        if "per_rental_gross" in formula or "per_rental_day_gross" in formula:
+            base = Decimal(str(formula.get("per_rental_gross", 0)))
+            per_day = Decimal(str(formula.get("per_rental_day_gross", 0)))
+            return (base + per_day * days) * self.quantity
+        price = self.unit_price_gross_snapshot * self.quantity
+        if "per_km_gross" in formula:
+            if self.distance_km is None:
+                self.calculation_complete = False
+                self.calculation_warning = "Enter distance in kilometres."
+                return Decimal("0.00")
+            price += Decimal(str(formula["per_km_gross"])) * self.distance_km
+        if "per_missing_liter_gross" in formula:
+            if self.formula_units is None:
+                self.calculation_complete = False
+                self.calculation_warning = "Enter the number of missing fuel litres."
+                return Decimal("0.00")
+            price += Decimal(str(formula["per_missing_liter_gross"])) * self.formula_units
+        if "plus" in formula:
+            if self.actual_cost_gross is None:
+                self.calculation_complete = False
+                self.calculation_warning = f"Enter actual cost: {formula['plus']}."
+                return Decimal("0.00")
+            price += self.actual_cost_gross
         return price
 
     def __str__(self):

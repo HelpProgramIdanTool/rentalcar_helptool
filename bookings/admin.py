@@ -18,6 +18,8 @@ class BookingExtraInline(admin.TabularInline):
         "minimum_amount_gross_snapshot",
         "maximum_amount_gross_snapshot",
         "calculated_price_gross",
+        "calculation_complete",
+        "calculation_warning",
         "currency_snapshot",
         "is_mandatory_snapshot",
     )
@@ -90,12 +92,20 @@ class BookingExtraAdmin(admin.ModelAdmin):
         "booking",
         "customer_visible_name",
         "quantity",
+        "distance_km",
+        "formula_units",
+        "actual_cost_gross",
         "calculated_price_gross",
         "currency_snapshot",
         "is_mandatory_snapshot",
         "included_in_total",
     )
-    list_filter = ("is_mandatory_snapshot", "included_in_total", "extra__supplier")
+    list_filter = (
+        "calculation_complete",
+        "is_mandatory_snapshot",
+        "included_in_total",
+        "extra__supplier",
+    )
     search_fields = (
         "booking__booking_number",
         "customer_visible_name",
@@ -109,6 +119,8 @@ class BookingExtraAdmin(admin.ModelAdmin):
         "minimum_amount_gross_snapshot",
         "maximum_amount_gross_snapshot",
         "calculated_price_gross",
+        "calculation_complete",
+        "calculation_warning",
         "currency_snapshot",
         "formula_snapshot",
         "is_mandatory_snapshot",
