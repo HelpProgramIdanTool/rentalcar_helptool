@@ -1,3 +1,5 @@
+from math import ceil
+
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Q
@@ -46,6 +48,9 @@ class Booking(models.Model):
         choices=Status.choices,
         default=Status.DRAFT,
     )
+    pickup_datetime = models.DateTimeField(null=True, blank=True)
+    return_datetime = models.DateTimeField(null=True, blank=True)
+    rental_days = models.PositiveIntegerField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -54,6 +59,18 @@ class Booking(models.Model):
 
     def clean(self):
         super().clean()
+        if bool(self.pickup_datetime) != bool(self.return_datetime):
+            raise ValidationError(
+                "Enter both pickup and return date and time, or leave both empty."
+            )
+        if (
+            self.pickup_datetime
+            and self.return_datetime
+            and self.return_datetime <= self.pickup_datetime
+        ):
+            raise ValidationError(
+                {"return_datetime": "Return must be later than pickup."}
+            )
         if self.status == self.Status.CONFIRMED and not self.supplier_booking_number:
             raise ValidationError(
                 {
@@ -64,6 +81,14 @@ class Booking(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        if self.pickup_datetime and self.return_datetime:
+            duration_seconds = (
+                self.return_datetime - self.pickup_datetime
+            ).total_seconds()
+            if duration_seconds > 0:
+                self.rental_days = max(1, ceil(duration_seconds / 86400))
+        else:
+            self.rental_days = None
         if not self.booking_number:
             self.booking_number = BookingNumberSequence.next_number(timezone.now().year)
         super().save(*args, **kwargs)

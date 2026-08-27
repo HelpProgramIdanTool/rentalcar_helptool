@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -54,6 +56,45 @@ class BookingTests(TestCase):
             customer=self.customer,
             supplier=self.supplier,
             status=Booking.Status.CONFIRMED,
+        )
+
+        with self.assertRaises(ValidationError):
+            booking.full_clean()
+
+    def test_six_hour_rental_counts_as_one_day(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(hours=6),
+        )
+
+        self.assertEqual(booking.rental_days, 1)
+
+    def test_exactly_twenty_four_hours_counts_as_one_day(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(hours=24),
+        )
+
+        self.assertEqual(booking.rental_days, 1)
+
+    def test_one_minute_over_twenty_four_hours_counts_as_two_days(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(hours=24, minutes=1),
+        )
+
+        self.assertEqual(booking.rental_days, 2)
+
+    def test_return_before_pickup_is_rejected(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = Booking(
+            customer=self.customer,
+            supplier=self.supplier,
+            pickup_datetime=pickup,
+            return_datetime=pickup - timedelta(minutes=1),
         )
 
         with self.assertRaises(ValidationError):

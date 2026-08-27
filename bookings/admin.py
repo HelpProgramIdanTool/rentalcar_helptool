@@ -16,6 +16,9 @@ class BookingAdmin(admin.ModelAdmin):
         "customer",
         "supplier",
         "status",
+        "pickup_datetime",
+        "return_datetime",
+        "rental_days",
         "created_at",
     )
     list_filter = ("status", "supplier")
@@ -27,7 +30,7 @@ class BookingAdmin(admin.ModelAdmin):
         "customer__phone_1",
         "customer__email",
     )
-    readonly_fields = ("booking_number", "created_at", "updated_at")
+    readonly_fields = ("booking_number", "rental_days", "created_at", "updated_at")
     inlines = (BookingDriverInline,)
 
 
