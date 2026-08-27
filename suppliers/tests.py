@@ -16,8 +16,12 @@ from .models import (
     SupplierExtra,
     SupplierExtraRate,
     SupplierLocation,
+    PriceDayRange,
+    PriceList,
+    PriceSeason,
     VehicleGroup,
     VehicleModel,
+    VehicleRate,
 )
 from .management.commands.import_vehicle_groups import (
     add_record,
@@ -564,6 +568,81 @@ class SupplierExtraTests(TestCase):
             delivery_rate["formula_config"]["return_gross"],
             "100.00",
         )
+
+
+class VehicleRateTests(TestCase):
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="RATES",
+            supplier_name="Rate Supplier",
+        )
+        self.group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="CDAR",
+            group_name="C Automatic",
+        )
+        self.price_list = PriceList.objects.create(
+            supplier=self.supplier,
+            name="2026 customer rates",
+            version="2026",
+            effective_from=date(2026, 1, 1),
+            status=PriceList.Status.ACTIVE,
+            source_type=PriceList.SourceType.EXCEL,
+        )
+        self.season = PriceSeason.objects.create(
+            price_list=self.price_list,
+            season_code="HIGH",
+            season_name="High season",
+            rental_date_from=date(2026, 6, 1),
+            rental_date_to=date(2026, 8, 31),
+        )
+        self.day_range = PriceDayRange.objects.create(
+            price_list=self.price_list,
+            range_code="D3_6",
+            label="3-6 days",
+            days_from=3,
+            days_to=6,
+        )
+
+    def test_vehicle_rate_stores_daily_customer_price_including_vat(self):
+        vehicle_rate = VehicleRate.objects.create(
+            season=self.season,
+            vehicle_group=self.group,
+            day_range=self.day_range,
+            daily_rate_gross=Decimal("145.00"),
+        )
+
+        self.assertEqual(vehicle_rate.daily_rate_gross, Decimal("145.00"))
+        self.assertEqual(
+            VehicleRate._meta.get_field("daily_rate_gross").help_text,
+            "Daily customer price including VAT.",
+        )
+
+    def test_vehicle_rate_rejects_group_of_another_supplier(self):
+        other_supplier = Supplier.objects.create(
+            supplier_code="OTHER-RATE",
+            supplier_name="Other Rate Supplier",
+        )
+        other_group = VehicleGroup.objects.create(
+            supplier=other_supplier,
+            group_code="CDAR",
+            group_name="Other C Automatic",
+        )
+        vehicle_rate = VehicleRate(
+            season=self.season,
+            vehicle_group=other_group,
+            day_range=self.day_range,
+            daily_rate_gross=Decimal("145.00"),
+        )
+
+        with self.assertRaises(ValidationError):
+            vehicle_rate.full_clean()
+
+    def test_price_tables_are_available_in_admin(self):
+        self.assertIn(PriceList, admin.site._registry)
+        self.assertIn(PriceSeason, admin.site._registry)
+        self.assertIn(PriceDayRange, admin.site._registry)
+        self.assertIn(VehicleRate, admin.site._registry)
 
 
 class VehicleGroupImportRuleTests(TestCase):

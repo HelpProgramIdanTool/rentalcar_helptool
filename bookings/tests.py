@@ -1,13 +1,24 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from customers.models import Customer
-from suppliers.models import Supplier, SupplierLocation, VehicleGroup
+from suppliers.models import (
+    Supplier,
+    SupplierExtra,
+    SupplierExtraRate,
+    SupplierLocation,
+    PriceDayRange,
+    PriceList,
+    PriceSeason,
+    VehicleGroup,
+    VehicleRate,
+)
 
-from .models import Booking, BookingDriver
+from .models import Booking, BookingDriver, BookingExtra
 
 
 class BookingTests(TestCase):
@@ -27,6 +38,41 @@ class BookingTests(TestCase):
             customer=self.customer,
             supplier=self.supplier,
             **kwargs,
+        )
+
+    def create_vehicle_rate(
+        self,
+        vehicle_group,
+        daily_rate="100.00",
+        days_from=1,
+        days_to=None,
+    ):
+        price_list = PriceList.objects.create(
+            supplier=self.supplier,
+            name="Test price list",
+            version=f"TEST-{PriceList.objects.count() + 1}",
+            effective_from=date(2026, 1, 1),
+            status=PriceList.Status.ACTIVE,
+        )
+        season = PriceSeason.objects.create(
+            price_list=price_list,
+            season_code="ALL",
+            season_name="All year",
+            rental_date_from=date(2026, 1, 1),
+            rental_date_to=date(2026, 12, 31),
+        )
+        day_range = PriceDayRange.objects.create(
+            price_list=price_list,
+            range_code="ALL",
+            label="All days",
+            days_from=days_from,
+            days_to=days_to,
+        )
+        return VehicleRate.objects.create(
+            season=season,
+            vehicle_group=vehicle_group,
+            day_range=day_range,
+            daily_rate_gross=Decimal(daily_rate),
         )
 
     def test_internal_number_is_created_and_never_uses_supplier_number(self):
@@ -174,6 +220,175 @@ class BookingTests(TestCase):
 
         with self.assertRaises(ValidationError):
             booking.full_clean()
+
+    def test_total_is_base_vehicle_price_plus_extras(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        vehicle_group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="PRICE-CDAR",
+            group_name="Price C Automatic",
+        )
+        self.create_vehicle_rate(vehicle_group, daily_rate="100.00")
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(hours=72),
+            vehicle_group=vehicle_group,
+        )
+        child_seat = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="CHILD_SEAT",
+            name="Child seat",
+        )
+        child_seat_rate = SupplierExtraRate.objects.create(
+            extra=child_seat,
+            rate_code="DAILY",
+            calculation_type=SupplierExtraRate.CalculationType.PER_DAY,
+            amount_gross=Decimal("20.00"),
+            valid_from=date(2026, 1, 1),
+        )
+
+        BookingExtra.objects.create(
+            booking=booking,
+            extra=child_seat,
+            rate=child_seat_rate,
+            quantity=1,
+        )
+        booking.refresh_from_db()
+
+        self.assertEqual(booking.extras_total_gross, Decimal("60.00"))
+        self.assertEqual(booking.calculated_vehicle_price_gross, Decimal("300.00"))
+        self.assertEqual(booking.total_price_gross, Decimal("360.00"))
+
+    def test_one_rent_mandatory_delivery_is_added_automatically(self):
+        self.supplier.supplier_name = "One Rent"
+        self.supplier.save(update_fields=["supplier_name"])
+        vehicle_group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="ONE-CDAR",
+            group_name="One Rent C Automatic",
+        )
+        self.create_vehicle_rate(vehicle_group, daily_rate="1000.00")
+        mandatory_delivery = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="CITY_AIRPORT_DELIVERY",
+            name="Delivery and return in city or airport",
+            is_mandatory=True,
+        )
+        SupplierExtraRate.objects.create(
+            extra=mandatory_delivery,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.FORMULA,
+            amount_gross=Decimal("200.00"),
+            valid_from=date(2026, 1, 1),
+            formula_config={"pickup_gross": "100.00", "return_gross": "100.00"},
+        )
+
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(hours=48),
+            vehicle_group=vehicle_group,
+        )
+        booking.refresh_from_db()
+        booking_extra = booking.extras.get(extra=mandatory_delivery)
+
+        self.assertTrue(booking_extra.is_mandatory_snapshot)
+        self.assertEqual(booking_extra.calculated_price_gross, Decimal("200.00"))
+        self.assertEqual(booking.calculated_vehicle_price_gross, Decimal("2000.00"))
+        self.assertEqual(booking.total_price_gross, Decimal("2200.00"))
+
+    def test_booking_extra_keeps_price_snapshot_after_rate_changes(self):
+        booking = self.create_booking(
+            manual_vehicle_price_gross=Decimal("500.00"),
+            manual_price_override_reason="Test manual price",
+        )
+        extra = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="GPS",
+            name="GPS",
+        )
+        extra_rate = SupplierExtraRate.objects.create(
+            extra=extra,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_RENTAL,
+            amount_gross=Decimal("50.00"),
+            valid_from=date(2026, 1, 1),
+        )
+        booking_extra = BookingExtra.objects.create(
+            booking=booking,
+            extra=extra,
+            rate=extra_rate,
+        )
+
+        extra_rate.amount_gross = Decimal("80.00")
+        extra_rate.save(update_fields=["amount_gross"])
+        booking_extra.quantity = 2
+        booking_extra.save()
+        booking_extra.refresh_from_db()
+
+        self.assertEqual(booking_extra.unit_price_gross_snapshot, Decimal("50.00"))
+        self.assertEqual(booking_extra.calculated_price_gross, Decimal("100.00"))
+
+    def test_extra_of_another_supplier_is_rejected(self):
+        booking = self.create_booking()
+        other_supplier = Supplier.objects.create(
+            supplier_code="OTHER-EXTRA",
+            supplier_name="Other Extra Supplier",
+        )
+        other_extra = SupplierExtra.objects.create(
+            supplier=other_supplier,
+            extra_code="GPS",
+            name="GPS",
+        )
+        other_rate = SupplierExtraRate.objects.create(
+            extra=other_extra,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_RENTAL,
+            amount_gross=Decimal("50.00"),
+            valid_from=date(2026, 1, 1),
+        )
+        booking_extra = BookingExtra(
+            booking=booking,
+            extra=other_extra,
+            rate=other_rate,
+        )
+
+        with self.assertRaises(ValidationError):
+            booking_extra.full_clean()
+
+    def test_manual_vehicle_price_requires_a_reason(self):
+        booking = Booking(
+            customer=self.customer,
+            supplier=self.supplier,
+            manual_vehicle_price_gross=Decimal("900.00"),
+        )
+
+        with self.assertRaises(ValidationError):
+            booking.full_clean()
+
+    def test_manual_vehicle_price_overrides_calculated_price(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        vehicle_group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="OVERRIDE",
+            group_name="Override Group",
+        )
+        self.create_vehicle_rate(vehicle_group, daily_rate="100.00")
+
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(hours=48),
+            vehicle_group=vehicle_group,
+            manual_vehicle_price_gross=Decimal("175.00"),
+            manual_price_override_reason="Supplier approved a special price",
+        )
+
+        self.assertEqual(booking.vehicle_price_gross, Decimal("175.00"))
+        self.assertEqual(booking.calculated_vehicle_price_gross, Decimal("200.00"))
+        self.assertEqual(
+            booking.price_calculation_status,
+            Booking.PriceCalculationStatus.OVERRIDDEN,
+        )
 
     def test_booking_accepts_main_and_second_driver(self):
         booking = self.create_booking()

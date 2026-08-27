@@ -289,3 +289,180 @@ class SupplierExtraRate(models.Model):
             f"{self.extra} — {self.amount_gross} {self.currency} "
             f"({self.get_calculation_type_display()})"
         )
+
+
+class PriceList(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        ACTIVE = "ACTIVE", "Active"
+        ARCHIVED = "ARCHIVED", "Archived"
+
+    class SourceType(models.TextChoices):
+        MANUAL = "MANUAL", "Manual"
+        EXCEL = "EXCEL", "Excel"
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="price_lists",
+    )
+    name = models.CharField(max_length=150)
+    version = models.CharField(max_length=50)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+    currency = models.CharField(max_length=3, default="PLN")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+    source_type = models.CharField(
+        max_length=20,
+        choices=SourceType.choices,
+        default=SourceType.MANUAL,
+    )
+    source_file = models.CharField(max_length=255, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["supplier__supplier_name", "-effective_from"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["supplier", "version"],
+                name="unique_price_list_version_per_supplier",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError(
+                {"effective_to": "The end date cannot be before the start date."}
+            )
+
+    def __str__(self):
+        return f"{self.supplier.supplier_name} - {self.name} ({self.version})"
+
+
+class PriceSeason(models.Model):
+    price_list = models.ForeignKey(
+        PriceList,
+        on_delete=models.CASCADE,
+        related_name="seasons",
+    )
+    season_code = models.CharField(max_length=50)
+    season_name = models.CharField(max_length=120)
+    rental_date_from = models.DateField()
+    rental_date_to = models.DateField(null=True, blank=True)
+    priority = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["rental_date_from", "-priority"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["price_list", "season_code"],
+                name="unique_season_code_per_price_list",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.rental_date_to and self.rental_date_to < self.rental_date_from:
+            raise ValidationError(
+                {"rental_date_to": "The end date cannot be before the start date."}
+            )
+
+    def __str__(self):
+        return f"{self.price_list} - {self.season_name}"
+
+
+class PriceDayRange(models.Model):
+    price_list = models.ForeignKey(
+        PriceList,
+        on_delete=models.CASCADE,
+        related_name="day_ranges",
+    )
+    range_code = models.CharField(max_length=30)
+    label = models.CharField(max_length=80)
+    days_from = models.PositiveSmallIntegerField()
+    days_to = models.PositiveSmallIntegerField(null=True, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["sort_order", "days_from"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["price_list", "range_code"],
+                name="unique_day_range_code_per_price_list",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.days_to is not None and self.days_to < self.days_from:
+            raise ValidationError(
+                {"days_to": "The last day cannot be before the first day."}
+            )
+
+    def __str__(self):
+        return f"{self.price_list} - {self.label}"
+
+
+class VehicleRate(models.Model):
+    season = models.ForeignKey(
+        PriceSeason,
+        on_delete=models.CASCADE,
+        related_name="vehicle_rates",
+    )
+    vehicle_group = models.ForeignKey(
+        VehicleGroup,
+        on_delete=models.PROTECT,
+        related_name="rates",
+    )
+    day_range = models.ForeignKey(
+        PriceDayRange,
+        on_delete=models.PROTECT,
+        related_name="vehicle_rates",
+    )
+    daily_rate_gross = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Daily customer price including VAT.",
+    )
+    currency = models.CharField(max_length=3, default="PLN")
+    is_active = models.BooleanField(default=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["season", "vehicle_group", "day_range"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["season", "vehicle_group", "day_range"],
+                name="unique_vehicle_rate",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        price_list = self.season.price_list
+        if self.day_range.price_list_id != price_list.id:
+            errors["day_range"] = "Day range and season must use the same price list."
+        if self.vehicle_group.supplier_id != price_list.supplier_id:
+            errors["vehicle_group"] = "Vehicle group must belong to the supplier."
+        if self.currency != price_list.currency:
+            errors["currency"] = "Rate and price-list currencies must match."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return (
+            f"{self.vehicle_group} - {self.season.season_name} - "
+            f"{self.day_range.label}: {self.daily_rate_gross} {self.currency}/day"
+        )

@@ -5,6 +5,10 @@ from .models import (
     SupplierExtra,
     SupplierExtraRate,
     SupplierLocation,
+    PriceDayRange,
+    PriceList,
+    PriceSeason,
+    VehicleRate,
     VehicleGroup,
     VehicleModel,
 )
@@ -127,3 +131,79 @@ class SupplierExtraRateAdmin(admin.ModelAdmin):
         "extra__supplier__supplier_name",
     )
     date_hierarchy = "valid_from"
+
+
+class PriceSeasonInline(admin.TabularInline):
+    model = PriceSeason
+    extra = 0
+
+
+class PriceDayRangeInline(admin.TabularInline):
+    model = PriceDayRange
+    extra = 0
+
+
+@admin.register(PriceList)
+class PriceListAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "version",
+        "supplier",
+        "effective_from",
+        "effective_to",
+        "currency",
+        "status",
+    )
+    list_filter = ("supplier", "status", "source_type", "currency")
+    search_fields = ("name", "version", "supplier__supplier_name", "source_file")
+    inlines = (PriceSeasonInline, PriceDayRangeInline)
+
+
+@admin.register(PriceSeason)
+class PriceSeasonAdmin(admin.ModelAdmin):
+    list_display = (
+        "season_name",
+        "price_list",
+        "rental_date_from",
+        "rental_date_to",
+        "priority",
+        "is_active",
+    )
+    list_filter = ("price_list__supplier", "is_active")
+    search_fields = ("season_name", "season_code", "price_list__name")
+
+
+@admin.register(PriceDayRange)
+class PriceDayRangeAdmin(admin.ModelAdmin):
+    list_display = (
+        "label",
+        "price_list",
+        "days_from",
+        "days_to",
+        "is_active",
+    )
+    list_filter = ("price_list__supplier", "is_active")
+    search_fields = ("label", "range_code", "price_list__name")
+
+
+@admin.register(VehicleRate)
+class VehicleRateAdmin(admin.ModelAdmin):
+    list_display = (
+        "vehicle_group",
+        "season",
+        "day_range",
+        "daily_rate_gross",
+        "currency",
+        "is_active",
+    )
+    list_filter = (
+        "season__price_list__supplier",
+        "season",
+        "day_range",
+        "is_active",
+    )
+    search_fields = (
+        "vehicle_group__group_code",
+        "vehicle_group__group_name",
+        "season__season_name",
+    )
