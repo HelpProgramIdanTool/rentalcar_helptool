@@ -36,13 +36,22 @@ def rate(
     }
 
 
-def extra(code, name, category, source_label, rates, description=""):
+def extra(
+    code,
+    name,
+    category,
+    source_label,
+    rates,
+    description="",
+    mandatory=False,
+):
     return {
         "extra_code": code,
         "name": name,
         "category": category,
         "source_label": source_label,
         "description": description,
+        "is_mandatory": mandatory,
         "rates": rates,
     }
 
@@ -144,7 +153,26 @@ def one_rent_records():
     formula = SupplierExtraRate.CalculationType.FORMULA
     shared_equipment = "CHILD SEAT, GPS, SNOW CHAINS"
     return [
-        extra("CITY_AIRPORT_DELIVERY", "Delivery or return in city or airport", "DELIVERY", "DELIVERY/RETURN in city or airport", [rate(100, unit)]),
+        extra(
+            "CITY_AIRPORT_DELIVERY",
+            "Delivery and return in city or airport",
+            "DELIVERY",
+            "DELIVERY/RETURN in city or airport",
+            [
+                rate(
+                    200,
+                    formula,
+                    formula={
+                        "pickup_gross": "100.00",
+                        "return_gross": "100.00",
+                        "total_per_rental_gross": "200.00",
+                        "clarification": "Mandatory for every rental; confirmed by Idan",
+                    },
+                )
+            ],
+            "Mandatory charge for every rental: 100 PLN pickup plus 100 PLN return.",
+            mandatory=True,
+        ),
         extra("OUTSIDE_CITY_DELIVERY", "Delivery or return outside the city", "DELIVERY", "DELIVERY/RETURN outside the city", [rate(100, formula, formula={"per_km_gross": "2.50"})]),
         extra("AIRPORT_FEE", "Airport fee", "AIRPORT", "AIRPORT FEE", [rate(50, rental)]),
         extra("ONE_WAY", "Return in another location", "DELIVERY", "RETURN IN OTHER LOCATION", [rate(0, rental)]),
@@ -179,6 +207,7 @@ def upsert_supplier_extras(supplier, records, source_values, valid_from, source_
                 "name": record["name"],
                 "category": record["category"],
                 "description": description,
+                "is_mandatory": record["is_mandatory"],
                 "is_active": True,
             },
         )

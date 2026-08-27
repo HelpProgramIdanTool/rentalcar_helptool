@@ -181,6 +181,7 @@ def build_pdf(output_path=OUTPUT_PATH):
             "Extra code",
             "Extra name",
             "Category",
+            "Mandatory",
             "Rate code",
             "Calculation",
             "Gross price incl. VAT",
@@ -202,6 +203,7 @@ def build_pdf(output_path=OUTPUT_PATH):
                         Paragraph(extra_obj.extra_code if rate_index == 0 else "", cell_style),
                         Paragraph(extra_obj.name if rate_index == 0 else "", cell_style),
                         Paragraph(extra_obj.category if rate_index == 0 else "", cell_style),
+                        Paragraph("Yes" if extra_obj.is_mandatory and rate_index == 0 else "", cell_style),
                         Paragraph(rate_obj.rate_code, cell_style),
                         Paragraph(rate_obj.get_calculation_type_display(), cell_style),
                         Paragraph(money(rate_obj.amount_gross, rate_obj.currency), cell_style),
@@ -213,7 +215,7 @@ def build_pdf(output_path=OUTPUT_PATH):
         table = Table(
             rows,
             repeatRows=1,
-            colWidths=[25 * mm, 39 * mm, 26 * mm, 22 * mm, 25 * mm, 29 * mm, 43 * mm, 34 * mm, 91 * mm],
+            colWidths=[24 * mm, 38 * mm, 24 * mm, 18 * mm, 21 * mm, 24 * mm, 28 * mm, 40 * mm, 33 * mm, 84 * mm],
         )
         table.setStyle(
             TableStyle(
@@ -238,4 +240,5 @@ def build_pdf(output_path=OUTPUT_PATH):
 
 
 if __name__ == "__main__":
-    print(build_pdf())
+    requested_path = Path(sys.argv[1]) if len(sys.argv) > 1 else OUTPUT_PATH
+    print(build_pdf(requested_path))

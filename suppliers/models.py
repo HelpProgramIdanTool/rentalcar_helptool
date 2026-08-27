@@ -182,6 +182,7 @@ class SupplierExtra(models.Model):
     name = models.CharField(max_length=150)
     category = models.CharField(max_length=80, blank=True)
     description = models.TextField(blank=True)
+    is_mandatory = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
     class Meta:

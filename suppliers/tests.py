@@ -30,6 +30,7 @@ from .management.commands.import_supplier_extras import (
     car_free_records,
     extra,
     rate,
+    one_rent_records,
     upsert_supplier_extras,
 )
 
@@ -543,6 +544,25 @@ class SupplierExtraTests(TestCase):
         self.assertEqual(
             cross_border_rate["formula_config"]["per_rental_day_gross"],
             "30.00",
+        )
+
+    def test_one_rent_delivery_and_return_is_mandatory_two_hundred(self):
+        delivery = next(
+            item
+            for item in one_rent_records()
+            if item["extra_code"] == "CITY_AIRPORT_DELIVERY"
+        )
+        delivery_rate = delivery["rates"][0]
+
+        self.assertTrue(delivery["is_mandatory"])
+        self.assertEqual(delivery_rate["amount_gross"], Decimal("200"))
+        self.assertEqual(
+            delivery_rate["formula_config"]["pickup_gross"],
+            "100.00",
+        )
+        self.assertEqual(
+            delivery_rate["formula_config"]["return_gross"],
+            "100.00",
         )
 
 

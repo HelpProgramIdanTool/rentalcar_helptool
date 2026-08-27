@@ -88,8 +88,15 @@ class SupplierExtraRateInline(admin.TabularInline):
 
 @admin.register(SupplierExtra)
 class SupplierExtraAdmin(admin.ModelAdmin):
-    list_display = ("name", "extra_code", "supplier", "category", "is_active")
-    list_filter = ("supplier", "category", "is_active")
+    list_display = (
+        "name",
+        "extra_code",
+        "supplier",
+        "category",
+        "is_mandatory",
+        "is_active",
+    )
+    list_filter = ("supplier", "category", "is_mandatory", "is_active")
     search_fields = ("name", "extra_code", "supplier__supplier_name")
     inlines = (SupplierExtraRateInline,)
 
