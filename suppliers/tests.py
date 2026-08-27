@@ -8,7 +8,14 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from openpyxl import Workbook
 
-from .models import Supplier, SupplierLocation
+from .models import Supplier, SupplierLocation, VehicleGroup, VehicleModel
+from .management.commands.import_vehicle_groups import (
+    add_record,
+    body_type_from_acriss,
+    group_name_for_kaizen,
+    split_brand_and_model,
+    transmission_from_acriss,
+)
 
 
 class SupplierTests(TestCase):
@@ -321,3 +328,106 @@ class KaizenLocationImportTests(TestCase):
         call_command("import_kaizen_locations", stdout=StringIO())
 
         self.assertEqual(SupplierLocation.objects.count(), 12)
+
+
+class VehicleGroupTests(TestCase):
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="01",
+            supplier_name="Kaizen Rent",
+        )
+
+    def test_vehicle_group_has_safe_defaults(self):
+        group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="CDAR",
+            group_name="C Automatic Hatchback",
+        )
+
+        self.assertEqual(group.transmission, VehicleGroup.Transmission.UNKNOWN)
+        self.assertTrue(group.is_active)
+        self.assertIsNone(group.seats)
+
+    def test_same_group_code_can_be_used_by_different_suppliers(self):
+        other_supplier = Supplier.objects.create(
+            supplier_code="02",
+            supplier_name="One Rent",
+        )
+        VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="CDAR",
+            group_name="C Automatic Hatchback",
+        )
+
+        second_group = VehicleGroup.objects.create(
+            supplier=other_supplier,
+            group_code="CDAR",
+            group_name="C Automatic",
+        )
+
+        self.assertEqual(second_group.group_code, "CDAR")
+
+    def test_vehicle_model_belongs_to_group(self):
+        group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="CDAR",
+            group_name="C Automatic Hatchback",
+        )
+        model = VehicleModel.objects.create(
+            vehicle_group=group,
+            brand="Hyundai",
+            model="i30",
+        )
+
+        self.assertEqual(model.vehicle_group, group)
+        self.assertEqual(str(model), "Hyundai i30")
+
+    def test_vehicle_group_and_model_are_available_in_admin(self):
+        self.assertIn(VehicleGroup, admin.site._registry)
+        self.assertIn(VehicleModel, admin.site._registry)
+
+
+class VehicleGroupImportRuleTests(TestCase):
+    def test_automatic_and_manual_transmission_are_read_from_acriss(self):
+        self.assertEqual(
+            transmission_from_acriss("CDAR"),
+            VehicleGroup.Transmission.AUTOMATIC,
+        )
+        self.assertEqual(
+            transmission_from_acriss("CDMR"),
+            VehicleGroup.Transmission.MANUAL,
+        )
+
+    def test_hatchback_and_sedan_codes_are_separate(self):
+        self.assertEqual(
+            body_type_from_acriss("CDAR"),
+            VehicleGroup.BodyType.HATCHBACK,
+        )
+        self.assertEqual(
+            body_type_from_acriss("CLAR"),
+            VehicleGroup.BodyType.SEDAN,
+        )
+        self.assertNotEqual(
+            group_name_for_kaizen("C Aut", "CDAR"),
+            group_name_for_kaizen("C Aut", "CLAR"),
+        )
+
+    def test_known_brand_is_separated_from_model(self):
+        self.assertEqual(
+            split_brand_and_model("Toyota Corolla"),
+            ("Toyota", "Corolla"),
+        )
+
+    def test_models_that_differ_only_by_letter_case_are_not_duplicated(self):
+        records = {}
+        add_record(records, "EDMR", "B", [("Toyota", "Yaris")], 1)
+        add_record(records, "EDMR", "B", [("Toyota", "YARIS")], 1)
+
+        self.assertEqual(records["EDMR"]["models"], [("Toyota", "Yaris")])
+
+    def test_branded_model_replaces_same_unbranded_model(self):
+        records = {}
+        add_record(records, "EDMR", "B", [("", "Yaris")], 1)
+        add_record(records, "EDMR", "B", [("Toyota", "Yaris")], 1)
+
+        self.assertEqual(records["EDMR"]["models"], [("Toyota", "Yaris")])

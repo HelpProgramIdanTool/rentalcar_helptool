@@ -84,3 +84,87 @@ class SupplierLocation(models.Model):
 
     def __str__(self):
         return f"{self.supplier.supplier_name} — {self.location_name}"
+
+
+class VehicleGroup(models.Model):
+    class Transmission(models.TextChoices):
+        MANUAL = "MANUAL", "Manual"
+        AUTOMATIC = "AUTOMATIC", "Automatic"
+        UNKNOWN = "UNKNOWN", "Unknown"
+
+    class BodyType(models.TextChoices):
+        SEDAN = "SEDAN", "Sedan"
+        HATCHBACK = "HATCHBACK", "Hatchback"
+        SUV = "SUV", "SUV"
+        ESTATE = "ESTATE", "Estate / Wagon"
+        MINIVAN = "MINIVAN", "Minivan"
+        VAN = "VAN", "Van"
+        PICKUP = "PICKUP", "Pickup"
+        COUPE = "COUPE", "Coupe"
+        CABRIO = "CABRIO", "Cabrio"
+        OTHER = "OTHER", "Other"
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="vehicle_groups",
+    )
+    group_code = models.CharField(max_length=40)
+    group_name = models.CharField(max_length=120)
+    category = models.CharField(max_length=80, blank=True)
+    body_type = models.CharField(max_length=20, choices=BodyType.choices, blank=True)
+    transmission = models.CharField(
+        max_length=10,
+        choices=Transmission.choices,
+        default=Transmission.UNKNOWN,
+    )
+    seats = models.PositiveSmallIntegerField(null=True, blank=True)
+    doors = models.PositiveSmallIntegerField(null=True, blank=True)
+    luggage_volume_liters = models.PositiveIntegerField(null=True, blank=True)
+    luggage_large = models.PositiveSmallIntegerField(null=True, blank=True)
+    luggage_small = models.PositiveSmallIntegerField(null=True, blank=True)
+    luggage_priority = models.PositiveSmallIntegerField(default=0)
+    cargo_note = models.CharField(max_length=250, blank=True)
+    fuel_type_note = models.CharField(max_length=120, blank=True)
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=0)
+    internal_note = models.TextField(blank=True)
+    available_from = models.DateField(null=True, blank=True)
+    available_to = models.DateField(null=True, blank=True)
+    booking_open_from = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["supplier__supplier_name", "display_order", "group_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["supplier", "group_code"],
+                name="unique_vehicle_group_code_per_supplier",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.supplier.supplier_name} — {self.group_name} ({self.group_code})"
+
+
+class VehicleModel(models.Model):
+    vehicle_group = models.ForeignKey(
+        VehicleGroup,
+        on_delete=models.CASCADE,
+        related_name="models",
+    )
+    brand = models.CharField(max_length=80, blank=True)
+    model = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "brand", "model"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vehicle_group", "brand", "model"],
+                name="unique_model_per_vehicle_group",
+            ),
+        ]
+
+    def __str__(self):
+        return " ".join(part for part in (self.brand, self.model) if part)
