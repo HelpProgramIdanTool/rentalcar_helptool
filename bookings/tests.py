@@ -5,7 +5,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from customers.models import Customer
-from suppliers.models import Supplier
+from suppliers.models import Supplier, SupplierLocation, VehicleGroup
 
 from .models import Booking, BookingDriver
 
@@ -95,6 +95,81 @@ class BookingTests(TestCase):
             supplier=self.supplier,
             pickup_datetime=pickup,
             return_datetime=pickup - timedelta(minutes=1),
+        )
+
+        with self.assertRaises(ValidationError):
+            booking.full_clean()
+
+    def test_booking_stores_locations_addresses_flight_and_vehicle_group(self):
+        pickup_location = SupplierLocation.objects.create(
+            supplier=self.supplier,
+            location_code="WAW",
+            location_name="Warsaw Airport",
+            city="Warsaw",
+            address="Zwirki i Wigury 1",
+        )
+        return_location = SupplierLocation.objects.create(
+            supplier=self.supplier,
+            location_code="CITY",
+            location_name="Warsaw City",
+            city="Warsaw",
+        )
+        vehicle_group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="CDAR",
+            group_name="C Automatic",
+        )
+
+        booking = self.create_booking(
+            pickup_location=pickup_location,
+            return_location=return_location,
+            pickup_address="Customer address 1",
+            return_address="Hotel address 2",
+            hotel_name="Test Hotel",
+            flight_number="LO123",
+            vehicle_group=vehicle_group,
+        )
+
+        self.assertEqual(booking.pickup_address, "Customer address 1")
+        self.assertEqual(booking.return_address, "Hotel address 2")
+        self.assertEqual(booking.flight_number, "LO123")
+        self.assertEqual(booking.vehicle_group, vehicle_group)
+        self.assertIn("Warsaw Airport", booking.pickup_location_text)
+
+    def test_location_of_another_supplier_is_rejected(self):
+        other_supplier = Supplier.objects.create(
+            supplier_code="OTHER",
+            supplier_name="Other Supplier",
+        )
+        other_location = SupplierLocation.objects.create(
+            supplier=other_supplier,
+            location_code="OTHER-WAW",
+            location_name="Other Warsaw",
+            city="Warsaw",
+        )
+        booking = Booking(
+            customer=self.customer,
+            supplier=self.supplier,
+            pickup_location=other_location,
+        )
+
+        with self.assertRaises(ValidationError):
+            booking.full_clean()
+
+    def test_vehicle_group_of_another_supplier_is_rejected(self):
+        other_supplier = Supplier.objects.create(
+            supplier_code="OTHER-GROUP",
+            supplier_name="Other Group Supplier",
+        )
+        other_group = VehicleGroup.objects.create(
+            supplier=other_supplier,
+            group_code="CDAR",
+            group_name="Other C Automatic",
+        )
+        booking = Booking(
+            customer=self.customer,
+            supplier=self.supplier,
+            vehicle_group=other_group,
         )
 
         with self.assertRaises(ValidationError):

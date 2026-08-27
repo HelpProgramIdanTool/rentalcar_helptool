@@ -51,6 +51,33 @@ class Booking(models.Model):
     pickup_datetime = models.DateTimeField(null=True, blank=True)
     return_datetime = models.DateTimeField(null=True, blank=True)
     rental_days = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    pickup_location = models.ForeignKey(
+        "suppliers.SupplierLocation",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="pickup_bookings",
+    )
+    return_location = models.ForeignKey(
+        "suppliers.SupplierLocation",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="return_bookings",
+    )
+    pickup_location_text = models.CharField(max_length=300, blank=True)
+    return_location_text = models.CharField(max_length=300, blank=True)
+    pickup_address = models.CharField(max_length=300, blank=True)
+    return_address = models.CharField(max_length=300, blank=True)
+    hotel_name = models.CharField(max_length=200, blank=True)
+    flight_number = models.CharField(max_length=50, blank=True)
+    vehicle_group = models.ForeignKey(
+        "suppliers.VehicleGroup",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="bookings",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -59,6 +86,15 @@ class Booking(models.Model):
 
     def clean(self):
         super().clean()
+        errors = {}
+        if self.pickup_location_id and self.pickup_location.supplier_id != self.supplier_id:
+            errors["pickup_location"] = "Pickup location must belong to the supplier."
+        if self.return_location_id and self.return_location.supplier_id != self.supplier_id:
+            errors["return_location"] = "Return location must belong to the supplier."
+        if self.vehicle_group_id and self.vehicle_group.supplier_id != self.supplier_id:
+            errors["vehicle_group"] = "Vehicle group must belong to the supplier."
+        if errors:
+            raise ValidationError(errors)
         if bool(self.pickup_datetime) != bool(self.return_datetime):
             raise ValidationError(
                 "Enter both pickup and return date and time, or leave both empty."
@@ -81,6 +117,10 @@ class Booking(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        if self.pickup_location and not self.pickup_location_text:
+            self.pickup_location_text = self._location_snapshot(self.pickup_location)
+        if self.return_location and not self.return_location_text:
+            self.return_location_text = self._location_snapshot(self.return_location)
         if self.pickup_datetime and self.return_datetime:
             duration_seconds = (
                 self.return_datetime - self.pickup_datetime
@@ -92,6 +132,11 @@ class Booking(models.Model):
         if not self.booking_number:
             self.booking_number = BookingNumberSequence.next_number(timezone.now().year)
         super().save(*args, **kwargs)
+
+    @staticmethod
+    def _location_snapshot(location):
+        parts = [location.location_name, location.address, location.city]
+        return ", ".join(part for part in parts if part)
 
     def __str__(self):
         return self.booking_number
