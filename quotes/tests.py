@@ -13,8 +13,10 @@ from .models import Quote, QuoteOption, QuoteTemplate
 from .services import (
     HEBREW_EXTRA_NAMES,
     HEBREW_VEHICLE_CLASS_NAMES,
+    KAIZEN_CROSS_BORDER_PRICE,
     KAIZEN_COMFORT_INCLUDED_ITEMS,
     _rate_description,
+    _quoted_extra_price,
     _service_extra_requests,
     ensure_quote_document_blocks,
     ensure_quote_option_presentation,
@@ -369,4 +371,21 @@ class FirstInquiryTests(TestCase):
         sentence = "אין להסתמך על סכום פיקדון אחיד לכל החברות או לכל קבוצות הרכב."
         self.assertFalse(
             QuoteTemplate.objects.filter(blocks__content__contains=sentence).exists()
+        )
+
+    def test_kaizen_cross_border_offer_rate_is_499_per_rental(self):
+        from types import SimpleNamespace
+
+        extra = SimpleNamespace(
+            supplier=SimpleNamespace(supplier_code="01"),
+            extra_code="CROSS_BORDER",
+        )
+        old_rate = SimpleNamespace(
+            formula_config={}, calculation_type="PER_RENTAL",
+            amount_gross=Decimal("299.00"),
+        )
+        self.assertEqual(KAIZEN_CROSS_BORDER_PRICE, Decimal("499.00"))
+        self.assertEqual(
+            _quoted_extra_price(extra, old_rate, Decimal("5")),
+            Decimal("499.00"),
         )

@@ -37,6 +37,8 @@ KAIZEN_COMFORT_INCLUDED_ITEMS = [
     "ללא הגבלת ק״מ",
 ]
 
+KAIZEN_CROSS_BORDER_PRICE = Decimal("499.00")
+
 HEBREW_EXTRA_NAMES = {
     "ADDITIONAL_DRIVER": "נהג נוסף",
     "AIRPORT_FEE": "תוספת שירות בשדה התעופה",
@@ -93,6 +95,15 @@ def _extra_price(rate, days, quantity=Decimal("1")):
     if rate.calculation_type in ("PER_DAY", "PER_DRIVER_DAY"):
         return rate.amount_gross * days * quantity
     return rate.amount_gross * quantity
+
+
+def _quoted_extra_price(extra, rate, days, quantity=Decimal("1")):
+    if (
+        extra.supplier.supplier_code == "01"
+        and extra.extra_code == "CROSS_BORDER"
+    ):
+        return KAIZEN_CROSS_BORDER_PRICE * quantity
+    return _extra_price(rate, days, quantity)
 
 
 def _rate_description(rate):
@@ -228,7 +239,9 @@ def calculate_quote_options(quote):
                     "warning": "Нет подходящего тарифа",
                 })
                 continue
-            price = _extra_price(extra_rate, Decimal(quote.rental_days), quantity)
+            price = _quoted_extra_price(
+                extra, extra_rate, Decimal(quote.rental_days), quantity
+            )
             extras_total += price
             lines.append({
                 "name": HEBREW_EXTRA_NAMES.get(extra.extra_code, extra.name),
