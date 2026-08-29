@@ -331,3 +331,42 @@ class FirstInquiryTests(TestCase):
         self.assertNotEqual(duplicate.quote_number, source.quote_number)
         self.assertFalse(duplicate.options.exists())
         self.assertFalse(duplicate.document_blocks.exists())
+
+    def test_offer_option_displays_its_own_deposit(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        comparison = VehicleComparisonClass.objects.first()
+        group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code="DEPOSIT-GROUP",
+            group_name="Deposit group",
+            deposit_amount=Decimal("500.00"),
+        )
+        QuoteOption.objects.create(
+            quote=quote,
+            supplier=self.supplier,
+            vehicle_group=group,
+            comparison_class=comparison,
+            supplier_name_snapshot=self.supplier.supplier_name,
+            vehicle_group_name_snapshot=group.group_name,
+            total_price_gross=Decimal("1000.00"),
+            deposit_amount=Decimal("500.00"),
+            deposit_currency="PLN",
+            calculation_snapshot={
+                "hebrew_vehicle_class": "SUV גדול — אוטומטי",
+                "included_items": [],
+                "excluded_items": [],
+            },
+            is_included=True,
+        )
+        response = self.client.get(
+            reverse("quotes:quote_preview", args=[quote.quote_number])
+        )
+        self.assertContains(response, "פיקדון:")
+        self.assertContains(response, "500.00 PLN")
+
+    def test_removed_generic_deposit_sentence_is_not_in_template(self):
+        sentence = "אין להסתמך על סכום פיקדון אחיד לכל החברות או לכל קבוצות הרכב."
+        self.assertFalse(
+            QuoteTemplate.objects.filter(blocks__content__contains=sentence).exists()
+        )

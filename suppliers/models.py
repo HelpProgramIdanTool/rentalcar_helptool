@@ -136,6 +136,15 @@ class VehicleGroup(models.Model):
     luggage_priority = models.PositiveSmallIntegerField(default=0)
     cargo_note = models.CharField(max_length=250, blank=True)
     fuel_type_note = models.CharField(max_length=120, blank=True)
+    deposit_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Card authorization amount for this vehicle group.",
+    )
+    deposit_currency = models.CharField(max_length=3, default="PLN")
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveSmallIntegerField(default=0)
     internal_note = models.TextField(blank=True)

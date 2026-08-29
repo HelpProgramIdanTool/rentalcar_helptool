@@ -100,6 +100,10 @@ class QuoteOption(models.Model):
     vehicle_models_snapshot = models.TextField(blank=True)
     total_price_gross = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=3, default="PLN")
+    deposit_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    deposit_currency = models.CharField(max_length=3, default="PLN")
     calculation_snapshot = models.JSONField(default=dict)
     display_order = models.PositiveSmallIntegerField(default=0)
     is_included = models.BooleanField(default=True)

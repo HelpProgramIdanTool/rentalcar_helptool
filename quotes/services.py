@@ -291,6 +291,8 @@ def calculate_quote_options(quote):
             "season": rate.season.season_name,
             "day_range": rate.day_range.label,
             "currency": rate.currency,
+            "deposit_amount": group.deposit_amount,
+            "deposit_currency": group.deposit_currency,
             "hebrew_vehicle_class": HEBREW_VEHICLE_CLASS_NAMES.get(
                 comparison.code, comparison.name
             ),
@@ -320,6 +322,13 @@ def ensure_quote_option_presentation(quote):
         snapshot["hebrew_vehicle_class"] = calculated["hebrew_vehicle_class"]
         snapshot["included_items"] = calculated["included_items"]
         snapshot["excluded_items"] = calculated["excluded_items"]
+        if saved_option.deposit_amount is None and calculated["deposit_amount"] is not None:
+            saved_option.deposit_amount = calculated["deposit_amount"]
+            saved_option.deposit_currency = calculated["deposit_currency"]
+            saved_option.save(update_fields=[
+                "calculation_snapshot", "deposit_amount", "deposit_currency"
+            ])
+            continue
         saved_option.calculation_snapshot = snapshot
         saved_option.save(update_fields=["calculation_snapshot"])
 

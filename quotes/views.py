@@ -210,6 +210,8 @@ def calculate_quote(request, quote_number):
                         "vehicle_models_snapshot": option["models"],
                         "total_price_gross": option["total"],
                         "currency": option["currency"],
+                        "deposit_amount": option["deposit_amount"],
+                        "deposit_currency": option["deposit_currency"],
                         "calculation_snapshot": {
                             "daily_rate": str(option["daily_rate"]), "days": option["days"],
                             "base": str(option["base"]), "extras_total": str(option["extras_total"]),

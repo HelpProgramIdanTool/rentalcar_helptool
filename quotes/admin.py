@@ -30,4 +30,7 @@ class QuoteDocumentBlockAdmin(admin.ModelAdmin):
 
 @admin.register(QuoteOption)
 class QuoteOptionAdmin(admin.ModelAdmin):
-    list_display = ("quote", "supplier", "vehicle_group", "total_price_gross", "is_included")
+    list_display = (
+        "quote", "supplier", "vehicle_group", "total_price_gross",
+        "deposit_amount", "is_included",
+    )

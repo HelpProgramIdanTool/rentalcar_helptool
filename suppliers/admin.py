@@ -67,6 +67,7 @@ class VehicleGroupAdmin(admin.ModelAdmin):
         "supplier",
         "transmission",
         "body_type",
+        "deposit_amount",
         "rate_source_group",
         "is_active",
     )
