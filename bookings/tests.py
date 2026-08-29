@@ -128,11 +128,20 @@ class BookingTests(TestCase):
 
         self.assertEqual(booking.rental_days, 1)
 
-    def test_one_minute_over_twenty_four_hours_counts_as_two_days(self):
+    def test_up_to_one_hour_over_twenty_four_hours_counts_as_one_day(self):
         pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
         booking = self.create_booking(
             pickup_datetime=pickup,
-            return_datetime=pickup + timedelta(hours=24, minutes=1),
+            return_datetime=pickup + timedelta(hours=25),
+        )
+
+        self.assertEqual(booking.rental_days, 1)
+
+    def test_more_than_one_extra_hour_adds_a_day(self):
+        pickup = datetime(2026, 9, 1, 10, 0, tzinfo=timezone.utc)
+        booking = self.create_booking(
+            pickup_datetime=pickup,
+            return_datetime=pickup + timedelta(hours=25, minutes=1),
         )
 
         self.assertEqual(booking.rental_days, 2)

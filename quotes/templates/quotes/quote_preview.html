@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>הצעה {{ quote.quote_number }}</title>
+  <style>
+    *{box-sizing:border-box}body{font:17px Arial,sans-serif;background:#f3f5f8;color:#182230;margin:0;line-height:1.6}.page{max-width:920px;margin:28px auto;padding:0 18px}.card{background:#fff;padding:26px;border-radius:14px;margin-bottom:16px;border:1px solid #e6eaf0}.top{border-top:6px solid #245fc7}.eyebrow{color:#667085;font-size:14px}.route{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.route-box{background:#f7f9fc;padding:15px;border-radius:10px}.route-label{color:#667085;font-size:14px}.route-value{font-weight:700}.ltr{direction:ltr;display:inline-block}.options-title{margin:30px 2px 12px}.option{padding:0;overflow:hidden;border:1px solid #d9e2f1}.option-head{background:#174ea6;color:#fff;padding:20px 24px}.supplier{font-size:25px;font-weight:700}.vehicle-class{font-size:20px;margin-top:3px}.models{color:#dce8ff;margin-top:5px}.option-body{padding:22px 24px}.price-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:18px;border-bottom:1px solid #e6eaf0}.price-label{color:#667085}.price{font-size:29px;font-weight:800;color:#174ea6}.lists{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.list-box{padding:16px 18px;border-radius:10px}.included{background:#edf8f0;border:1px solid #ccebd4}.excluded{background:#fff7e8;border:1px solid #f2ddb5}.list-title{font-weight:800}.list-box ul{margin:8px 0 0;padding-right:20px}.block-content{white-space:pre-line}.edit-link{color:#174ea6;font-weight:700;text-decoration:none}@media(max-width:700px){.route,.lists{grid-template-columns:1fr}.page{padding:0 10px}.card{padding:20px}.option{padding:0}.price-row{align-items:flex-start;gap:10px}}
+    .workflow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:18px;direction:rtl}.workflow a{color:#475467;text-decoration:none;padding:7px 10px;border-radius:7px;background:#fff}.workflow a:hover{background:#e7efff;color:#155eef}.workflow .current{color:#fff;background:#155eef;font-weight:bold;padding:7px 10px;border-radius:7px}.workflow .disabled{color:#98a2b3;padding:7px 10px}.workflow .arrow{color:#98a2b3}
+  </style>
+</head>
+<body><main class="page">
+  <nav class="workflow" aria-label="שלבי ההצעה">
+    <a href="/admin/customers/customer/{{ quote.customer_id }}/change/">לקוח ✓</a><span class="arrow">←</span>
+    <a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">בקשה ✓</a><span class="arrow">←</span>
+    <a href="{% url 'quotes:calculate_quote' quote.quote_number %}">חישוב ✓</a><span class="arrow">←</span>
+    <span class="current">הצעה</span><span class="arrow">←</span>
+    <span class="disabled" title="תחילה יש לבחור אפשרות">הזמנה</span>
+  </nav>
+  <section class="card top">
+    <div class="eyebrow">הצעת מחיר מספר {{ quote.quote_number }}</div><h1>פרטי ההשכרה</h1><p><strong>{{ quote.customer }}</strong></p>
+    <div class="route">
+      <div class="route-box"><div class="route-label">קבלת הרכב</div><div class="route-value">{{ pickup_location }}</div><span class="ltr">{{ quote.pickup_datetime|date:"d-m-Y H:i" }}</span></div>
+      <div class="route-box"><div class="route-label">החזרת הרכב</div><div class="route-value">{{ return_location }}</div><span class="ltr">{{ quote.return_datetime|date:"d-m-Y H:i" }}</span></div>
+    </div><p><strong>מספר ימי שכירות:</strong> {{ quote.rental_days }}</p>
+  </section>
+  {% for block in blocks %}
+    {% if block.block_key == 'PAYMENT_DEPOSIT' %}
+      <h2 class="options-title">אפשרויות רכב</h2>
+      {% for option in options %}<article class="card option">
+        <div class="option-head"><div class="supplier">{{ option.supplier_name_snapshot }}</div><div class="vehicle-class">{{ option.calculation_snapshot.hebrew_vehicle_class }}</div>{% if option.vehicle_models_snapshot %}<div class="models">{{ option.vehicle_models_snapshot }} או רכב דומה</div>{% endif %}</div>
+        <div class="option-body"><div class="price-row"><span class="price-label">מחיר כולל</span><span class="price ltr">{{ option.total_price_gross }} {{ option.currency }}</span></div>
+          <div class="lists"><div class="list-box included"><div class="list-title">תוספות שכלולות במחיר</div><ul>{% for item in option.calculation_snapshot.included_items %}<li>{{ item }}</li>{% endfor %}</ul></div>
+          <div class="list-box excluded"><div class="list-title">תוספות לא כלולות במחיר</div>{% if option.calculation_snapshot.excluded_items %}<ul>{% for item in option.calculation_snapshot.excluded_items %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>אין תוספות נוספות זמינות.</p>{% endif %}</div></div>
+        </div></article>{% endfor %}
+    {% endif %}
+    <section class="card"><h2>{{ block.title }}</h2><div class="block-content">{{ block.content }}</div></section>
+  {% endfor %}
+  <section class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <a class="edit-link" href="{% url 'quotes:edit_quote' quote.quote_number %}">שינוי פרטי ההשכרה</a>
+    <a class="edit-link" href="{% url 'quotes:calculate_quote' quote.quote_number %}">חזרה לחישוב ושינוי האפשרויות</a>
+    <form method="post" action="{% url 'quotes:duplicate_quote' quote.quote_number %}" style="margin:0">{% csrf_token %}<button type="submit" style="border:0;background:none;color:#174ea6;font-weight:700;font-size:17px;cursor:pointer;padding:0">הצעה חדשה לאותו לקוח</button></form>
+  </section>
+</main></body></html>

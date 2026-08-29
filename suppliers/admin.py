@@ -11,6 +11,7 @@ from .models import (
     VehicleRate,
     VehicleGroup,
     VehicleModel,
+    VehicleComparisonClass,
 )
 
 
@@ -66,6 +67,7 @@ class VehicleGroupAdmin(admin.ModelAdmin):
         "supplier",
         "transmission",
         "body_type",
+        "rate_source_group",
         "is_active",
     )
     list_filter = ("supplier", "transmission", "body_type", "is_active")
@@ -83,6 +85,14 @@ class VehicleModelAdmin(admin.ModelAdmin):
         "vehicle_group__group_name",
         "vehicle_group__group_code",
     )
+
+
+@admin.register(VehicleComparisonClass)
+class VehicleComparisonClassAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "display_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name", "code", "vehicle_groups__group_code")
+    filter_horizontal = ("vehicle_groups",)
 
 
 class SupplierExtraRateInline(admin.TabularInline):

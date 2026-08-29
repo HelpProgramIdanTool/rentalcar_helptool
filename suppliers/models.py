@@ -111,6 +111,14 @@ class VehicleGroup(models.Model):
         on_delete=models.PROTECT,
         related_name="vehicle_groups",
     )
+    rate_source_group = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="groups_using_this_rate",
+        help_text="Tariff group to use when a price list has a broader group name.",
+    )
     group_code = models.CharField(max_length=40)
     group_name = models.CharField(max_length=120)
     category = models.CharField(max_length=80, blank=True)
@@ -144,6 +152,10 @@ class VehicleGroup(models.Model):
             ),
         ]
 
+    @property
+    def effective_rate_group(self):
+        return self.rate_source_group or self
+
     def __str__(self):
         return f"{self.supplier.supplier_name} — {self.group_name} ({self.group_code})"
 
@@ -170,6 +182,24 @@ class VehicleModel(models.Model):
 
     def __str__(self):
         return " ".join(part for part in (self.brand, self.model) if part)
+
+
+class VehicleComparisonClass(models.Model):
+    code = models.CharField(max_length=40, unique=True)
+    name = models.CharField(max_length=120)
+    display_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    vehicle_groups = models.ManyToManyField(
+        VehicleGroup,
+        related_name="comparison_classes",
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["display_order", "name"]
+
+    def __str__(self):
+        return self.name
 
 
 class SupplierExtra(models.Model):

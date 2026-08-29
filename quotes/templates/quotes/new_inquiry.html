@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Новое обращение</title>
+  <style>
+    * { box-sizing:border-box; } :root { font-family: Arial, sans-serif; color: #172033; background: #eef2f7; }
+    body { margin: 0; } .app { display:grid;grid-template-columns:220px 1fr;min-height:100vh; }.side{background:#142238;color:white;padding:24px 14px}.brand{font-size:18px;font-weight:bold;margin:0 10px 25px}.step{padding:11px 10px;color:#cbd6e7}.step.active{background:#2e6ee6;border-radius:8px;color:white} main { max-width: 1100px; width:100%; margin: 0 auto; padding: 28px; }
+    h1 { margin-bottom: 6px; } .hint { color: #667085; margin-top: 0; }
+    form { display: grid; gap: 18px; }
+    fieldset { border: 0; border-radius: 14px; background: white; padding: 22px; box-shadow: 0 3px 14px #20304a12; }
+    legend { font-weight: 700; font-size: 20px; padding: 0 8px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+    label { display: grid; gap: 6px; font-weight: 600; }
+    input, textarea, select { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #c9d2df; border-radius: 8px; font: inherit; background:white; }
+    input[type=checkbox] { width: auto; } .check { display: flex; align-items: center; gap: 8px; }
+    .full { grid-column: 1 / -1; } .errors, .errorlist { color: #b42318; }
+    button { border: 0; border-radius: 9px; background: #155eef; color: white; font-size: 17px; font-weight: 700; padding: 13px 22px; cursor: pointer; }
+    #invoice-fields[hidden] { display: none; }
+    .date-control{display:grid;grid-template-columns:1fr auto;gap:8px}.date-control button{font-size:14px;padding:9px 13px}.native-date-picker{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.optional-phone[hidden],.address-field[hidden],#child-seat-count[hidden],#customer-history[hidden]{display:none}.small-button{font-size:14px;padding:8px 12px;background:#e8efff;color:#155eef}.customer-message textarea{direction:rtl;text-align:right;font-size:18px}.next-note{background:#eef5ff;padding:13px;border-radius:8px;color:#344054}.vehicle-classes,.extras-choice,.supplier-choice{grid-column:1/-1}.vehicle-classes>div,.extras-choice>div,.supplier-choice>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.vehicle-classes label,.extras-choice label,.supplier-choice label{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #d8e0eb;border-radius:7px;font-weight:normal}.vehicle-classes input,.extras-choice input,.supplier-choice input{width:auto;margin:0}.customer-history{grid-column:1/-1;padding:14px;border-radius:9px;background:#eef5ff;border:1px solid #bdd2fa}.customer-history.warning{background:#fff4e5;border-color:#f4c77d}.customer-history.serious{background:#fde8e7;border-color:#f2aaa6}.customer-history h3{margin:0 0 8px}.customer-history ul{margin-bottom:5px}
+    @media (max-width: 700px) { .app{grid-template-columns:1fr}.side{display:none}.grid { grid-template-columns: 1fr; } .full { grid-column: auto; } main{padding:18px} }
+  </style>
+</head>
+<body><div class="app"><aside class="side"><div class="brand">Idan Rent a Car</div><div class="step active">1. Клиент и запрос</div><div class="step">2. Расчёт вариантов</div><div class="step">3. Оферта</div><div class="step">4. Заказ</div></aside><main>
+  <h1>Новое обращение клиента</h1>
+  <p class="hint">Перенеси сюда данные из первого письма. Сначала сохранится клиент и черновик оферты.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <fieldset><legend>Клиент написал</legend>
+      <label class="customer-message">{{ form.customer_notes }}{{ form.customer_notes.errors }}</label>
+      <small class="hint">Вставь сюда исходный текст письма клиента. Для иврита текст выравнивается справа.</small>
+    </fieldset>
+    <fieldset><legend>1. Клиент</legend><div class="grid">
+      {% for field in form %}{% if field.name in "first_name last_name email phone_1 country preferred_language address" %}<label class="{% if field.name == 'address' %}full{% endif %}">{{ field.label }}{{ field }}{{ field.errors }}</label>{% endif %}{% endfor %}
+      <label class="optional-phone" id="phone-2-box" hidden>{{ form.phone_2.label }}{{ form.phone_2 }}{{ form.phone_2.errors }}</label>
+      <label class="optional-phone" id="phone-3-box" hidden>{{ form.phone_3.label }}{{ form.phone_3 }}{{ form.phone_3.errors }}</label>
+      <div class="full"><button class="small-button" id="add-phone" type="button">+ Добавить номер телефона</button></div>
+      <div class="customer-history" id="customer-history" hidden></div>
+    </div></fieldset>
+    <fieldset><legend>2. Инвойс</legend>
+      <label class="check">{{ form.wants_invoice }} {{ form.wants_invoice.label }}</label>
+      <div id="invoice-fields" class="grid">
+        <label>{{ form.invoice_name.label }}{{ form.invoice_name }}{{ form.invoice_name.errors }}</label>
+        <label>{{ form.invoice_tax_id.label }}{{ form.invoice_tax_id }}{{ form.invoice_tax_id.errors }}</label>
+        <label class="full">{{ form.invoice_address.label }}{{ form.invoice_address }}{{ form.invoice_address.errors }}</label>
+        <label>{{ form.invoice_email.label }}{{ form.invoice_email }}{{ form.invoice_email.errors }}</label>
+      </div>
+    </fieldset>
+    <fieldset><legend>3. Запрос на аренду</legend><div class="grid">
+      <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
+      <label>{{ form.pickup_date.label }}<span class="date-control">{{ form.pickup_date }}<button type="button" data-picker="pickup-calendar">Выбрать</button><input class="native-date-picker" id="pickup-calendar" type="date" aria-label="Открыть календарь даты получения"></span>{{ form.pickup_date.errors }}</label>
+      <label>{{ form.pickup_time.label }}{{ form.pickup_time }}{{ form.pickup_time.errors }}</label>
+      <label>{{ form.return_date.label }}<span class="date-control">{{ form.return_date }}<button type="button" data-picker="return-calendar">Выбрать</button><input class="native-date-picker" id="return-calendar" type="date" aria-label="Открыть календарь даты возврата"></span>{{ form.return_date.errors }}</label>
+      <label>{{ form.return_time.label }}{{ form.return_time }}{{ form.return_time.errors }}</label>
+      {% for field in form %}{% if field.name in "pickup_city pickup_service return_city return_service driver_count" %}
+        <label>{{ field.label }}{{ field }}{{ field.errors }}</label>
+      {% endif %}{% endfor %}
+      <label class="vehicle-classes">{{ form.vehicle_classes.label }}{{ form.vehicle_classes }}{{ form.vehicle_classes.errors }}<small>Можно отметить несколько классов для одной оферты.</small></label>
+      <label class="extras-choice">{{ form.extra_choices.label }}{{ form.extra_choices }}{{ form.extra_choices.errors }}</label>
+      <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
+      <label class="full address-field" id="pickup-address-box" hidden>{{ form.pickup_address.label }}{{ form.pickup_address }}{{ form.pickup_address.errors }}</label>
+      <label class="full address-field" id="return-address-box" hidden>{{ form.return_address.label }}{{ form.return_address }}{{ form.return_address.errors }}</label>
+      <label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
+      <label class="full">{{ form.internal_notes.label }}{{ form.internal_notes }}{{ form.internal_notes.errors }}</label>
+    </div></fieldset>
+    <p class="next-note">После сохранения сразу перейдём к расчёту вариантов поставщиков.</p><div><button type="submit">Сохранить и перейти к расчёту →</button></div>
+  </form>
+</main></div>
+<script>
+  const checkbox = document.querySelector('#id_wants_invoice');
+  const invoice = document.querySelector('#invoice-fields');
+  function toggleInvoice() { invoice.hidden = !checkbox.checked; }
+  checkbox.addEventListener('change', toggleInvoice); toggleInvoice();
+  const form = document.querySelector('form');
+  const draftKey = 'rentacar-first-inquiry-draft-v2';
+  const pickupPlace = document.querySelector('#id_pickup_city');
+  const returnPlace = document.querySelector('#id_return_city');
+  const pickupService = document.querySelector('#id_pickup_service');
+  const returnService = document.querySelector('#id_return_service');
+  let returnPlaceChanged = false;
+  returnPlace.addEventListener('change', () => { returnPlaceChanged = returnPlace.value !== pickupPlace.value; });
+  pickupPlace.addEventListener('change', () => { if (!returnPlaceChanged || !returnPlace.value) returnPlace.value = pickupPlace.value; saveDraft(); });
+  pickupService.addEventListener('change', () => { if (!returnPlaceChanged) returnService.value = pickupService.value; toggleAddresses(); saveDraft(); });
+  returnService.addEventListener('change', toggleAddresses);
+  function toggleAddresses(){document.querySelector('#pickup-address-box').hidden=pickupService.value!=='ADDRESS';document.querySelector('#return-address-box').hidden=returnService.value!=='ADDRESS';}
+  const childSeat=document.querySelector('input[name="extra_choices"][value="CHILD_SEAT"]');
+  function toggleChildSeats(){document.querySelector('#child-seat-count').hidden=!childSeat.checked;}
+  childSeat.addEventListener('change',toggleChildSeats);
+
+  function displayDate(iso) { const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}`; }
+  function isoDate(display) { const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(display); return match ? `${match[3]}-${match[2]}-${match[1]}` : ''; }
+  const pickupText = document.querySelector('#id_pickup_date');
+  const returnText = document.querySelector('#id_return_date');
+  const pickupCalendar = document.querySelector('#pickup-calendar');
+  const returnCalendar = document.querySelector('#return-calendar');
+  pickupCalendar.value = isoDate(pickupText.value);
+  returnCalendar.value = isoDate(returnText.value);
+  pickupCalendar.addEventListener('change', () => {
+    pickupText.value = displayDate(pickupCalendar.value);
+    returnCalendar.min = pickupCalendar.value;
+    if (!returnCalendar.value || returnCalendar.value < pickupCalendar.value) {
+      returnCalendar.value = pickupCalendar.value;
+      returnText.value = displayDate(returnCalendar.value);
+    }
+    saveDraft();
+  });
+  returnCalendar.addEventListener('change', () => { returnText.value = displayDate(returnCalendar.value); saveDraft(); });
+  pickupText.addEventListener('change', () => { pickupCalendar.value = isoDate(pickupText.value); returnCalendar.min = pickupCalendar.value; });
+  returnText.addEventListener('change', () => { returnCalendar.value = isoDate(returnText.value); });
+  document.querySelectorAll('[data-picker]').forEach(button => button.addEventListener('click', () => { const picker=document.querySelector('#'+button.dataset.picker); if(picker.showPicker) picker.showPicker(); else picker.click(); }));
+
+  const phone2Box=document.querySelector('#phone-2-box'),phone3Box=document.querySelector('#phone-3-box'),addPhone=document.querySelector('#add-phone');
+  function updatePhones(){phone2Box.hidden=!document.querySelector('#id_phone_2').value;phone3Box.hidden=!document.querySelector('#id_phone_3').value;addPhone.hidden=!phone2Box.hidden&&!phone3Box.hidden;}
+  addPhone.addEventListener('click',()=>{if(phone2Box.hidden)phone2Box.hidden=false;else phone3Box.hidden=false;addPhone.hidden=!phone2Box.hidden&&!phone3Box.hidden;});
+
+  const historyBox=document.querySelector('#customer-history');let lookupTimer;
+  function safe(value){const element=document.createElement('div');element.textContent=value??'';return element.innerHTML;}
+  async function lookupCustomer(){
+    const email=document.querySelector('#id_email').value.trim(),phone=document.querySelector('#id_phone_1').value.trim();
+    if(!email&&!phone){historyBox.hidden=true;return;}
+    const params=new URLSearchParams({email,phone});
+    const response=await fetch(`{% url 'quotes:customer_lookup' %}?${params}`);
+    const data=await response.json();historyBox.hidden=false;historyBox.className='customer-history';
+    if(!data.found){historyBox.innerHTML='<h3>Новый клиент</h3><div>Предыдущих обращений по этому e-mail или телефону не найдено.</div>';return;}
+    if(data.warning_code==='SERIOUS')historyBox.classList.add('serious');else if(data.warning_code==='WARNING')historyBox.classList.add('warning');
+    const events=data.events.map(e=>`<li>${safe(e.date)} — ${safe(e.title)} (${safe(e.type)})</li>`).join('');
+    historyBox.innerHTML=`<h3>Клиент найден: ${safe(data.name)}</h3><div><strong>Обращений:</strong> ${data.quote_count} · <strong>Заказов:</strong> ${data.booking_count}</div><div><strong>Алерт:</strong> ${safe(data.warning_level)}${data.warning_text?' — '+safe(data.warning_text):''}</div>${events?'<ul>'+events+'</ul>':''}<a href="${data.admin_url}" target="_blank">Открыть всю историю клиента</a>`;
+  }
+  function scheduleLookup(){clearTimeout(lookupTimer);lookupTimer=setTimeout(lookupCustomer,450);}
+  document.querySelector('#id_email').addEventListener('input',scheduleLookup);
+  document.querySelector('#id_phone_1').addEventListener('input',scheduleLookup);
+
+  function saveDraft() {
+    const data = {};
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+      if (!el.name || el.name === 'csrfmiddlewaretoken') return;
+      data[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    localStorage.setItem(draftKey, JSON.stringify(data));
+  }
+  {% if not is_editing %}if (!{{ form.is_bound|yesno:"true,false" }}) {
+    try {
+      const data = JSON.parse(localStorage.getItem(draftKey) || '{}');
+      Object.entries(data).forEach(([name, value]) => {
+        const el = form.elements[name]; if (!el) return;
+        if (el.type === 'checkbox') el.checked = value; else el.value = value;
+      });
+    } catch (error) {}
+  }{% endif %}
+  pickupCalendar.value = isoDate(pickupText.value);
+  returnCalendar.value = isoDate(returnText.value);
+  returnCalendar.min = pickupCalendar.value;
+  toggleInvoice();
+  toggleAddresses(); updatePhones(); toggleChildSeats();
+  if(document.querySelector('#id_email').value||document.querySelector('#id_phone_1').value)lookupCustomer();
+  {% if not is_editing %}form.addEventListener('input', saveDraft);
+  form.addEventListener('change', saveDraft);{% endif %}
+  toggleInvoice();
+</script></body></html>

@@ -20,9 +20,42 @@ from .models import (
     PriceList,
     PriceSeason,
     VehicleGroup,
+    VehicleComparisonClass,
     VehicleModel,
     VehicleRate,
 )
+
+
+class VehicleComparisonClassTests(TestCase):
+    def test_one_customer_class_can_link_equivalent_supplier_groups(self):
+        first_supplier = Supplier.objects.create(supplier_code="A", supplier_name="First")
+        second_supplier = Supplier.objects.create(supplier_code="B", supplier_name="Second")
+        first_group = VehicleGroup.objects.create(
+            supplier=first_supplier, group_code="CDAR", group_name="C automatic hatchback"
+        )
+        second_group = VehicleGroup.objects.create(
+            supplier=second_supplier, group_code="C-AUTO", group_name="C automatic hatchback"
+        )
+        comparison = VehicleComparisonClass.objects.create(
+            code="TEST_C_AUTO_HATCH", name="C — хетчбэк, автомат"
+        )
+        comparison.vehicle_groups.add(first_group, second_group)
+
+        self.assertEqual(comparison.vehicle_groups.count(), 2)
+        self.assertEqual(first_group.comparison_classes.get(), comparison)
+
+    def test_catalog_group_can_use_a_broader_tariff_group(self):
+        supplier = Supplier.objects.create(supplier_code="CF", supplier_name="Car Free")
+        tariff_group = VehicleGroup.objects.create(
+            supplier=supplier, group_code="SUV", group_name="SUV tariff"
+        )
+        catalog_group = VehicleGroup.objects.create(
+            supplier=supplier,
+            group_code="SUV-BIG",
+            group_name="SUV Big",
+            rate_source_group=tariff_group,
+        )
+        self.assertEqual(catalog_group.effective_rate_group, tariff_group)
 from .management.commands.import_vehicle_groups import (
     add_record,
     body_type_from_acriss,

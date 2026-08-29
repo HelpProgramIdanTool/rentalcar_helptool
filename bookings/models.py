@@ -1,4 +1,3 @@
-from math import ceil
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -6,6 +5,8 @@ from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+
+from config.rental_duration import calculate_rental_days
 
 
 class BookingNumberSequence(models.Model):
@@ -227,11 +228,11 @@ class Booking(models.Model):
         if self.return_location and not self.return_location_text:
             self.return_location_text = self._location_snapshot(self.return_location)
         if self.pickup_datetime and self.return_datetime:
-            duration_seconds = (
-                self.return_datetime - self.pickup_datetime
-            ).total_seconds()
+            duration_seconds = (self.return_datetime - self.pickup_datetime).total_seconds()
             if duration_seconds > 0:
-                self.rental_days = max(1, ceil(duration_seconds / 86400))
+                self.rental_days = calculate_rental_days(
+                    self.pickup_datetime, self.return_datetime
+                )
         else:
             self.rental_days = None
         self._calculate_vehicle_price()
@@ -572,7 +573,7 @@ class Booking(models.Model):
         pickup_date = timezone.localtime(self.pickup_datetime).date()
         rates = VehicleRate.objects.filter(
             is_active=True,
-            vehicle_group=self.vehicle_group,
+            vehicle_group=self.vehicle_group.effective_rate_group,
             season__is_active=True,
             season__price_list__status="ACTIVE",
             season__price_list__effective_from__lte=pickup_date,
