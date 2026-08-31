@@ -73,6 +73,7 @@ class FirstInquiryTests(TestCase):
         self.assertContains(response, 'class="message-panel"')
         self.assertContains(response, 'class="form-scroll"')
         self.assertContains(response, "body { margin:0;overflow:hidden; }")
+        self.assertContains(response, "position:sticky;top:0")
         self.assertContains(response, 'autocomplete="off"')
         self.assertNotContains(response, "restoreDraft();")
 
