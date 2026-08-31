@@ -74,7 +74,8 @@ class FirstInquiryTests(TestCase):
         self.assertContains(response, 'class="form-scroll"')
         self.assertContains(response, "body { margin:0;overflow:hidden; }")
         self.assertContains(response, "position:sticky;top:0")
-        self.assertContains(response, "pointer-events:auto;cursor:pointer")
+        self.assertContains(response, 'type="date"')
+        self.assertNotContains(response, "data-picker=")
         self.assertContains(response, 'autocomplete="off"')
         self.assertNotContains(response, "restoreDraft();")
 
