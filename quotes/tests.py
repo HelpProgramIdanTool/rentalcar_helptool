@@ -70,6 +70,8 @@ class FirstInquiryTests(TestCase):
         self.assertContains(response, "Очистить и начать новый запрос")
         self.assertContains(response, "Восстановить черновик")
         self.assertContains(response, "Малые автомобили")
+        self.assertContains(response, 'class="message-panel"')
+        self.assertContains(response, 'class="form-scroll"')
         self.assertContains(response, 'autocomplete="off"')
         self.assertNotContains(response, "restoreDraft();")
 
