@@ -83,6 +83,7 @@ def car_free_records():
         extra("YOUNG_DRIVER_21_24", "Young driver age 21-24", "DRIVER", "Young Driver's fee (21-24)", [rate(0, rental)]),
         extra("ONE_WAY_PL", "One-way rental in Poland", "DELIVERY", "One way in Poland (up to 3 days, 4 days and above is free)", [rate(199, rental, rate_code="DAYS_1_3", days_from=1, days_to=3), rate(0, rental, rate_code="DAYS_4_PLUS", days_from=4)]),
         extra("BABY_SEAT_BOOSTER", "Baby seat or booster", "CHILD_EQUIPMENT", "Baby Seat/Booster (up to 10 days, 11 days and above is free)", [rate(25, day, maximum=250)]),
+        extra("SNOW_CHAINS", "Snow chains", "EQUIPMENT", "Snow chains", [rate(25, day, maximum=250)]),
         extra("FOREIGN_CITY_DELIVERY", "Delivery or return in selected foreign city", "DELIVERY", "Delivery / Return in Bratislava, Berlin, Vienna, Budapest", [rate(1000, unit)]),
         extra("LOST_PARKING_TICKET", "Lost parking ticket", "PENALTY", "No parking ticket", [rate(100, formula, formula={"plus": "actual parking fee"})]),
         extra("CITY_ADDRESS_DELIVERY", "Address delivery or return in branch city", "DELIVERY", "Delivery/Return to an address in a city where CarFree is located", [rate(59, unit)], "Up to 30 km from the branch."),

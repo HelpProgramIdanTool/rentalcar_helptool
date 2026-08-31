@@ -227,7 +227,7 @@ def calculate_quote_options(quote):
         extras_total = Decimal("0.00")
         requested_code_map = {
             "CHILD_SEAT": {"01": "CHILD_SEAT", "02": "CHILD_SEAT", "03": "BABY_SEAT_BOOSTER"},
-            "SNOW_CHAINS": {"01": "SNOW_CHAINS", "02": "SNOW_CHAINS"},
+            "SNOW_CHAINS": {"01": "SNOW_CHAINS", "02": "SNOW_CHAINS", "03": "SNOW_CHAINS"},
             "NAVIGATION": {"01": "NAVIGATION", "02": "GPS"},
             "WIFI_ROUTER": {"01": "WIFI_ROUTER"},
         }

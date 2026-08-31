@@ -585,6 +585,21 @@ class SupplierExtraTests(TestCase):
             "30.00",
         )
 
+    def test_car_free_snow_chains_cost_25_daily_with_250_maximum(self):
+        snow_chains = next(
+            item for item in car_free_records() if item["extra_code"] == "SNOW_CHAINS"
+        )
+        snow_chains_rate = snow_chains["rates"][0]
+
+        self.assertEqual(snow_chains_rate["amount_gross"], Decimal("25"))
+        self.assertEqual(
+            snow_chains_rate["calculation_type"],
+            SupplierExtraRate.CalculationType.PER_DAY,
+        )
+        self.assertEqual(
+            snow_chains_rate["maximum_amount_gross"], Decimal("250")
+        )
+
     def test_one_rent_delivery_and_return_is_mandatory_two_hundred(self):
         delivery = next(
             item
