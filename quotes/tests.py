@@ -15,6 +15,7 @@ from .services import (
     HEBREW_VEHICLE_CLASS_NAMES,
     KAIZEN_CROSS_BORDER_PRICE,
     KAIZEN_COMFORT_INCLUDED_ITEMS,
+    _extra_price,
     _rate_description,
     _quoted_extra_price,
     _service_extra_requests,
@@ -259,6 +260,26 @@ class FirstInquiryTests(TestCase):
             maximum_amount_gross=None,
         )
         self.assertEqual(_rate_description(rate), "20.00 PLN ליום")
+
+    def test_daily_extra_applies_maximum_to_each_selected_item(self):
+        from types import SimpleNamespace
+
+        rate = SimpleNamespace(
+            formula_config={},
+            calculation_type="PER_DAY",
+            amount_gross=Decimal("20.00"),
+            minimum_amount_gross=None,
+            maximum_amount_gross=Decimal("150.00"),
+        )
+
+        self.assertEqual(
+            _extra_price(rate, days=Decimal("5"), quantity=Decimal("2")),
+            Decimal("200.00"),
+        )
+        self.assertEqual(
+            _extra_price(rate, days=Decimal("20"), quantity=Decimal("2")),
+            Decimal("300.00"),
+        )
 
     def test_old_option_presentation_is_left_unchanged_without_current_rate(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())

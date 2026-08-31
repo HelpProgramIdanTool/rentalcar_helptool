@@ -89,13 +89,23 @@ def _extra_price(rate, days, quantity=Decimal("1")):
     formula = rate.formula_config or {}
     if rate.calculation_type == "FORMULA":
         if "total_per_rental_gross" in formula:
-            return Decimal(str(formula["total_per_rental_gross"])) * quantity
-        base = Decimal(str(formula.get("per_rental_gross", rate.amount_gross)))
-        per_day = Decimal(str(formula.get("per_rental_day_gross", 0)))
-        return (base + per_day * days) * quantity
-    if rate.calculation_type in ("PER_DAY", "PER_DRIVER_DAY"):
-        return rate.amount_gross * days * quantity
-    return rate.amount_gross * quantity
+            unit_price = Decimal(str(formula["total_per_rental_gross"]))
+        else:
+            base = Decimal(str(formula.get("per_rental_gross", rate.amount_gross)))
+            per_day = Decimal(str(formula.get("per_rental_day_gross", 0)))
+            unit_price = base + per_day * days
+    elif rate.calculation_type in ("PER_DAY", "PER_DRIVER_DAY"):
+        unit_price = rate.amount_gross * days
+    else:
+        unit_price = rate.amount_gross
+
+    minimum = getattr(rate, "minimum_amount_gross", None)
+    maximum = getattr(rate, "maximum_amount_gross", None)
+    if minimum is not None:
+        unit_price = max(unit_price, minimum)
+    if maximum is not None:
+        unit_price = min(unit_price, maximum)
+    return unit_price * quantity
 
 
 def _quoted_extra_price(extra, rate, days, quantity=Decimal("1")):
