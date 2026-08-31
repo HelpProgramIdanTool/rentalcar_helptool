@@ -1,6 +1,6 @@
 from django import forms
 from django.utils import timezone
-from suppliers.models import Supplier, VehicleComparisonClass
+from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup
 
 class FirstInquiryForm(forms.Form):
     LANGUAGE_CHOICES = [
@@ -70,6 +70,12 @@ class FirstInquiryForm(forms.Form):
         label="Классы автомобилей",
         queryset=VehicleComparisonClass.objects.none(),
         widget=forms.CheckboxSelectMultiple,
+        required=False,
+    )
+    vehicle_groups = forms.ModelMultipleChoiceField(
+        label="Категории автомобилей поставщиков",
+        queryset=VehicleGroup.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
     )
     suppliers = forms.ModelMultipleChoiceField(
         label="Рассчитать предложения фирм",
@@ -103,6 +109,11 @@ class FirstInquiryForm(forms.Form):
         self.fields["vehicle_classes"].queryset = VehicleComparisonClass.objects.filter(
             is_active=True
         ).order_by("display_order", "name")
+        self.fields["vehicle_groups"].queryset = VehicleGroup.objects.filter(
+            is_active=True, supplier__status=Supplier.Status.ACTIVE
+        ).select_related("supplier").order_by(
+            "supplier__supplier_name", "display_order", "group_name"
+        )
         supplier_queryset = Supplier.objects.filter(status=Supplier.Status.ACTIVE).order_by(
             "supplier_name"
         )

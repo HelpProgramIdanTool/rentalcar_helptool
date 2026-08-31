@@ -9,6 +9,7 @@ from suppliers.models import (
     VehicleComparisonClass,
     VehicleRate,
 )
+from suppliers.deposit_rules import default_deposit_amount
 from .models import QuoteDocumentBlock, QuoteTemplate
 
 
@@ -156,6 +157,9 @@ def _service_extra_requests(quote, supplier_code):
 
 def calculate_quote_options(quote):
     pickup_date = timezone.localtime(quote.pickup_datetime).date()
+    requested_group_ids = set(
+        quote.requested_vehicle_groups.values_list("id", flat=True)
+    )
     comparisons = quote.requested_vehicle_classes.prefetch_related(
         "vehicle_groups__supplier", "vehicle_groups__models"
     ).all()
@@ -166,7 +170,10 @@ def calculate_quote_options(quote):
     requested_supplier_ids = set(quote.requested_suppliers.values_list("id", flat=True))
     results = []
     for comparison in comparisons:
-      for group in comparison.vehicle_groups.filter(is_active=True):
+      groups = comparison.vehicle_groups.filter(is_active=True)
+      if requested_group_ids:
+        groups = groups.filter(id__in=requested_group_ids)
+      for group in groups:
         if requested_supplier_ids and group.supplier_id not in requested_supplier_ids:
             continue
         rate = VehicleRate.objects.filter(
@@ -304,7 +311,11 @@ def calculate_quote_options(quote):
             "season": rate.season.season_name,
             "day_range": rate.day_range.label,
             "currency": rate.currency,
-            "deposit_amount": group.deposit_amount,
+            "deposit_amount": (
+                group.deposit_amount
+                if group.deposit_amount is not None
+                else default_deposit_amount(supplier_code, group.group_code)
+            ),
             "deposit_currency": group.deposit_currency,
             "hebrew_vehicle_class": HEBREW_VEHICLE_CLASS_NAMES.get(
                 comparison.code, comparison.name

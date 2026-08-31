@@ -57,7 +57,7 @@
       {% for field in form %}{% if field.name in "pickup_city pickup_service return_city return_service driver_count" %}
         <label>{{ field.label }}{{ field }}{{ field.errors }}</label>
       {% endif %}{% endfor %}
-      <label class="vehicle-classes">{{ form.vehicle_classes.label }}{{ form.vehicle_classes }}{{ form.vehicle_classes.errors }}<small>Можно отметить несколько классов для одной оферты.</small></label>
+      <label class="vehicle-classes">{{ form.vehicle_groups.label }}{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>Можно отметить любое количество реальных категорий разных поставщиков.</small></label>
       <label class="extras-choice">{{ form.extra_choices.label }}{{ form.extra_choices }}{{ form.extra_choices.errors }}</label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
       <label class="full address-field" id="pickup-address-box" hidden>{{ form.pickup_address.label }}{{ form.pickup_address }}{{ form.pickup_address.errors }}</label>

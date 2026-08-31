@@ -31,6 +31,17 @@ class FirstInquiryTests(TestCase):
         self.supplier = Supplier.objects.create(
             supplier_code="TEST", supplier_name="Test supplier"
         )
+        comparisons = list(VehicleComparisonClass.objects.all()[:2])
+        self.form_groups = [
+            VehicleGroup.objects.create(
+                supplier=self.supplier,
+                group_code=f"FORM-{index}",
+                group_name=f"Form group {index}",
+            )
+            for index in (1, 2)
+        ]
+        for comparison, group in zip(comparisons, self.form_groups):
+            comparison.vehicle_groups.add(group)
 
     def data(self, **changes):
         values = {
@@ -43,6 +54,7 @@ class FirstInquiryTests(TestCase):
             "return_time": "16:00",
             "pickup_city": "Kraków", "pickup_service": "AIRPORT", "vehicle_class": "1",
             "return_city": "Kraków", "return_service": "AIRPORT", "vehicle_classes": ["1", "2"],
+            "vehicle_groups": [str(group.id) for group in self.form_groups],
             "extra_choices": ["CHILD_SEAT", "SNOW_CHAINS"], "child_seat_quantity": 2,
             "driver_count": 2,
         }
@@ -59,6 +71,7 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(quote.extra_requests["CHILD_SEAT"], 2)
         self.assertEqual(quote.pickup_service, "AIRPORT")
         self.assertEqual(quote.requested_suppliers.count(), 1)
+        self.assertEqual(quote.requested_vehicle_groups.count(), 2)
 
     def test_twenty_extra_minutes_do_not_add_a_rental_day(self):
         response = self.client.post(
@@ -136,6 +149,12 @@ class FirstInquiryTests(TestCase):
         response = self.client.get(reverse("quotes:new_inquiry"))
         self.assertContains(response, "Город получения")
         self.assertContains(response, "Доставка по адресу клиента")
+
+    def test_form_offers_real_supplier_vehicle_groups(self):
+        response = self.client.get(reverse("quotes:new_inquiry"))
+        for group in self.form_groups:
+            self.assertContains(response, group.group_code)
+            self.assertContains(response, group.group_name)
 
     def test_customer_lookup_returns_history_and_warning(self):
         customer = Customer.objects.create(

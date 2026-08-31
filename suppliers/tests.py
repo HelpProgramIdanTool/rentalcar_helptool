@@ -11,6 +11,8 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from openpyxl import Workbook
 
+from .deposit_rules import DEPOSIT_AMOUNTS_PLN, default_deposit_amount
+
 from .models import (
     Supplier,
     SupplierExtra,
@@ -722,3 +724,18 @@ class VehicleGroupImportRuleTests(TestCase):
         add_record(records, "EDMR", "B", [("Toyota", "Yaris")], 1)
 
         self.assertEqual(records["EDMR"]["models"], [("Toyota", "Yaris")])
+
+
+class DepositRuleTests(TestCase):
+    def test_every_confirmed_supplier_group_has_a_deposit_rule(self):
+        self.assertEqual(len(DEPOSIT_AMOUNTS_PLN["01"]), 28)
+        self.assertEqual(len(DEPOSIT_AMOUNTS_PLN["02"]), 20)
+        self.assertEqual(len(DEPOSIT_AMOUNTS_PLN["03"]), 12)
+
+    def test_confirmed_deposit_examples(self):
+        self.assertEqual(default_deposit_amount("01", "PFAR"), Decimal("1000.00"))
+        self.assertEqual(default_deposit_amount("02", "RLAR"), Decimal("2000.00"))
+        self.assertEqual(
+            default_deposit_amount("03", "BUS-9-SEATER-AUTOMATIC"),
+            Decimal("1500.00"),
+        )

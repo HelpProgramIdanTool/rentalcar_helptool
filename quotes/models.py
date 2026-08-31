@@ -60,6 +60,11 @@ class Quote(models.Model):
         related_name="quotes",
         blank=True,
     )
+    requested_vehicle_groups = models.ManyToManyField(
+        "suppliers.VehicleGroup",
+        related_name="directly_requested_in_quotes",
+        blank=True,
+    )
     requested_suppliers = models.ManyToManyField(
         "suppliers.Supplier",
         related_name="requested_in_quotes",

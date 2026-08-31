@@ -23,6 +23,16 @@ def _quote_form_initial(quote):
     customer = quote.customer
     pickup = timezone.localtime(quote.pickup_datetime)
     returned = timezone.localtime(quote.return_datetime)
+    vehicle_group_ids = list(
+        quote.requested_vehicle_groups.values_list("id", flat=True)
+    )
+    if not vehicle_group_ids:
+        groups = quote.requested_vehicle_classes.values_list(
+            "vehicle_groups__id", flat=True
+        )
+        vehicle_group_ids = list(
+            group_id for group_id in groups if group_id is not None
+        )
     return {
         "first_name": customer.first_name, "last_name": customer.last_name,
         "email": customer.email, "phone_1": customer.phone_1,
@@ -37,6 +47,7 @@ def _quote_form_initial(quote):
         "pickup_address": quote.pickup_address, "return_city": quote.return_city,
         "return_service": quote.return_service, "return_address": quote.return_address,
         "vehicle_classes": list(quote.requested_vehicle_classes.values_list("id", flat=True)),
+        "vehicle_groups": vehicle_group_ids,
         "suppliers": list(quote.requested_suppliers.values_list("id", flat=True)),
         "driver_count": quote.driver_count,
         "cross_border_requested": quote.cross_border_requested,
@@ -78,6 +89,11 @@ def _update_quote_from_form(quote, data):
     quote.internal_notes = data["internal_notes"]
     quote.save()
     quote.requested_vehicle_classes.set(data["vehicle_classes"])
+    quote.requested_vehicle_groups.set(data["vehicle_groups"])
+    comparison_ids = data["vehicle_groups"].values_list(
+        "comparison_classes__id", flat=True
+    ).exclude(comparison_classes__id__isnull=True).distinct()
+    quote.requested_vehicle_classes.set(comparison_ids)
     quote.requested_suppliers.set(data["suppliers"])
     quote.options.all().delete()
     quote.document_blocks.all().delete()
@@ -130,7 +146,11 @@ def new_inquiry(request):
                 customer_notes=form.cleaned_data["customer_notes"],
                 internal_notes=form.cleaned_data["internal_notes"],
             )
-            quote.requested_vehicle_classes.set(form.cleaned_data["vehicle_classes"])
+            quote.requested_vehicle_groups.set(form.cleaned_data["vehicle_groups"])
+            comparison_ids = form.cleaned_data["vehicle_groups"].values_list(
+                "comparison_classes__id", flat=True
+            ).exclude(comparison_classes__id__isnull=True).distinct()
+            quote.requested_vehicle_classes.set(comparison_ids)
             quote.requested_suppliers.set(form.cleaned_data["suppliers"])
         return redirect("quotes:inquiry_saved", quote_number=quote.quote_number)
     return render(request, "quotes/new_inquiry.html", {"form": form})
@@ -175,6 +195,7 @@ def duplicate_quote(request, quote_number):
         internal_notes=source.internal_notes,
     )
     duplicate.requested_vehicle_classes.set(source.requested_vehicle_classes.all())
+    duplicate.requested_vehicle_groups.set(source.requested_vehicle_groups.all())
     duplicate.requested_suppliers.set(source.requested_suppliers.all())
     return redirect("quotes:edit_quote", quote_number=duplicate.quote_number)
 
