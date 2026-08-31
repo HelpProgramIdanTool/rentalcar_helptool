@@ -15,6 +15,7 @@ from .services import (
     HEBREW_VEHICLE_CLASS_NAMES,
     KAIZEN_CROSS_BORDER_PRICE,
     KAIZEN_COMFORT_INCLUDED_ITEMS,
+    _extra_line_name,
     _extra_price,
     _rate_description,
     _quoted_extra_price,
@@ -279,6 +280,19 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(
             _extra_price(rate, days=Decimal("20"), quantity=Decimal("2")),
             Decimal("300.00"),
+        )
+
+    def test_child_seat_name_in_offer_includes_quantity(self):
+        from types import SimpleNamespace
+
+        extra = SimpleNamespace(
+            extra_code="CHILD_SEAT",
+            name="Child seat",
+        )
+
+        self.assertEqual(
+            _extra_line_name(extra, Decimal("3")),
+            f'{HEBREW_EXTRA_NAMES["CHILD_SEAT"]} × 3',
         )
 
     def test_old_option_presentation_is_left_unchanged_without_current_rate(self):

@@ -117,6 +117,15 @@ def _quoted_extra_price(extra, rate, days, quantity=Decimal("1")):
     return _extra_price(rate, days, quantity)
 
 
+def _extra_line_name(extra, quantity):
+    name = HEBREW_EXTRA_NAMES.get(extra.extra_code, extra.name)
+    if extra.extra_code in {"BABY_SEAT_BOOSTER", "CHILD_SEAT"}:
+        return f"{name} × {int(quantity)}"
+    if quantity > 1:
+        return f"{name} × {int(quantity)}"
+    return name
+
+
 def _rate_description(rate):
     formula = rate.formula_config or {}
     if "per_rental_gross" in formula or "per_rental_day_gross" in formula:
@@ -252,7 +261,7 @@ def calculate_quote_options(quote):
             extra_rate = _active_extra_rate(extra, pickup_date, quote.rental_days)
             if not extra_rate:
                 lines.append({
-                    "name": HEBREW_EXTRA_NAMES.get(extra.extra_code, extra.name),
+                    "name": _extra_line_name(extra, quantity),
                     "warning": "Нет подходящего тарифа",
                 })
                 continue
@@ -261,7 +270,7 @@ def calculate_quote_options(quote):
             )
             extras_total += price
             lines.append({
-                "name": HEBREW_EXTRA_NAMES.get(extra.extra_code, extra.name),
+                "name": _extra_line_name(extra, quantity),
                 "price": price,
             })
         unavailable_requests = []
