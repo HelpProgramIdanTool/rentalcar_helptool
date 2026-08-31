@@ -63,6 +63,14 @@ class FirstInquiryTests(TestCase):
         values.update(changes)
         return values
 
+    def test_new_inquiry_starts_empty_and_offers_draft_controls(self):
+        response = self.client.get(reverse("quotes:new_inquiry"))
+
+        self.assertContains(response, "Очистить и начать новый запрос")
+        self.assertContains(response, "Восстановить черновик")
+        self.assertContains(response, 'autocomplete="off"')
+        self.assertNotContains(response, "restoreDraft();")
+
     def test_first_email_creates_customer_and_draft_quote(self):
         response = self.client.post(reverse("quotes:new_inquiry"), self.data())
         quote = Quote.objects.get()

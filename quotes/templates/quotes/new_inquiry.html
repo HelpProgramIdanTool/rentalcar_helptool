@@ -25,9 +25,10 @@
 <body><div class="app"><aside class="side"><div class="brand">Idan Rent a Car</div><div class="step active">1. Клиент и запрос</div><div class="step">2. Расчёт вариантов</div><div class="step">3. Оферта</div><div class="step">4. Заказ</div></aside><main>
   <h1>Новое обращение клиента</h1>
   <p class="hint">Перенеси сюда данные из первого письма. Сначала сохранится клиент и черновик оферты.</p>
-  <form method="post" novalidate>
+  <form method="post" novalidate autocomplete="off">
     {% csrf_token %}
     {{ form.non_field_errors }}
+    {% if not is_editing %}<div class="actions"><button class="small-button" id="clear-draft" type="button">Очистить и начать новый запрос</button><button class="small-button" id="restore-draft" type="button">Восстановить черновик</button></div>{% endif %}
     <fieldset><legend>Клиент написал</legend>
       <label class="customer-message">{{ form.customer_notes }}{{ form.customer_notes.errors }}</label>
       <small class="hint">Вставь сюда исходный текст письма клиента. Для иврита текст выравнивается справа.</small>
@@ -140,15 +141,27 @@
     });
     localStorage.setItem(draftKey, JSON.stringify(data));
   }
-  {% if not is_editing %}if (!{{ form.is_bound|yesno:"true,false" }}) {
+  function restoreDraft() {
     try {
       const data = JSON.parse(localStorage.getItem(draftKey) || '{}');
       Object.entries(data).forEach(([name, value]) => {
         const el = form.elements[name]; if (!el) return;
         if (el.type === 'checkbox') el.checked = value; else el.value = value;
       });
+      pickupCalendar.value = isoDate(pickupText.value);
+      returnCalendar.value = isoDate(returnText.value);
+      returnCalendar.min = pickupCalendar.value;
+      toggleInvoice(); toggleAddresses(); updatePhones(); toggleChildSeats();
+      if(document.querySelector('#id_email').value||document.querySelector('#id_phone_1').value)lookupCustomer();
     } catch (error) {}
-  }{% endif %}
+  }
+  {% if not is_editing %}
+  document.querySelector('#restore-draft').addEventListener('click', restoreDraft);
+  document.querySelector('#clear-draft').addEventListener('click', () => {
+    localStorage.removeItem(draftKey);
+    window.location.href = '{% url "quotes:new_inquiry" %}';
+  });
+  {% endif %}
   pickupCalendar.value = isoDate(pickupText.value);
   returnCalendar.value = isoDate(returnText.value);
   returnCalendar.min = pickupCalendar.value;
