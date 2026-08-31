@@ -442,6 +442,14 @@ class VehicleGroupTests(TestCase):
         self.assertIn(VehicleGroup, admin.site._registry)
         self.assertIn(VehicleModel, admin.site._registry)
 
+    def test_vehicle_group_admin_has_editable_luggage_section(self):
+        fieldsets = admin.site._registry[VehicleGroup].fieldsets
+        luggage_section = next(fields for title, fields in fieldsets if title == "Багажник")
+
+        self.assertIn("luggage_volume_liters", luggage_section["fields"])
+        self.assertIn("luggage_large", luggage_section["fields"])
+        self.assertIn("luggage_small", luggage_section["fields"])
+
 
 class SupplierExtraTests(TestCase):
     def setUp(self):

@@ -238,6 +238,7 @@ def calculate_quote(request, quote_number):
                             "base": str(option["base"]), "extras_total": str(option["extras_total"]),
                             "season": option["season"], "day_range": option["day_range"], "lines": lines,
                             "hebrew_vehicle_class": option["hebrew_vehicle_class"],
+                            "luggage_info": option["luggage_info"],
                             "included_items": option["included_items"],
                             "excluded_items": option["excluded_items"],
                         },

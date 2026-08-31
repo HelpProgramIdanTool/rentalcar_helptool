@@ -73,6 +73,21 @@ class VehicleGroupAdmin(admin.ModelAdmin):
     )
     list_filter = ("supplier", "transmission", "body_type", "is_active")
     search_fields = ("group_name", "group_code", "supplier__supplier_name")
+    fieldsets = (
+        ("Основные данные", {"fields": (
+            "supplier", "group_code", "group_name", "category", "body_type",
+            "transmission", "seats", "doors", "is_active", "display_order",
+        )}),
+        ("Багажник", {"fields": (
+            "luggage_volume_liters", "luggage_large", "luggage_small",
+            "luggage_priority", "cargo_note",
+        )}),
+        ("Цена и депозит", {"fields": (
+            "rate_source_group", "deposit_amount", "deposit_currency",
+            "available_from", "available_to", "booking_open_from",
+        )}),
+        ("Примечания", {"fields": ("fuel_type_note", "internal_note")}),
+    )
     inlines = (VehicleModelInline,)
 
 

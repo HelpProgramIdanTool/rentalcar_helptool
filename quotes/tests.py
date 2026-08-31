@@ -17,6 +17,7 @@ from .services import (
     KAIZEN_COMFORT_INCLUDED_ITEMS,
     _extra_line_name,
     _extra_price,
+    _luggage_info,
     _rate_description,
     _quoted_extra_price,
     _service_extra_requests,
@@ -68,6 +69,7 @@ class FirstInquiryTests(TestCase):
 
         self.assertContains(response, "Очистить и начать новый запрос")
         self.assertContains(response, "Восстановить черновик")
+        self.assertContains(response, "Малые автомобили")
         self.assertContains(response, 'autocomplete="off"')
         self.assertNotContains(response, "restoreDraft();")
 
@@ -82,6 +84,17 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(quote.pickup_service, "AIRPORT")
         self.assertEqual(quote.requested_suppliers.count(), 1)
         self.assertEqual(quote.requested_vehicle_groups.count(), 2)
+
+    def test_offer_can_be_created_without_last_name_using_only_phone(self):
+        response = self.client.post(
+            reverse("quotes:new_inquiry"),
+            self.data(last_name="", email="", phone_1="+48111222333"),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        customer = Customer.objects.get()
+        self.assertEqual(customer.last_name, "")
+        self.assertEqual(customer.phone_1, "+48111222333")
 
     def test_twenty_extra_minutes_do_not_add_a_rental_day(self):
         response = self.client.post(
@@ -302,6 +315,25 @@ class FirstInquiryTests(TestCase):
             _extra_line_name(extra, Decimal("3")),
             f'{HEBREW_EXTRA_NAMES["CHILD_SEAT"]} × 3',
         )
+
+    def test_luggage_information_is_shown_only_when_supplier_provided_it(self):
+        from types import SimpleNamespace
+
+        known = SimpleNamespace(
+            luggage_volume_liters=460,
+            luggage_large=None,
+            luggage_small=None,
+            cargo_note="",
+        )
+        unknown = SimpleNamespace(
+            luggage_volume_liters=None,
+            luggage_large=None,
+            luggage_small=None,
+            cargo_note="",
+        )
+
+        self.assertIn("460", _luggage_info(known))
+        self.assertEqual(_luggage_info(unknown), "")
 
     def test_old_option_presentation_is_left_unchanged_without_current_rate(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())

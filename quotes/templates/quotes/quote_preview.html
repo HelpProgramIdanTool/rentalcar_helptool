@@ -26,7 +26,7 @@
     {% if block.block_key == 'PAYMENT_DEPOSIT' %}
       <h2 class="options-title">אפשרויות רכב</h2>
       {% for option in options %}<article class="card option">
-        <div class="option-head"><div class="supplier">{{ option.supplier_name_snapshot }}</div><div class="vehicle-class">{{ option.calculation_snapshot.hebrew_vehicle_class }}</div>{% if option.vehicle_models_snapshot %}<div class="models">{{ option.vehicle_models_snapshot }} או רכב דומה</div>{% endif %}</div>
+        <div class="option-head"><div class="supplier">{{ option.supplier_name_snapshot }}</div><div class="vehicle-class">{{ option.calculation_snapshot.hebrew_vehicle_class }}</div>{% if option.vehicle_models_snapshot %}<div class="models">{{ option.vehicle_models_snapshot }} או רכב דומה</div>{% endif %}{% if option.calculation_snapshot.luggage_info %}<div class="models">{{ option.calculation_snapshot.luggage_info }}</div>{% endif %}</div>
         <div class="option-body"><div class="price-row"><span class="price-label">מחיר כולל</span><span class="price ltr">{{ option.total_price_gross }} {{ option.currency }}</span></div>
           <p><strong>פיקדון:</strong> {% if option.deposit_amount is not None %}<span class="ltr">{{ option.deposit_amount }} {{ option.deposit_currency }}</span>{% else %}<span style="color:#b42318">טרם הוזן</span>{% endif %}</p>
           <div class="lists"><div class="list-box included"><div class="list-title">תוספות שכלולות במחיר</div><ul>{% for item in option.calculation_snapshot.included_items %}<li>{{ item }}</li>{% endfor %}</ul></div>

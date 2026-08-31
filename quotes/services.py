@@ -126,6 +126,21 @@ def _extra_line_name(extra, quantity):
     return name
 
 
+def _luggage_info(group):
+    if group.luggage_volume_liters:
+        return f"נפח תא מטען משוער: לפחות {group.luggage_volume_liters} ליטר"
+    pieces = []
+    if group.luggage_large is not None:
+        pieces.append(f"{group.luggage_large} מזוודות גדולות")
+    if group.luggage_small is not None:
+        pieces.append(f"{group.luggage_small} מזוודות קטנות")
+    if pieces:
+        return "קיבולת תא מטען משוערת: " + " + ".join(pieces)
+    if group.cargo_note:
+        return group.cargo_note
+    return ""
+
+
 def _rate_description(rate):
     formula = rate.formula_config or {}
     if "per_rental_gross" in formula or "per_rental_day_gross" in formula:
@@ -339,6 +354,7 @@ def calculate_quote_options(quote):
             "hebrew_vehicle_class": HEBREW_VEHICLE_CLASS_NAMES.get(
                 comparison.code, comparison.name
             ),
+            "luggage_info": _luggage_info(group),
             "included_items": included_items,
             "excluded_items": excluded_items,
             "available": True,
@@ -363,6 +379,7 @@ def ensure_quote_option_presentation(quote):
         if not calculated:
             continue
         snapshot["hebrew_vehicle_class"] = calculated["hebrew_vehicle_class"]
+        snapshot["luggage_info"] = calculated["luggage_info"]
         snapshot["included_items"] = calculated["included_items"]
         snapshot["excluded_items"] = calculated["excluded_items"]
         if saved_option.deposit_amount is None and calculated["deposit_amount"] is not None:

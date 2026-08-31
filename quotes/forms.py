@@ -2,6 +2,43 @@ from django import forms
 from django.utils import timezone
 from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup
 
+
+VEHICLE_GROUP_SECTIONS = (
+    ("SMALL", "Малые автомобили"),
+    ("MEDIUM", "Средние автомобили"),
+    ("SUV", "SUV"),
+    ("LARGE_SUV", "Большие SUV"),
+    ("SEVEN_SEAT", "7-местные"),
+    ("NINE_SEAT", "8-9-местные"),
+    ("PREMIUM_SEDAN", "Премиум-седаны"),
+    ("PREMIUM_SUV", "Премиум-SUV"),
+    ("OTHER", "Другие / грузовые"),
+)
+
+
+def vehicle_group_section(group):
+    class_codes = {item.code for item in group.comparison_classes.all()}
+    text = f"{group.group_code} {group.group_name}".upper()
+    if "PREMIUM_SUV_AUTO" in class_codes or "SUV PREMIUM" in text or "SUV LUX" in text or group.group_code in {"RGAR", "PFBD", "LFBD", "PFAH", "LFAR"}:
+        return "PREMIUM_SUV"
+    if "PREMIUM_SEDAN_AUTO" in class_codes or "PREMIUM" in text or group.group_code in {"RLAR", "PLAH", "FCAH", "PLAR"}:
+        return "PREMIUM_SEDAN"
+    if "SUV_7_AUTO" in class_codes or "7 SEAT" in text or "7-OS" in text or group.group_code in {"SVAR", "SVAD"}:
+        return "SEVEN_SEAT"
+    if "PASSENGER_VAN_AUTO" in class_codes or "9 SEAT" in text or "9 OS" in text or "8 OS" in text or group.group_code in {"FVAR", "PVMD", "PVAD"}:
+        return "NINE_SEAT"
+    if "SUV_BIG_AUTO" in class_codes or "SUV BIG" in text or "SUV LARGE" in text:
+        return "LARGE_SUV"
+    if any("SUV" in code for code in class_codes) or "SUV" in text or "CROSSOVER" in text:
+        return "SUV"
+    if class_codes & {"B_MANUAL", "B_AUTO"} or group.group_code == "MCMR":
+        return "SMALL"
+    if any(code.startswith(("C_", "D_")) for code in class_codes) or group.group_code in {
+        "CDMR", "CDAR", "CLMR", "CLAR", "CLAH", "CWMR", "CWAR", "DLAR", "SWAR", "SLAR",
+    }:
+        return "MEDIUM"
+    return "OTHER"
+
 class FirstInquiryForm(forms.Form):
     LANGUAGE_CHOICES = [
         ("Hebrew", "עברית — иврит"),
@@ -32,7 +69,7 @@ class FirstInquiryForm(forms.Form):
         for hour in range(24) for minute in range(0, 60, 5)
     ]
     first_name = forms.CharField(label="Имя", max_length=100)
-    last_name = forms.CharField(label="Фамилия", max_length=100)
+    last_name = forms.CharField(label="Фамилия", max_length=100, required=False)
     email = forms.EmailField(label="E-mail", required=False)
     phone_1 = forms.CharField(label="Телефон 1", max_length=30, required=False)
     phone_2 = forms.CharField(label="Телефон 2", max_length=30, required=False)
@@ -111,9 +148,18 @@ class FirstInquiryForm(forms.Form):
         ).order_by("display_order", "name")
         self.fields["vehicle_groups"].queryset = VehicleGroup.objects.filter(
             is_active=True, supplier__status=Supplier.Status.ACTIVE
-        ).select_related("supplier").order_by(
+        ).select_related("supplier").prefetch_related("comparison_classes").order_by(
             "supplier__supplier_name", "display_order", "group_name"
         )
+        section_labels = dict(VEHICLE_GROUP_SECTIONS)
+        grouped_choices = {code: [] for code, _label in VEHICLE_GROUP_SECTIONS}
+        for group in self.fields["vehicle_groups"].queryset:
+            grouped_choices[vehicle_group_section(group)].append((group.pk, str(group)))
+        self.fields["vehicle_groups"].widget.choices = [
+            (section_labels[code], choices)
+            for code, choices in grouped_choices.items()
+            if choices
+        ]
         supplier_queryset = Supplier.objects.filter(status=Supplier.Status.ACTIVE).order_by(
             "supplier_name"
         )
