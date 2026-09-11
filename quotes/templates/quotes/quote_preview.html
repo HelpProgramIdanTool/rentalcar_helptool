@@ -8,6 +8,10 @@
   </style>
 </head>
 <body><main class="page">
+  {% if not is_email %}
+    {% for message in messages %}<div style="padding:13px 16px;border-radius:9px;margin-bottom:14px;background:{% if message.tags == 'success' %}#edf8f0{% else %}#fff1f0{% endif %};color:{% if message.tags == 'success' %}#166534{% else %}#b42318{% endif %};direction:ltr">{{ message }}</div>{% endfor %}
+  {% endif %}
+  {% if not is_email %}
   <nav class="workflow" aria-label="שלבי ההצעה">
     <a href="/admin/customers/customer/{{ quote.customer_id }}/change/">לקוח ✓</a><span class="arrow">←</span>
     <a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">בקשה ✓</a><span class="arrow">←</span>
@@ -15,6 +19,7 @@
     <span class="current">הצעה</span><span class="arrow">←</span>
     <span class="disabled" title="תחילה יש לבחור אפשרות">הזמנה</span>
   </nav>
+  {% endif %}
   <section class="card top">
     <div class="eyebrow">הצעת מחיר מספר {{ quote.quote_number }}</div><h1>פרטי ההשכרה</h1><p><strong>{{ quote.customer }}</strong></p>
     <div class="route">
@@ -35,9 +40,10 @@
     {% endif %}
     <section class="card"><h2>{{ block.title }}</h2><div class="block-content">{{ block.content }}</div></section>
   {% endfor %}
-  <section class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+  {% if not is_email %}<section class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <form method="post" action="{% url 'quotes:send_quote' quote.quote_number %}" style="margin:0">{% csrf_token %}<button type="submit" style="background:#155eef;color:white;border:0;border-radius:8px;padding:12px 18px;font-weight:bold;font-size:16px;cursor:pointer">Выслать оферту клиенту</button></form>
     <a class="edit-link" href="{% url 'quotes:edit_quote' quote.quote_number %}">שינוי פרטי ההשכרה</a>
     <a class="edit-link" href="{% url 'quotes:calculate_quote' quote.quote_number %}">חזרה לחישוב ושינוי האפשרויות</a>
     <form method="post" action="{% url 'quotes:duplicate_quote' quote.quote_number %}" style="margin:0">{% csrf_token %}<button type="submit" style="border:0;background:none;color:#174ea6;font-weight:700;font-size:17px;cursor:pointer;padding:0">הצעה חדשה לאותו לקוח</button></form>
-  </section>
+  </section>{% endif %}
 </main></body></html>

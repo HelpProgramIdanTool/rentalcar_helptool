@@ -1,8 +1,14 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.mail import EmailMultiAlternatives
+from django.core.validators import validate_email
 from django.db import transaction
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse
 from django.db.models import Q
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -256,7 +262,13 @@ def calculate_quote(request, quote_number):
 @login_required
 @never_cache
 def quote_preview(request, quote_number):
-    quote = Quote.objects.select_related("customer").get(quote_number=quote_number)
+    quote = get_object_or_404(
+        Quote.objects.select_related("customer"), quote_number=quote_number
+    )
+    return render(request, "quotes/quote_preview.html", _quote_preview_context(quote))
+
+
+def _quote_preview_context(quote, *, is_email=False):
     ensure_quote_document_blocks(quote)
     ensure_quote_option_presentation(quote)
     options = quote.options.filter(is_included=True).select_related("comparison_class")
@@ -272,10 +284,58 @@ def quote_preview(request, quote_number):
         pickup_location += f": {quote.pickup_address}"
     if quote.return_address:
         return_location += f": {quote.return_address}"
-    return render(request, "quotes/quote_preview.html", {
+    return {
         "quote": quote, "options": options, "blocks": blocks,
         "pickup_location": pickup_location, "return_location": return_location,
-    })
+        "is_email": is_email,
+    }
+
+
+@login_required
+@require_POST
+def send_quote(request, quote_number):
+    quote = get_object_or_404(
+        Quote.objects.select_related("customer"), quote_number=quote_number
+    )
+    email = quote.customer.email.strip()
+    try:
+        validate_email(email)
+    except ValidationError:
+        messages.error(
+            request, "Нельзя отправить оферту: у клиента нет правильного email."
+        )
+        return redirect("quotes:quote_preview", quote_number=quote.quote_number)
+
+    if not quote.options.filter(is_included=True).exists():
+        messages.error(
+            request, "Нельзя отправить оферту: сначала выберите хотя бы один вариант."
+        )
+        return redirect("quotes:quote_preview", quote_number=quote.quote_number)
+
+    subject = f"Car rental offer {quote.quote_number}"
+    html = render_to_string(
+        "quotes/quote_preview.html",
+        _quote_preview_context(quote, is_email=True),
+    )
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body=strip_tags(html),
+        to=[email],
+        alternatives=[(html, "text/html")],
+    )
+    message.send(fail_silently=False)
+
+    quote.status = Quote.Status.SENT
+    quote.sent_at = timezone.now()
+    quote.sent_to_email = email
+    quote.sent_subject = subject
+    quote.sent_html_snapshot = html
+    quote.save(update_fields=(
+        "status", "sent_at", "sent_to_email", "sent_subject",
+        "sent_html_snapshot", "updated_at",
+    ))
+    messages.success(request, f"Оферта отправлена клиенту на {email}.")
+    return redirect("quotes:quote_preview", quote_number=quote.quote_number)
 
 
 @login_required

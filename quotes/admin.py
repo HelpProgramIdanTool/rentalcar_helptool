@@ -5,7 +5,10 @@ from .models import Quote, QuoteDocumentBlock, QuoteOption, QuoteTemplate, Quote
 
 @admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
-    list_display = ("quote_number", "customer", "status", "pickup_datetime", "return_datetime")
+    list_display = (
+        "quote_number", "customer", "status", "sent_at",
+        "pickup_datetime", "return_datetime",
+    )
     search_fields = ("quote_number", "customer__first_name", "customer__last_name", "customer__email")
     list_filter = ("status", "created_at")
 

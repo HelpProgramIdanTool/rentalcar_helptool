@@ -72,6 +72,10 @@ class Quote(models.Model):
     )
     customer_notes = models.TextField(blank=True)
     internal_notes = models.TextField(blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    sent_to_email = models.EmailField(blank=True)
+    sent_subject = models.CharField(max_length=250, blank=True)
+    sent_html_snapshot = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

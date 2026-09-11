@@ -2,7 +2,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core import mail
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -225,6 +226,103 @@ class FirstInquiryTests(TestCase):
         )
         self.assertEqual(option.total_price_gross, Decimal("1234.00"))
         self.assertEqual(option.calculation_snapshot["days"], 4)
+
+    def _add_included_option(self, quote):
+        comparison = VehicleComparisonClass.objects.first()
+        group = VehicleGroup.objects.create(
+            supplier=self.supplier,
+            group_code=f"SEND-{quote.pk}",
+            group_name="Send test group",
+        )
+        return QuoteOption.objects.create(
+            quote=quote,
+            supplier=self.supplier,
+            vehicle_group=group,
+            comparison_class=comparison,
+            supplier_name_snapshot=self.supplier.supplier_name,
+            vehicle_group_name_snapshot=group.group_name,
+            total_price_gross=Decimal("1234.00"),
+            calculation_snapshot={
+                "days": 4,
+                "hebrew_vehicle_class": "Test vehicle",
+                "included_items": [],
+                "excluded_items": [],
+            },
+            is_included=True,
+        )
+
+    @override_settings(MAILERS={
+        "default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
+    })
+    def test_send_quote_emails_offer_and_saves_exact_snapshot(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        self._add_included_option(quote)
+
+        response = self.client.post(
+            reverse("quotes:send_quote", args=[quote.quote_number])
+        )
+
+        self.assertRedirects(
+            response, reverse("quotes:quote_preview", args=[quote.quote_number])
+        )
+        quote.refresh_from_db()
+        self.assertEqual(quote.status, Quote.Status.SENT)
+        self.assertIsNotNone(quote.sent_at)
+        self.assertEqual(quote.sent_to_email, "anna@example.com")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["anna@example.com"])
+        self.assertEqual(quote.sent_subject, mail.outbox[0].subject)
+        self.assertEqual(quote.sent_html_snapshot, mail.outbox[0].alternatives[0].content)
+        self.assertNotIn("Выслать оферту клиенту", quote.sent_html_snapshot)
+
+    @override_settings(MAILERS={
+        "default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
+    })
+    def test_send_quote_is_blocked_without_valid_customer_email(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        self._add_included_option(quote)
+        Customer.objects.filter(pk=quote.customer_id).update(email="wrong-address")
+
+        response = self.client.post(
+            reverse("quotes:send_quote", args=[quote.quote_number]), follow=True
+        )
+
+        quote.refresh_from_db()
+        self.assertContains(response, "у клиента нет правильного email")
+        self.assertEqual(quote.status, Quote.Status.DRAFT)
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(MAILERS={
+        "default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
+    })
+    def test_send_quote_is_blocked_without_included_options(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+
+        response = self.client.post(
+            reverse("quotes:send_quote", args=[quote.quote_number]), follow=True
+        )
+
+        quote.refresh_from_db()
+        self.assertContains(response, "сначала выберите хотя бы один вариант")
+        self.assertEqual(quote.status, Quote.Status.DRAFT)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_quote_preview_has_send_button(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        self._add_included_option(quote)
+
+        response = self.client.get(
+            reverse("quotes:quote_preview", args=[quote.quote_number])
+        )
+
+        self.assertContains(response, "Выслать оферту клиенту")
+        self.assertContains(
+            response, reverse("quotes:send_quote", args=[quote.quote_number])
+        )
 
     def test_calculation_steps_are_real_navigation_links(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())

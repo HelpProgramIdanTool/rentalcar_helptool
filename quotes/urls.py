@@ -13,5 +13,6 @@ urlpatterns = [
     path("offers/<str:quote_number>/duplicate/", views.duplicate_quote, name="duplicate_quote"),
     path("offers/<str:quote_number>/calculate/", views.calculate_quote, name="calculate_quote"),
     path("offers/<str:quote_number>/preview/", views.quote_preview, name="quote_preview"),
+    path("offers/<str:quote_number>/send/", views.send_quote, name="send_quote"),
     path("offers/<str:quote_number>/preview-v2/", views.quote_preview, name="quote_preview_v2"),
 ]
