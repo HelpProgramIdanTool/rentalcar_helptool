@@ -19,6 +19,7 @@ output/
 # Secrets / environment
 .env
 .env.*
+!.env.example
 
 # Test / tooling caches
 .pytest_cache/

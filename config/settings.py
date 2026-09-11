@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -129,8 +130,26 @@ LOGIN_URL = '/admin/login/'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+GMAIL_ADDRESS = os.environ.get('GMAIL_ADDRESS', '').strip()
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '').replace(' ', '')
+
+if GMAIL_ADDRESS and GMAIL_APP_PASSWORD:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': 'smtp.gmail.com',
+                'port': 587,
+                'username': GMAIL_ADDRESS,
+                'password': GMAIL_APP_PASSWORD,
+                'use_tls': True,
+            },
+        },
+    }
+    DEFAULT_FROM_EMAIL = GMAIL_ADDRESS
+else:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
