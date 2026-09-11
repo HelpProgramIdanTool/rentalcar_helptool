@@ -72,6 +72,7 @@ from .management.commands.import_supplier_extras import (
     one_rent_records,
     upsert_supplier_extras,
 )
+from .management.commands.import_vehicle_rates import import_car_free
 
 
 class SupplierTests(TestCase):
@@ -701,6 +702,105 @@ class VehicleRateTests(TestCase):
         self.assertIn(PriceSeason, admin.site._registry)
         self.assertIn(PriceDayRange, admin.site._registry)
         self.assertIn(VehicleRate, admin.site._registry)
+
+
+class CarFreePriceImportTests(TestCase):
+    tariff_groups = {
+        ("B", "Manual"): "B-MANUAL",
+        ("B", "Automatic"): "B-AUTOMATIC",
+        ("C Crossover", "Automatic"): "C-CROSSOVER-AUTOMATIC",
+        ("C Station Wagon", "Automatic"): "C-STATION-WAGON-AUTOMATIC",
+        ("D", "Automatic"): "D-AUTOMATIC",
+        ("SUV", "Automatic"): "SUV-MEDIUM-AUTOMATIC",
+        ("SUV 7 Seater", "Automatic"): "SUV-7-SEATER-AUTOMATIC",
+        ("E", "Automatic"): "E-AUTOMATIC",
+        ("BUS 9 Seater (Toyota Proace)", "Automatic"): "BUS-9-SEATER-AUTOMATIC",
+    }
+
+    def setUp(self):
+        self.supplier = Supplier.objects.create(
+            supplier_code="03", supplier_name="Car Free"
+        )
+        for code in self.tariff_groups.values():
+            VehicleGroup.objects.create(
+                supplier=self.supplier,
+                group_code=code,
+                group_name=code,
+            )
+
+    def test_new_workbook_creates_four_seasons_and_all_rates(self):
+        workbook = Workbook()
+        workbook.remove(workbook.active)
+        sheets = [
+            "1.09.26 - 13.12.26",
+            "14.12.26 - 7.01.27",
+            "8.01.27 - 31.05.27",
+            "1.06.27",
+        ]
+        for season_number, sheet_name in enumerate(sheets, 1):
+            sheet = workbook.create_sheet(sheet_name)
+            sheet.append([])
+            sheet.append(["Segment", "Transmission", "1", "2", "3-6", "7-14", "15-29", "Booking"])
+            for row_number, ((segment, transmission), _) in enumerate(
+                self.tariff_groups.items(), 1
+            ):
+                first_price = season_number * 100 + row_number
+                sheet.append(
+                    [segment, transmission, first_price, 90, 80, 70, 60, "Freesale"]
+                )
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "Idan x CarFree 03.09.2026.xlsx"
+            workbook.save(path)
+            price_list, imported_count = import_car_free(path)
+
+        self.assertEqual(price_list.version, "2026-09-03")
+        self.assertEqual(price_list.effective_from, date(2026, 9, 1))
+        self.assertEqual(price_list.seasons.count(), 4)
+        self.assertEqual(imported_count, 180)
+        self.assertEqual(
+            price_list.seasons.get(season_code="HOLIDAY_2026").rental_date_from,
+            date(2026, 12, 14),
+        )
+        self.assertEqual(
+            price_list.seasons.get(season_code="FROM_JUNE_2027").rental_date_to,
+            None,
+        )
+        self.assertEqual(
+            VehicleRate.objects.get(
+                season__price_list=price_list,
+                season__season_code="AUTUMN_2026",
+                vehicle_group__group_code="B-MANUAL",
+                day_range__range_code="D1",
+            ).daily_rate_gross,
+            Decimal("101.00"),
+        )
+
+
+class EffectiveVehicleGroupValuesTests(TestCase):
+    def test_premium_group_uses_tariff_groups_rate_and_deposit(self):
+        supplier = Supplier.objects.create(
+            supplier_code="03", supplier_name="Car Free"
+        )
+        tariff_group = VehicleGroup.objects.create(
+            supplier=supplier,
+            group_code="E-AUTOMATIC",
+            group_name="E Automatic",
+            deposit_amount=Decimal("1500.00"),
+        )
+        premium_group = VehicleGroup.objects.create(
+            supplier=supplier,
+            group_code="SUV-MEDIUM-PREMIUM-AUTOMATIC",
+            group_name="SUV Medium Premium Automatic",
+            rate_source_group=tariff_group,
+            deposit_amount=Decimal("500.00"),
+        )
+
+        self.assertEqual(premium_group.effective_rate_group, tariff_group)
+        self.assertEqual(
+            premium_group.effective_deposit_amount,
+            Decimal("1500.00"),
+        )
 
 
 class VehicleGroupImportRuleTests(TestCase):

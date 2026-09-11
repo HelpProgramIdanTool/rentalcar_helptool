@@ -503,10 +503,13 @@ class Booking(models.Model):
                     booking_extra.quantity = event_count
                     booking_extra.save()
 
-    @staticmethod
-    def _is_after_hours(value):
-        local_hour = timezone.localtime(value).hour
-        return local_hour >= 20 or local_hour < 8
+    def _is_after_hours(self, value):
+        local_time = timezone.localtime(value).time().replace(tzinfo=None)
+        return not (
+            self.supplier.regular_service_from
+            <= local_time
+            <= self.supplier.regular_service_to
+        )
 
     def _needs_after_hours_charge(self, value, location):
         if not self._is_after_hours(value):

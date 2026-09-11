@@ -1,5 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from datetime import time
+
 from django.db import models
 
 
@@ -23,6 +25,8 @@ class Supplier(models.Model):
     phone = models.CharField(max_length=40, blank=True)
     website = models.URLField(blank=True)
     internal_note = models.TextField(blank=True)
+    regular_service_from = models.TimeField(default=time(8, 0))
+    regular_service_to = models.TimeField(default=time(20, 0))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -164,6 +168,10 @@ class VehicleGroup(models.Model):
     @property
     def effective_rate_group(self):
         return self.rate_source_group or self
+
+    @property
+    def effective_deposit_amount(self):
+        return self.effective_rate_group.deposit_amount
 
     def __str__(self):
         return f"{self.supplier.supplier_name} — {self.group_name} ({self.group_code})"

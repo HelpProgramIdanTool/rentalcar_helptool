@@ -17,7 +17,14 @@ from .models import (
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ("supplier_name", "supplier_code", "status", "default_currency")
+    list_display = (
+        "supplier_name",
+        "supplier_code",
+        "status",
+        "default_currency",
+        "regular_service_from",
+        "regular_service_to",
+    )
     list_filter = ("status", "default_currency")
     search_fields = ("supplier_name", "supplier_code", "legal_name")
 

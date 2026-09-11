@@ -346,11 +346,11 @@ def calculate_quote_options(quote):
             "day_range": rate.day_range.label,
             "currency": rate.currency,
             "deposit_amount": (
-                group.deposit_amount
-                if group.deposit_amount is not None
+                group.effective_deposit_amount
+                if group.effective_deposit_amount is not None
                 else default_deposit_amount(supplier_code, group.group_code)
             ),
-            "deposit_currency": group.deposit_currency,
+            "deposit_currency": group.effective_rate_group.deposit_currency,
             "hebrew_vehicle_class": HEBREW_VEHICLE_CLASS_NAMES.get(
                 comparison.code, comparison.name
             ),

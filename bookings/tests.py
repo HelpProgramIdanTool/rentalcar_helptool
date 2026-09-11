@@ -578,6 +578,56 @@ class BookingTests(TestCase):
         self.assertEqual(fee.quantity, Decimal("2.00"))
         self.assertEqual(fee.calculated_price_gross, Decimal("140.00"))
 
+    def test_car_free_regular_hours_are_free_from_0800_through_2000(self):
+        self.supplier.supplier_name = "Car Free"
+        self.supplier.save(update_fields=["supplier_name"])
+        after_hours = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="OUT_OF_HOURS",
+            name="Out-of-hours pickup or return",
+        )
+        SupplierExtraRate.objects.create(
+            extra=after_hours,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_UNIT,
+            amount_gross=Decimal("60.00"),
+            valid_from=date(2026, 1, 1),
+        )
+        warsaw = ZoneInfo("Europe/Warsaw")
+
+        booking = self.create_booking(
+            pickup_datetime=datetime(2026, 9, 1, 8, 0, tzinfo=warsaw),
+            return_datetime=datetime(2026, 9, 1, 20, 0, tzinfo=warsaw),
+        )
+
+        self.assertFalse(booking.extras.filter(extra=after_hours).exists())
+
+    def test_car_free_charges_before_0800_and_after_2000(self):
+        self.supplier.supplier_name = "Car Free"
+        self.supplier.save(update_fields=["supplier_name"])
+        after_hours = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="OUT_OF_HOURS",
+            name="Out-of-hours pickup or return",
+        )
+        SupplierExtraRate.objects.create(
+            extra=after_hours,
+            rate_code="DEFAULT",
+            calculation_type=SupplierExtraRate.CalculationType.PER_UNIT,
+            amount_gross=Decimal("60.00"),
+            valid_from=date(2026, 1, 1),
+        )
+        warsaw = ZoneInfo("Europe/Warsaw")
+
+        booking = self.create_booking(
+            pickup_datetime=datetime(2026, 9, 1, 7, 55, tzinfo=warsaw),
+            return_datetime=datetime(2026, 9, 1, 20, 5, tzinfo=warsaw),
+        )
+        fee = booking.extras.get(extra=after_hours)
+
+        self.assertEqual(fee.quantity, Decimal("2.00"))
+        self.assertEqual(fee.calculated_price_gross, Decimal("120.00"))
+
     def test_kaizen_selected_airports_do_not_charge_night_service(self):
         self.supplier.supplier_name = "Kaizen Rent"
         self.supplier.save(update_fields=["supplier_name"])

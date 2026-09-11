@@ -106,10 +106,10 @@ def import_car_free(path):
     supplier = get_supplier("Car Free")
     price_list = upsert_price_list(
         supplier,
-        "Car Free customer rates 2026",
-        "2026-08-13",
+        "Car Free customer rates 2026-2027",
+        "2026-09-03",
         path.name,
-        date(2026, 6, 25),
+        date(2026, 9, 1),
         None,
     )
     ranges = upsert_ranges(
@@ -123,9 +123,10 @@ def import_car_free(path):
         ],
     )
     sheet_definitions = [
-        ("CarFree Fleet 25.06.2026-15.08", "HIGH_1", "25 Jun - 15 Aug", date(2026, 6, 25), date(2026, 8, 15)),
-        ("CarFree Fleet 16.08-31.08", "HIGH_2", "16 Aug - 31 Aug", date(2026, 8, 16), date(2026, 8, 31)),
-        ("CarFree Fleet 1.09 - ", "FROM_SEP", "From 1 Sep", date(2026, 9, 1), None),
+        ("1.09.26 - 13.12.26", "AUTUMN_2026", "1 Sep - 13 Dec 2026", date(2026, 9, 1), date(2026, 12, 13)),
+        ("14.12.26 - 7.01.27", "HOLIDAY_2026", "14 Dec 2026 - 7 Jan 2027", date(2026, 12, 14), date(2027, 1, 7)),
+        ("8.01.27 - 31.05.27", "WINTER_SPRING_2027", "8 Jan - 31 May 2027", date(2027, 1, 8), date(2027, 5, 31)),
+        ("1.06.27", "FROM_JUNE_2027", "From 1 Jun 2027", date(2027, 6, 1), None),
     ]
     group_map = {
         ("B", "Manual"): "B-MANUAL",
@@ -139,7 +140,9 @@ def import_car_free(path):
         ("E", "Automatic"): "E-AUTOMATIC",
         ("BUS 9 Seater (Toyota Proace)", "Automatic"): "BUS-9-SEATER-AUTOMATIC",
     }
-    workbook = load_workbook(path, read_only=True, data_only=True)
+    # This supplier workbook has no worksheet dimension metadata, so openpyxl's
+    # read-only mode sees empty rows. Normal mode reads the file correctly.
+    workbook = load_workbook(path, data_only=True)
     touched = []
     for sheet_name, season_code, season_name, start, end in sheet_definitions:
         season = upsert_season(price_list, season_code, season_name, start, end)
@@ -268,7 +271,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         sources = [
-            (PRICE_LIST_DIR / "CarFree 13.08.2026.xlsx", import_car_free),
+            (PRICE_LIST_DIR / "Idan x CarFree 03.09.2026.xlsx", import_car_free),
             (PRICE_LIST_DIR / "Kaizen Rent.xlsx", import_kaizen),
             (PRICE_LIST_DIR / "One Rent 2026.xlsx", import_one_rent),
         ]
