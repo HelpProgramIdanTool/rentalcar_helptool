@@ -319,10 +319,19 @@ getting good at.
 
 # What to do next
 
-You have four jobs waiting, in `docs/tasks/`. **Do them in this order** — each one
+You have five jobs waiting, in `docs/tasks/`. **Do them in this order** — each one
 depends on the one before it.
 
-### → Start here: [Task 01 — Build the test safety net](docs/tasks/01-build-the-test-safety-net.md)
+### → Start here (5 minutes): [Task 00 — Point git at the new home](docs/tasks/00-point-git-at-the-new-home.md)
+
+The project moved to a new address on GitHub. Your computer still has the old one
+written down. One command fixes it.
+
+Do this first because it is tiny, nothing can break, and on the way you will finally
+find out what `origin` actually means — the word you type every time you push,
+without anyone ever telling you what it is.
+
+### → Then: [Task 01 — Build the test safety net](docs/tasks/01-build-the-test-safety-net.md)
 
 You already have 138 tests. This task makes sure they are the **right kind** of
 tests, and — more important — that **you understand how they work**, so you can

@@ -41,6 +41,8 @@ measured from git, and the four jobs waiting for you in order.
 
 ## Task briefs (for the AI agent)
 
+- [`docs/tasks/00-point-git-at-the-new-home.md`](docs/tasks/00-point-git-at-the-new-home.md) —
+  point Idan's clone at the repository's new address, and teach him what a git remote is.
 - [`docs/tasks/01-build-the-test-safety-net.md`](docs/tasks/01-build-the-test-safety-net.md) —
   build the tests that protect the money calculations, and teach Idan how they work.
 - [`docs/tasks/02-secrets-and-settings.md`](docs/tasks/02-secrets-and-settings.md) —

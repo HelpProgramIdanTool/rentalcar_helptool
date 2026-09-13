@@ -18,10 +18,10 @@ At the start of a session:
    programming and does not yet know that 93% test discipline is unusual, or that a
    1.1% delete rate means he planned well. **Tell him.** He will not work it out alone.
 2. **Then point him at his next job.** The "What to do next" section at the bottom of
-   that file lists his four tasks in the order they must be done:
-   `01` tests → `02` secrets → `03` prices and text out of the code → `04` the money
-   discussion with his mentor. Check which are already finished, then send him to the
-   first unfinished one.
+   that file lists his five tasks in the order they must be done:
+   `00` point git at the new home → `01` tests → `02` secrets → `03` prices and text out
+   of the code → `04` the money discussion with his mentor. Check which are already
+   finished, then send him to the first unfinished one.
 3. **Do not read the whole file to him.** It is written for him to read himself. Your
    job is the one-minute version, plus the next step.
 
