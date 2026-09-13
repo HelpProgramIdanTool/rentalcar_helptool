@@ -2,7 +2,21 @@
 
 This file is for the **AI coding agent** (Codex). Read it before helping.
 
-## Start every new session with Idan here
+## Start here - every new session, and after every pull
+
+**If Idan says "pull latest" (or anything like it), that is not a small errand. Treat it as
+the start of a session.** Do this, in order:
+
+1. Run the pull.
+2. **Re-read this file.** A pull can change your own instructions - including this line. What
+   you loaded when the session started may now be out of date.
+3. Look at what arrived: `git log --oneline -10` and the list of changed files. Read the
+   commit messages, not just the filenames - they are written to tell you what changed and why.
+4. If `AGENTS.md`, `README.md`, `WELCOME-IDAN.md` or anything in `docs/tasks/` changed, read
+   the changed file **before** you do anything else.
+5. Then tell Idan, in two or three short lines, what is new **for him**. Not a list of files -
+   he does not care about files. Say what he can now do that he could not do before.
+6. Then continue with the rest of this section.
 
 Before anything else, open [`WELCOME-IDAN.md`](WELCOME-IDAN.md) and use it.
 
