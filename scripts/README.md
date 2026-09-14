@@ -23,6 +23,6 @@ For example: the **Python script(s) that generated the HTML mockup** in
 
 ## Note
 
-These scripts are **helpers**, not the real backend. The real server code will live in a
-separate `backend/` folder later (see
-[`../docs/guides/02-backend-setup.md`](../docs/guides/02-backend-setup.md)).
+These scripts are **helpers**, not the real application. The real server code lives in the
+Django apps at the top of the repository (`suppliers/`, `quotes/`, `bookings/`, …) — see
+[`../README.md`](../README.md).

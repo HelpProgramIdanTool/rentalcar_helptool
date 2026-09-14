@@ -62,6 +62,19 @@ what was expected and what happened instead.
 
 ---
 
+## Next step: the test safety net
+
+You now have many tests, and they pass. Well done. The next step is to make them **fast and
+exact**, and to make sure they do not break when a supplier changes a price.
+
+Your agent has full instructions for this, written for it:
+[`../tasks/01-build-the-test-safety-net.md`](../tasks/01-build-the-test-safety-net.md)
+
+Ask it: *"Read `docs/tasks/01-build-the-test-safety-net.md` and start with Part 4.1 only.
+Explain each idea to me first, and let me write the test."*
+
+---
+
 ## Ask your agent
 
 - *"Add unit tests for this feature and run them. Explain what each test checks in simple words."*
