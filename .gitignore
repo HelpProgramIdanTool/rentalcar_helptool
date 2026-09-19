@@ -22,6 +22,9 @@ output/
 !.env.example
 
 # Test / tooling caches
+tmp/
+.test-temp/
+.uv-cache/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

@@ -100,6 +100,8 @@ class BookingAdmin(admin.ModelAdmin):
                     "customer",
                     "created_by_employee",
                     "salesperson_employee",
+                    "order_source",
+                    "sub_agent",
                     "supplier",
                     "vehicle_group",
                     "pickup_datetime",

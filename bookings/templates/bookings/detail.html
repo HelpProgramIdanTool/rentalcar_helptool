@@ -1,0 +1,24 @@
+{% extends 'customers/base.html' %}
+{% block title %}{{ booking.booking_number }}{% endblock %}
+{% block content %}
+<h1>{{ booking.booking_number }}</h1>
+<p><a href="{% url 'quotes:booking_list' %}">← Все заказы</a></p>
+<p><a href="{% url 'quotes:supplier_message' booking.pk %}">Подготовить письмо поставщику</a></p>
+<p>{{ booking.get_order_source_display }}{% if booking.salesperson_employee %} · Ответственный: {{ booking.salesperson_employee }}{% endif %}{% if booking.sub_agent %} · Субагент: {{ booking.sub_agent }}{% endif %}</p>
+{% if booking.created_by_user %}<p>Внёс в систему: {{ booking.created_by_user }}</p>{% endif %}
+<form method="post" id="reservation-number">{% csrf_token %}{{ reservation_form.as_p }}<button type="submit">Сохранить номер и статус</button></form>
+<p>Статус: {{ booking.get_status_display }}. {% if booking.status == 'DRAFT' %}Заказ поставщику ещё не отправлен.{% endif %}</p>
+{% if booking.source_quote %}<p>Оферта: <a href="{% url 'quotes:inquiry_saved' booking.source_quote.quote_number %}">{{ booking.source_quote.quote_number }}</a></p>{% endif %}
+<p>Клиент: {{ booking.customer_name_snapshot }} · {{ booking.customer_email_snapshot }} · {{ booking.customer_phone_1_snapshot }} {{ booking.customer_phone_2_snapshot }} {{ booking.customer_phone_3_snapshot }}</p>
+<p>{{ booking.supplier }} · {{ booking.vehicle_group }}</p>
+{% if booking.source_quote_snapshot.request.vehicle_note %}<p>{{ booking.source_quote_snapshot.request.vehicle_note }}</p>{% endif %}
+<p>Получение: {{ booking.pickup_datetime|date:'d.m.Y H:i' }} · {{ booking.pickup_location_text }} {{ booking.pickup_address }}</p>
+<p>Возврат: {{ booking.return_datetime|date:'d.m.Y H:i' }} · {{ booking.return_location_text }} {{ booking.return_address }}</p>
+<p>Водителей: {{ booking.source_quote_snapshot.request.driver_count }} · Выезд за границу: {{ booking.source_quote_snapshot.request.cross_border_requested|yesno:'да,нет' }}</p>
+<ul>{% for extra in booking.extras.all %}<li>{{ extra.customer_visible_name }} × {{ extra.quantity }} — {{ extra.calculated_price_gross }} {{ extra.currency_snapshot }}</li>{% endfor %}</ul>
+<p><strong>Итого: {{ booking.total_price_gross }} {{ booking.currency }}</strong></p>
+<p>Депозит: {{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% if booking.source_quote_snapshot.deposit_usage == 'once' %} (только для этого заказа){% endif %}</p>
+<p>Заметка клиента: {{ booking.source_quote_snapshot.request.customer_notes }}</p>
+<p>Моя заметка: {{ booking.source_quote_snapshot.request.internal_notes }}</p>
+<script>if(window.location.hash==='#reservation-number'){document.getElementById('id_supplier_booking_number')?.focus();}</script>
+{% endblock %}

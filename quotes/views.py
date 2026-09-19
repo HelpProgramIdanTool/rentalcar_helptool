@@ -1,28 +1,73 @@
+from uuid import uuid4
+import base64
+import hashlib
+from smtplib import SMTPException
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
+from django.core.paginator import Paginator
 from django.core.validators import validate_email
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import JsonResponse
-from django.db.models import Q
+from django.http import JsonResponse, HttpResponse, FileResponse
+from django.db.models import Q, Max
+from django.urls import reverse
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from customers.models import Customer
 
-from .forms import FirstInquiryForm
-from .models import Quote, QuoteOption
+from .forms import FirstInquiryForm, QuoteListFilterForm, QUOTE_STATUS_LABELS
+from .models import Quote, QuoteOption, QuoteEmailDelivery
+from .email_tools import load_email_template, seat_guides, child_seat_text
+from .email_forms import EmailSubjectForm, BlockFormSet, OptionFormSet
+from .email_content import REQUIRED_BLOCKS
 from .services import find_or_create_customer
 from .services import (
     calculate_quote_options,
     ensure_quote_document_blocks,
     ensure_quote_option_presentation,
 )
+
+
+@login_required
+def quote_list(request):
+    filters = QuoteListFilterForm(request.GET)
+    quotes = Quote.objects.select_related("customer")
+    if filters.is_valid():
+        data = filters.cleaned_data
+        for term in data["q"].split():
+            quotes = quotes.filter(
+                Q(quote_number__icontains=term) | Q(customer__first_name__icontains=term)
+                | Q(customer__last_name__icontains=term) | Q(customer__email__icontains=term)
+                | Q(customer__phone_1__icontains=term) | Q(customer__phone_2__icontains=term)
+                | Q(customer__phone_3__icontains=term)
+            )
+        if data["status"]:
+            quotes = quotes.filter(status=data["status"])
+        if data["pickup_from"]:
+            quotes = quotes.filter(pickup_datetime__date__gte=data["pickup_from"])
+        if data["pickup_to"]:
+            quotes = quotes.filter(pickup_datetime__date__lte=data["pickup_to"])
+    else:
+        quotes = quotes.none()
+    sort = request.GET.get("sort", "-created_at")
+    allowed_sorts = {"created_at", "-created_at", "pickup_datetime", "-pickup_datetime"}
+    if sort not in allowed_sorts:
+        sort = "-created_at"
+    page = Paginator(quotes.order_by(sort, "-pk"), 25).get_page(request.GET.get("page"))
+    for quote in page:
+        quote.status_label = QUOTE_STATUS_LABELS.get(quote.status, quote.status)
+    query = request.GET.copy()
+    query.pop("page", None)
+    return render(request, "quotes/quote_list.html", {
+        "page_obj": page, "filters": filters, "sort": sort,
+        "filter_query": query.urlencode(), "active_menu": "quotes",
+    })
 
 
 def _quote_form_initial(quote):
@@ -102,15 +147,25 @@ def _update_quote_from_form(quote, data):
     quote.requested_vehicle_classes.set(comparison_ids)
     quote.requested_suppliers.set(data["suppliers"])
     quote.options.all().delete()
-    quote.document_blocks.all().delete()
+    # Email wording is a separate draft and survives changes to rental dates.
 
 
 @login_required
-def new_inquiry(request):
-    form = FirstInquiryForm(request.POST or None)
+def new_inquiry(request, customer_id=None):
+    selected_customer = get_object_or_404(Customer, pk=customer_id) if customer_id is not None else None
+    initial = {}
+    if selected_customer:
+        initial = {field: getattr(selected_customer, field) for field in (
+            "first_name", "last_name", "email", "phone_1", "phone_2", "phone_3",
+            "country", "preferred_language", "address", "wants_invoice", "invoice_name",
+            "invoice_tax_id", "invoice_address", "invoice_email",
+        )}
+    form = FirstInquiryForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
-            customer, customer_created = find_or_create_customer(form.cleaned_data)
+            customer, customer_created = find_or_create_customer(
+                form.cleaned_data, selected_customer=selected_customer,
+            )
             service_labels = dict(FirstInquiryForm.SERVICE_CHOICES)
             pickup_location = (
                 f"{form.cleaned_data['pickup_city']} — "
@@ -158,8 +213,10 @@ def new_inquiry(request):
             ).exclude(comparison_classes__id__isnull=True).distinct()
             quote.requested_vehicle_classes.set(comparison_ids)
             quote.requested_suppliers.set(form.cleaned_data["suppliers"])
-        return redirect("quotes:inquiry_saved", quote_number=quote.quote_number)
-    return render(request, "quotes/new_inquiry.html", {"form": form})
+        return redirect("quotes:calculate_quote" if request.POST.get("imported_inquiry") else "quotes:inquiry_saved", quote_number=quote.quote_number)
+    return render(request, "quotes/new_inquiry.html", {
+        "form": form, "selected_customer": selected_customer,
+    })
 
 
 @login_required
@@ -244,6 +301,9 @@ def calculate_quote(request, quote_number):
                             "base": str(option["base"]), "extras_total": str(option["extras_total"]),
                             "season": option["season"], "day_range": option["day_range"], "lines": lines,
                             "hebrew_vehicle_class": option["hebrew_vehicle_class"],
+                            "body_type_label": option["body_type_label"],
+                            "fuel_type_label": option["fuel_type_label"],
+                            "transmission_label": option["transmission_label"],
                             "luggage_info": option["luggage_info"],
                             "included_items": option["included_items"],
                             "excluded_items": option["excluded_items"],
@@ -251,7 +311,7 @@ def calculate_quote(request, quote_number):
                         "display_order": order, "is_included": True,
                     },
                 )
-        return redirect("quotes:quote_preview", quote_number=quote.quote_number)
+        return redirect("quotes:email_editor", quote_number=quote.quote_number)
     return render(
         request,
         "quotes/calculate_quote.html",
@@ -268,11 +328,88 @@ def quote_preview(request, quote_number):
     return render(request, "quotes/quote_preview.html", _quote_preview_context(quote))
 
 
+@login_required
+@never_cache
+def copy_quote(request, quote_number):
+    quote = get_object_or_404(Quote, quote_number=quote_number)
+    if not quote.options.filter(is_included=True).exists():
+        return JsonResponse({"error": "Сначала сохраните варианты оферты."}, status=400)
+    context = _quote_preview_context(quote, is_email=True)
+    return JsonResponse({
+        "html": render_to_string("quotes/quote_preview.html", context),
+        "text": render_to_string("quotes/quote_email.txt", context),
+        "subject": quote.email_subject or f"Car rental offer {quote.quote_number}",
+    })
+
+
+@login_required
+@never_cache
+def email_editor(request, quote_number):
+    quote = get_object_or_404(Quote.objects.select_related("customer"), quote_number=quote_number)
+    ensure_quote_document_blocks(quote)
+    if request.method == "POST" and request.POST.get("action") == "reset":
+        with transaction.atomic():
+            load_email_template(quote, replace=True)
+        messages.success(request, "Загружен действующий шаблон. Отправленные письма сохранены в истории.")
+        return redirect("quotes:email_editor", quote_number=quote.quote_number)
+    data = request.POST if request.method == "POST" else None
+    subject_form = EmailSubjectForm(data, instance=quote)
+    blocks = BlockFormSet(data, queryset=quote.document_blocks.all(), prefix="blocks")
+    options = OptionFormSet(data, queryset=quote.options.filter(is_included=True), prefix="options")
+    if request.method == "POST":
+        valid = [subject_form.is_valid(), blocks.is_valid(), options.is_valid()]
+        if all(valid):
+            with transaction.atomic():
+                subject_form.save()
+                blocks.save()
+                options.save()
+                if request.POST.get("action") == "add_block":
+                    last_order = quote.document_blocks.aggregate(value=Max("display_order"))["value"] or 0
+                    new_block = quote.document_blocks.create(
+                        block_key=f"CUSTOM_{uuid4().hex}", title="Новый блок",
+                        content="", display_order=last_order + 10, is_enabled=True,
+                    )
+                    messages.success(request, "Правки сохранены. Добавлен блок — заполните его заголовок и текст.")
+                    return redirect(reverse("quotes:email_editor", args=[quote.quote_number]) + f"?block={new_block.pk}#block-{new_block.pk}")
+            if request.POST.get("action") == "preview":
+                return redirect("quotes:quote_preview", quote_number=quote.quote_number)
+            messages.success(request, "Черновик письма сохранён.")
+            return redirect("quotes:email_editor", quote_number=quote.quote_number)
+    guides = seat_guides(quote)
+    return render(request, "quotes/email_editor.html", {
+        "quote": quote, "subject_form": subject_form, "blocks": blocks, "options": options,
+        "guides": guides, "child_seat_text": child_seat_text(quote, guides),
+        "deliveries": quote.email_deliveries.defer("html", "attachments"), "active_menu": "quotes",
+    })
+
+
+@login_required
+def quote_guide(request, quote_number, code):
+    quote = get_object_or_404(Quote, quote_number=quote_number)
+    for guide in seat_guides(quote):
+        if guide["code"] == code and guide["path"].is_file():
+            return FileResponse(guide["path"].open("rb"), as_attachment=True, filename=guide["filename"])
+    from django.http import Http404
+    raise Http404
+
+
+@login_required
+def email_delivery(request, quote_number, delivery_id):
+    delivery = get_object_or_404(QuoteEmailDelivery, pk=delivery_id, quote__quote_number=quote_number)
+    response = HttpResponse(delivery.html)
+    response["Content-Security-Policy"] = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
+    return response
+
+
 def _quote_preview_context(quote, *, is_email=False):
     ensure_quote_document_blocks(quote)
     ensure_quote_option_presentation(quote)
     options = quote.options.filter(is_included=True).select_related("comparison_class")
-    blocks = quote.document_blocks.filter(is_enabled=True)
+    blocks = quote.document_blocks.filter(Q(is_enabled=True) | Q(block_key__in=REQUIRED_BLOCKS)).exclude(content="")
+    introduction_keys = {"GREETING", "IMPORTANT", "CROSS_BORDER"}
+    introduction_blocks = [block for block in blocks if block.block_key in introduction_keys]
+    blocks = [block for block in blocks if block.block_key not in introduction_keys]
+    guides = seat_guides(quote)
     service_labels = {
         "AIRPORT": "שדה התעופה",
         "ADDRESS": "מסירה לכתובת בעיר",
@@ -288,6 +425,8 @@ def _quote_preview_context(quote, *, is_email=False):
         "quote": quote, "options": options, "blocks": blocks,
         "pickup_location": pickup_location, "return_location": return_location,
         "is_email": is_email,
+        "introduction_blocks": introduction_blocks,
+        "guides": guides, "child_seat_text": child_seat_text(quote, guides),
     }
 
 
@@ -312,18 +451,35 @@ def send_quote(request, quote_number):
         )
         return redirect("quotes:quote_preview", quote_number=quote.quote_number)
 
-    subject = f"Car rental offer {quote.quote_number}"
-    html = render_to_string(
-        "quotes/quote_preview.html",
-        _quote_preview_context(quote, is_email=True),
-    )
+    # Separate deliveries into new conversations so Gmail does not trim the
+    # repeated offer sections as quoted text from a previous delivery.
+    delivery_version = uuid4().hex[:12]
+    subject = f"{quote.email_subject or ('Car rental offer ' + quote.quote_number)} | Version {delivery_version}"
+    context = _quote_preview_context(quote, is_email=True)
+    html = render_to_string("quotes/quote_preview.html", context)
+    plain_text = render_to_string("quotes/quote_email.txt", context)
     message = EmailMultiAlternatives(
         subject=subject,
-        body=strip_tags(html),
+        body=plain_text,
         to=[email],
         alternatives=[(html, "text/html")],
     )
-    message.send(fail_silently=False)
+    attachments = []
+    try:
+        for guide in seat_guides(quote):
+            content = guide["path"].read_bytes()
+            message.attach(guide["filename"], content, "application/pdf")
+            attachments.append({"filename": guide["filename"], "sha256": hashlib.sha256(content).hexdigest(), "data": base64.b64encode(content).decode("ascii")})
+    except OSError:
+        messages.error(request, "Письмо не отправлено: не найден файл с пояснениями о креслах.")
+        return redirect("quotes:email_editor", quote_number=quote.quote_number)
+    try:
+        if message.send(fail_silently=False) != 1:
+            raise SMTPException("No message accepted")
+    except (SMTPException, OSError):
+        messages.error(request, "Не удалось отправить письмо. Черновик сохранён. Проверьте подключение к почте.")
+        return redirect("quotes:email_editor", quote_number=quote.quote_number)
+    QuoteEmailDelivery.objects.create(quote=quote, recipient=email, subject=subject, html=html, attachments=attachments)
 
     quote.status = Quote.Status.SENT
     quote.sent_at = timezone.now()
@@ -349,7 +505,10 @@ def customer_lookup(request):
         query |= Q(email__iexact=email)
     if phone:
         query |= Q(phone_1=phone) | Q(phone_2=phone) | Q(phone_3=phone)
-    customer = Customer.objects.filter(query).first()
+    if request.GET.get("customer_id", "").isdigit():
+        customer = get_object_or_404(Customer, pk=request.GET["customer_id"])
+    else:
+        customer = Customer.objects.filter(query).first()
     if not customer:
         return JsonResponse({"found": False})
     events = [

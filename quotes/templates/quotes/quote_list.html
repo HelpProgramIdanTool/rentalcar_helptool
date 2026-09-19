@@ -1,0 +1,34 @@
+{% load static %}
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оферты — Idan Rent a Car</title><link rel="stylesheet" href="{% static 'quotes/workspace.css' %}"></head>
+<body class="workspace-body"><div class="workspace">
+{% include 'quotes/sidebar.html' %}
+<main class="workspace-main">
+  <header class="workspace-header"><div><h1>Оферты</h1><p>Предложения клиентам и история отправки</p></div><a class="primary-link" href="{% url 'quotes:new_inquiry' %}">＋ Дать оферту</a></header>
+  <section class="list-panel" aria-label="Список оферт">
+    <form class="list-filters" method="get">
+      <label class="search-field">{{ filters.q.label }}{{ filters.q }}{{ filters.q.errors }}</label>
+      <label>{{ filters.status.label }}{{ filters.status }}{{ filters.status.errors }}</label>
+      <label>{{ filters.pickup_from.label }}{{ filters.pickup_from }}{{ filters.pickup_from.errors }}</label>
+      <label>{{ filters.pickup_to.label }}{{ filters.pickup_to }}{{ filters.pickup_to.errors }}</label>
+      <label>Сортировка<select name="sort"><option value="-created_at"{% if sort == '-created_at' %} selected{% endif %}>Сначала новые</option><option value="created_at"{% if sort == 'created_at' %} selected{% endif %}>Сначала старые</option><option value="pickup_datetime"{% if sort == 'pickup_datetime' %} selected{% endif %}>Ближайшее получение</option><option value="-pickup_datetime"{% if sort == '-pickup_datetime' %} selected{% endif %}>Позднее получение</option></select></label>
+      <button type="submit">Найти</button><a class="reset-filters" href="{% url 'quotes:quote_list' %}">Сбросить</a>
+    </form>
+    <div class="table-scroll"><table class="offer-table"><thead><tr><th scope="col">Оферта</th><th scope="col">Клиент</th><th scope="col">Получение</th><th scope="col">Возврат</th><th scope="col">Статус</th><th scope="col">Отправлена</th><th scope="col">Действие</th></tr></thead><tbody>
+    {% for quote in page_obj %}
+      <tr data-href="{% url 'quotes:inquiry_saved' quote.quote_number %}">
+        <td><a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">{{ quote.quote_number }}</a><span class="subline">Создана {{ quote.created_at|date:'d.m.Y' }}</span></td>
+        <td>{{ quote.customer }}<span class="subline">{{ quote.customer.email|default:quote.customer.phone_1 }}</span></td>
+        <td>{{ quote.pickup_datetime|date:'d.m.Y H:i' }}<span class="subline">{{ quote.pickup_city|default:quote.pickup_location_text }}</span></td>
+        <td>{{ quote.return_datetime|date:'d.m.Y H:i' }}<span class="subline">{{ quote.return_city|default:quote.return_location_text }}</span></td>
+        <td><span class="status-badge status-{{ quote.status }}">{{ quote.status_label }}</span></td>
+        <td>{{ quote.sent_at|date:'d.m.Y H:i'|default:'—' }}</td>
+        <td><a href="{% url 'quotes:edit_quote' quote.quote_number %}" aria-label="Изменить {{ quote.quote_number }}">Изменить</a></td>
+      </tr>
+    {% empty %}<tr><td colspan="7" class="empty-list"><strong>Оферты не найдены</strong>Измените фильтры или создайте новую оферту.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <footer class="list-footer"><span>Найдено: {{ page_obj.paginator.count }}{% if page_obj.paginator.count %} · Показаны {{ page_obj.start_index }}–{{ page_obj.end_index }}{% endif %}</span><nav aria-label="Страницы оферт">{% if page_obj.has_previous %}<a href="?{{ filter_query }}&amp;page={{ page_obj.previous_page_number }}">← Назад</a>{% endif %}<span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?{{ filter_query }}&amp;page={{ page_obj.next_page_number }}">Далее →</a>{% endif %}</nav></footer>
+  </section>
+</main></div>
+<script>document.querySelectorAll('tr[data-href]').forEach(row=>row.addEventListener('click',event=>{if(!event.target.closest('a')&&!window.getSelection().toString())window.location.href=row.dataset.href;}));</script>
+</body></html>

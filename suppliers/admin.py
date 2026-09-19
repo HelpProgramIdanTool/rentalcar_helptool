@@ -20,6 +20,7 @@ class SupplierAdmin(admin.ModelAdmin):
     list_display = (
         "supplier_name",
         "supplier_code",
+        "show_in_introduction",
         "status",
         "default_currency",
         "regular_service_from",
@@ -27,6 +28,7 @@ class SupplierAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "default_currency")
     search_fields = ("supplier_name", "supplier_code", "legal_name")
+    list_editable = ("show_in_introduction",)
 
 
 @admin.register(SupplierLocation)

@@ -3,6 +3,30 @@ from django.utils import timezone
 from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup
 
 
+QUOTE_STATUS_LABELS = {
+    "DRAFT": "Черновик", "SENT": "Отправлена", "ACCEPTED": "Принята",
+    "REJECTED": "Отклонена", "CANCELLED": "Отменена", "CLOSED": "Закрыта",
+}
+
+
+class QuoteListFilterForm(forms.Form):
+    q = forms.CharField(label="Поиск", required=False, max_length=200,
+                        widget=forms.TextInput(attrs={"placeholder": "Номер, клиент, email или телефон"}))
+    status = forms.ChoiceField(label="Статус", required=False,
+                              choices=[("", "Все статусы"), *QUOTE_STATUS_LABELS.items()])
+    pickup_from = forms.DateField(label="Получение с", required=False,
+                                 widget=forms.DateInput(attrs={"type": "date"}))
+    pickup_to = forms.DateField(label="Получение до", required=False,
+                               widget=forms.DateInput(attrs={"type": "date"}))
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get("pickup_from"), data.get("pickup_to")
+        if start and end and start > end:
+            self.add_error("pickup_to", "Конец периода должен быть не раньше начала.")
+        return data
+
+
 VEHICLE_GROUP_SECTIONS = (
     ("SMALL", "Малые автомобили"),
     ("MEDIUM", "Средние автомобили"),
@@ -25,7 +49,7 @@ def vehicle_group_section(group):
         return "PREMIUM_SEDAN"
     if "SUV_7_AUTO" in class_codes or "7 SEAT" in text or "7-OS" in text or group.group_code in {"SVAR", "SVAD"}:
         return "SEVEN_SEAT"
-    if "PASSENGER_VAN_AUTO" in class_codes or "9 SEAT" in text or "9 OS" in text or "8 OS" in text or group.group_code in {"FVAR", "PVMD", "PVAD"}:
+    if "PASSENGER_VAN_AUTO" in class_codes or "9 SEAT" in text or "9 OS" in text or "8 OS" in text or group.group_code in {"FVMR", "FVAR", "PVMD", "PVAD"}:
         return "NINE_SEAT"
     if "SUV_BIG_AUTO" in class_codes or "SUV BIG" in text or "SUV LARGE" in text:
         return "LARGE_SUV"
@@ -38,6 +62,22 @@ def vehicle_group_section(group):
     }:
         return "MEDIUM"
     return "OTHER"
+
+class VehicleGroupCheckboxes(forms.CheckboxSelectMultiple):
+    template_name = "quotes/widgets/vehicle_groups.html"
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        sections = []
+        for section_name, options, _index in context["widget"]["optgroups"]:
+            columns = {supplier: [] for supplier in dict.fromkeys(self.suppliers_by_group.values())}
+            for option in options:
+                supplier = self.suppliers_by_group[str(option["value"])]
+                columns.setdefault(supplier, []).append(option)
+            sections.append({"name": section_name, "columns": columns.items()})
+        context["widget"]["sections"] = sections
+        return context
+
 
 class FirstInquiryForm(forms.Form):
     LANGUAGE_CHOICES = [
@@ -68,7 +108,7 @@ class FirstInquiryForm(forms.Form):
         (f"{hour:02d}:{minute:02d}", f"{hour:02d}:{minute:02d}")
         for hour in range(24) for minute in range(0, 60, 5)
     ]
-    first_name = forms.CharField(label="Имя", max_length=100)
+    first_name = forms.CharField(label="Имя", max_length=100, required=False)
     last_name = forms.CharField(label="Фамилия", max_length=100, required=False)
     email = forms.EmailField(label="E-mail", required=False)
     phone_1 = forms.CharField(label="Телефон 1", max_length=30, required=False)
@@ -76,7 +116,7 @@ class FirstInquiryForm(forms.Form):
     phone_3 = forms.CharField(label="Телефон 3", max_length=30, required=False)
     country = forms.CharField(label="Страна", max_length=100, required=False)
     preferred_language = forms.ChoiceField(
-        label="Язык клиента", choices=LANGUAGE_CHOICES, initial="Hebrew"
+        label="Язык клиента", choices=LANGUAGE_CHOICES, initial="Hebrew", required=False
     )
     address = forms.CharField(label="Адрес проживания", max_length=255, required=False)
     wants_invoice = forms.BooleanField(label="Клиент хочет инвойс", required=False)
@@ -112,7 +152,7 @@ class FirstInquiryForm(forms.Form):
     vehicle_groups = forms.ModelMultipleChoiceField(
         label="Категории автомобилей поставщиков",
         queryset=VehicleGroup.objects.none(),
-        widget=forms.CheckboxSelectMultiple,
+        widget=VehicleGroupCheckboxes,
     )
     suppliers = forms.ModelMultipleChoiceField(
         label="Рассчитать предложения фирм",
@@ -153,8 +193,12 @@ class FirstInquiryForm(forms.Form):
         )
         section_labels = dict(VEHICLE_GROUP_SECTIONS)
         grouped_choices = {code: [] for code, _label in VEHICLE_GROUP_SECTIONS}
+        self.fields["vehicle_groups"].widget.suppliers_by_group = {}
         for group in self.fields["vehicle_groups"].queryset:
-            grouped_choices[vehicle_group_section(group)].append((group.pk, str(group)))
+            grouped_choices[vehicle_group_section(group)].append(
+                (group.pk, f"{group.group_name} ({group.group_code})")
+            )
+            self.fields["vehicle_groups"].widget.suppliers_by_group[str(group.pk)] = group.supplier.supplier_name
         self.fields["vehicle_groups"].widget.choices = [
             (section_labels[code], choices)
             for code, choices in grouped_choices.items()
@@ -175,8 +219,9 @@ class FirstInquiryForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        if not cleaned.get("email") and not cleaned.get("phone_1"):
-            raise forms.ValidationError("Укажите хотя бы e-mail или первый телефон.")
+        if not any(cleaned.get(field) for field in ("email", "phone_1", "phone_2", "phone_3")):
+            raise forms.ValidationError("Укажите хотя бы e-mail или номер телефона.")
+        cleaned["preferred_language"] = cleaned.get("preferred_language") or "Hebrew"
         pickup_date = cleaned.get("pickup_date")
         pickup_time = cleaned.get("pickup_time")
         return_date = cleaned.get("return_date")
@@ -194,11 +239,6 @@ class FirstInquiryForm(forms.Form):
         if cleaned.get("pickup_datetime") and cleaned.get("return_datetime"):
             if cleaned["return_datetime"] <= cleaned["pickup_datetime"]:
                 self.add_error("return_date", "Возврат должен быть позже получения.")
-        if cleaned.get("wants_invoice"):
-            if not cleaned.get("invoice_name"):
-                self.add_error("invoice_name", "Укажите имя или название для инвойса.")
-            if not cleaned.get("invoice_address"):
-                self.add_error("invoice_address", "Укажите адрес для инвойса.")
         if "CHILD_SEAT" in cleaned.get("extra_choices", []):
             if not cleaned.get("child_seat_quantity"):
                 self.add_error("child_seat_quantity", "Укажите количество детских кресел.")

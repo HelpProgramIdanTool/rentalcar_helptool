@@ -1,0 +1,16 @@
+{% autoescape off %}{{ driver_names }}
+{{ booking.customer_phone_1_snapshot }}{% if booking.customer_phone_2_snapshot %} // {{ booking.customer_phone_2_snapshot }}{% endif %}{% if booking.customer_phone_3_snapshot %} // {{ booking.customer_phone_3_snapshot }}{% endif %}
+{% if booking.source_quote_snapshot.sub_agent_phone %}{{ booking.source_quote_snapshot.sub_agent_phone }} (Sub-agent)
+{% endif %}{{ booking.customer_email_snapshot }}
+{{ booking.pickup_datetime|date:'d/m/y, H:i' }}, {{ pickup_location }}
+{{ booking.return_datetime|date:'d/m/y, H:i' }}, {{ return_location }}
+{{ booking.rental_days }} days
+{{ booking.vehicle_group.group_name|default:'[vehicle group]' }}{% if booking.vehicle_group %} ({{ booking.vehicle_group.group_code }}){% endif %}
+{% if booking.source_quote_snapshot.request.vehicle_note %}{{ booking.source_quote_snapshot.request.vehicle_note }}
+{% endif %}Additional driver for free + full insurance with zero excess + unlimited mileage{% if booking.source_quote_snapshot.request.cross_border_requested %} + border crossing to EU countries{% endif %}
+{% for extra in extras %}{{ extra.supplier_visible_name }} x {{ extra.quantity }}{% if not extra.calculation_complete %} [price requires confirmation]{% endif %}
+{% endfor %}{{ price_breakdown }} // Deposit: {% if booking.source_quote_snapshot.deposit and booking.source_quote_snapshot.deposit != 'None' %}{{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% else %}[please specify]{% endif %}
+{{ booking.customer_address_snapshot }}{% if booking.customer_postal_code_snapshot %}, {{ booking.customer_postal_code_snapshot }}{% endif %}{% if booking.customer_city_snapshot %} - {{ booking.customer_city_snapshot }}{% endif %}{% if booking.customer_country_snapshot %}, {{ booking.customer_country_snapshot }}{% endif %}
+{% if booking.flight_number %}Flight: {{ booking.flight_number }}
+{% endif %}{% if booking.hotel_name %}Hotel: {{ booking.hotel_name }}
+{% endif %}{% endautoescape %}

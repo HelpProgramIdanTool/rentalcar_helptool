@@ -1,0 +1,104 @@
+{% extends 'customers/base.html' %}
+{% block title %}Создать заказ{% endblock %}
+{% block content %}
+<style>.booking-form{max-width:1000px}.booking-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.booking-fields label{display:block;font-weight:600;margin-bottom:5px}.booking-fields input:not([type=checkbox]),.booking-fields select,.booking-fields textarea{box-sizing:border-box;width:100%;padding:8px;font:inherit}.booking-fields textarea{height:75px}.errorlist{color:#b42318}.review{margin:22px 0;padding:20px;background:#eef5ff;border:1px solid #b5c9ed;border-radius:8px}.price-change{background:#fff4df;border-color:#e6a540}.booking-form button{padding:12px 18px;background:#155eef;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer}</style>
+{% if manual_entry %}
+<a href="{% url 'quotes:booking_list' %}">← Все заказы</a><h1>Новый заказ вручную</h1>
+<p>Оферта не создаётся. Вносите данные клиента, выберите фирму и ответственного, затем проверьте расчёт.</p>
+<form method="get"><label>Заполнить из карточки клиента <select name="customer"><option value="">Новый клиент</option>{% for customer in customers %}<option value="{{ customer.pk }}">{{ customer }}</option>{% endfor %}</select></label> <button>Заполнить</button></form>
+<p>Для нового клиента оставьте выбор карточки пустым. Клиенты с общим email субагента не объединяются автоматически.</p>
+{% if request.user.is_staff %}<p>Справочники: <a href="{% url 'admin:employees_employee_changelist' %}" target="_blank" rel="noopener">Сотрудники</a> · <a href="{% url 'admin:employees_subagent_changelist' %}" target="_blank" rel="noopener">Субагенты</a></p>{% endif %}
+{% else %}<a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">← {{ quote.quote_number }}</a>
+<h1>Создать заказ из оферты</h1>
+<p>Измените нужные поля и пересчитайте стоимость. Данные клиента сохранятся в заказе; исходная оферта сохранится.</p>
+<p>Выбранная оферта: {{ option.supplier_name_snapshot }} · {{ option.vehicle_group_name_snapshot }} — <strong>{{ option.total_price_gross }} {{ option.currency }}</strong></p>
+{% endif %}
+<form method="post" class="booking-form">{% csrf_token %}
+{{ form.non_field_errors }}
+{% if manual_entry %}<section style="margin-bottom:22px">
+<label for="booking-paste"><strong>Вставить готовые данные заказа</strong></label>
+<textarea id="booking-paste" rows="9" style="display:block;width:100%;box-sizing:border-box;margin:10px 0" placeholder="Водитель // Второй водитель&#10;Телефон&#10;Email&#10;Д/М/ГГ, ЧЧ:ММ, место получения&#10;Д/М/ГГ, ЧЧ:ММ, место возврата"></textarea>
+<button type="button" id="parse-booking">Заполнить из текста</button>
+<p id="paste-status" role="status"></p>
+</section>{% endif %}
+<div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
+<p><button name="action" value="calculate" formnovalidate>Пересчитать</button></p>
+{% if deposit_pending %}
+<p><button type="button" id="open-deposit">Заполнить отсутствующий депозит</button></p>
+<dialog id="missing-deposit" open aria-labelledby="deposit-title" style="max-width:480px;width:calc(100% - 50px);border:1px solid #cbd5e1;border-radius:12px;padding:24px">
+<h2 id="deposit-title">Не указан депозит</h2>
+<p>{{ result.supplier }} · {{ result.group }}</p>
+{% if result.group.rate_source_group_id %}<p>Общий тариф: {{ result.group.effective_rate_group }}. Сохранение в базе применяется ко всем группам, использующим этот тариф.</p>{% endif %}
+<p>Введите подтверждённую сумму. Ноль означает отсутствие депозита.</p>
+{{ deposit_form.as_p }}
+<button name="action" value="resolve_deposit">Применить и пересчитать</button>
+<button name="action" value="reset_deposit" formnovalidate>Начать ввод заново</button>
+<button type="button" id="cancel-deposit">Отмена</button>
+</dialog>
+{% elif deposit_once %}
+{% for field in deposit_form %}{{ field.as_hidden }}{% endfor %}
+<p>Депозит введён только для этого заказа. Общие настройки не изменены.</p>
+<button name="action" value="reset_deposit">Изменить введённый депозит</button>
+{% endif %}
+{% if review_token %}
+<section class="review {% if changed %}price-change{% endif %}" role="alert" aria-live="polite">
+{% if changed %}<h2>Цена отличается от оферты</h2>{% else %}<h2>Актуальный расчёт</h2>{% endif %}
+<p>{{ result.supplier }} · {{ result.group }}</p>
+{% if not manual_entry %}<p>Цена оферты: {{ option.total_price_gross }} {{ option.currency }}</p>{% endif %}
+<p>Аренда: {{ result.base }} {{ result.currency }} · {{ result.days }} дн.</p>
+<ul>{% for line in result.extra_lines %}<li>{{ line.name }} — {{ line.price }} {{ result.currency }}</li>{% endfor %}</ul>
+<p><strong>Новая сумма: {{ result.total }} {{ result.currency }}</strong>{% if delta != None %} · Разница: {{ delta }} {{ result.currency }}{% endif %}</p>
+<p>Депозит: {{ result.deposit_amount|default_if_none:'уточняется' }} {{ result.deposit_currency }}</p>
+<input type="hidden" name="review_token" value="{{ review_token }}">
+<p><label><input type="checkbox" name="confirm_price" value="yes"> Подтверждаю условия и актуальную сумму</label></p>
+<button name="action" value="create">Создать черновик заказа</button>
+<p>Отправка поставщику — отдельный шаг.</p></section>
+{% endif %}</form>
+<script>
+const bookingForm=document.querySelector('.booking-form');
+const invoiceToggle=document.getElementById('id_wants_invoice');
+function showInvoice(){bookingForm.querySelectorAll('[data-field^="invoice_"]').forEach(box=>box.hidden=!invoiceToggle.checked);}
+invoiceToggle.addEventListener('change',showInvoice);showInvoice();
+const vehicleBox=bookingForm.querySelector('[data-field="vehicle_group"]'),noteBox=bookingForm.querySelector('[data-field="vehicle_note"]');
+if(vehicleBox&&noteBox)vehicleBox.insertAdjacentElement('afterend',noteBox);
+for(const name of ['pickup_date','return_date']){
+const text=document.getElementById('id_'+name),picker=document.createElement('input');picker.type='date';picker.setAttribute('aria-label',name==='pickup_date'?'Календарь получения':'Календарь возврата');picker.style.cssText='width:42px;color:transparent;display:inline-block';text.style.width='calc(100% - 48px)';text.insertAdjacentElement('afterend',picker);
+picker.addEventListener('change',()=>{const parts=picker.value.split('-');if(parts.length===3){text.value=parts.reverse().join('-');text.dispatchEvent(new Event('input',{bubbles:true}));}});
+picker.addEventListener('focus',()=>{const parts=text.value.split('-');if(parts.length===3&&parts[2].length===4)picker.value=parts.reverse().join('-');});
+}
+bookingForm.addEventListener('input',event=>{
+if(event.target.name==='confirm_price')return;
+const review=bookingForm.querySelector('.review');if(review)review.remove();
+if(event.target.name==='vehicle_group')bookingForm.querySelectorAll('input[name^="deposit-"]').forEach(input=>input.value='');
+});
+const depositDialog=document.getElementById('missing-deposit');
+if(depositDialog&&typeof depositDialog.showModal==='function'){
+depositDialog.close();depositDialog.showModal();
+document.getElementById('open-deposit').onclick=()=>depositDialog.showModal();
+document.getElementById('cancel-deposit').onclick=()=>depositDialog.close();
+}
+</script>
+{% if manual_entry %}
+{{ group_suppliers|json_script:'group-suppliers' }}
+<script>
+const groupSuppliers=JSON.parse(document.getElementById('group-suppliers').textContent);
+const supplierSelect=document.getElementById('id_supplier'),groupSelect=document.getElementById('id_vehicle_group');
+document.getElementById('parse-booking').addEventListener('click',async function(){
+ const status=document.getElementById('paste-status');this.disabled=true;
+ try{
+  const body=new FormData();body.set('text',document.getElementById('booking-paste').value);body.set('csrfmiddlewaretoken',bookingForm.elements.csrfmiddlewaretoken.value);
+  const response=await fetch('{% url "quotes:paste_booking" %}',{method:'POST',body});const data=await response.json();
+  if(!response.ok)throw new Error(data.error||'Не удалось разобрать текст.');
+  Object.entries(data.fields).forEach(([name,value])=>bookingForm.querySelectorAll('[name="'+name+'"]').forEach(el=>{if(el.type==='checkbox')el.checked=Array.isArray(value)?value.includes(el.value):Boolean(value);else el.value=value;}));
+  bookingForm.querySelectorAll('input[name^="deposit-"]').forEach(el=>el.value='');
+  document.getElementById('id_driver_names').dispatchEvent(new Event('input',{bubbles:true}));
+  status.textContent='Заполнено. Выберите фирму и группу автомобиля. Проверьте места, дополнительные услуги и цену: сумма из текста сохранена в заметке, расчёт выполняется по тарифам.';
+ }catch(error){status.textContent=error.message;}finally{this.disabled=false;}
+});
+function filterGroups(){for(const option of groupSelect.options){if(option.value){option.hidden=groupSuppliers[option.value]!==supplierSelect.value;option.disabled=option.hidden;}}if(groupSelect.selectedOptions[0]?.disabled)groupSelect.value='';}
+supplierSelect.addEventListener('change',()=>{filterGroups();bookingForm.querySelectorAll('input[name^="deposit-"]').forEach(input=>input.value='');});filterGroups();
+const sourceSelect=document.getElementById('id_order_source');
+function showOwnerFields(){for(const [name,show] of [['sub_agent',sourceSelect.value==='SUBAGENT'],['responsible',sourceSelect.value!=='SELF']]){const box=document.querySelector('[data-field="'+name+'"]');box.hidden=!show;if(!show)box.querySelector('select').value='';}}
+sourceSelect.addEventListener('change',showOwnerFields);showOwnerFields();
+</script>{% endif %}
+{% endblock %}

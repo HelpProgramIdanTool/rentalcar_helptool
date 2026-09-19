@@ -1,0 +1,18 @@
+<div class="vehicle-picker"{% if widget.attrs.id %} id="{{ widget.attrs.id }}"{% endif %}>
+  {% for section in widget.sections %}
+  <section class="vehicle-section" aria-label="{{ section.name }}">
+    <h3>{{ section.name }}</h3>
+    <div class="vehicle-suppliers">
+      {% for supplier, options in section.columns %}
+      <div class="vehicle-supplier" role="group" aria-label="{{ supplier }} — {{ section.name }}">
+        <h4>{{ supplier }}</h4>
+        {% for option in options %}
+          {% include option.template_name with widget=option %}
+        {% empty %}<span class="hint">—</span>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% empty %}<p>Нет доступных групп автомобилей.</p>{% endfor %}
+</div>

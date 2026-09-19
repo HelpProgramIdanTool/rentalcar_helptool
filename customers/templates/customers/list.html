@@ -1,0 +1,9 @@
+{% extends 'customers/base.html' %}
+{% block content %}
+<header class="workspace-header"><div><h1>Клиенты</h1><p>Контакты, оферты и новые обращения</p></div><a class="primary-link" href="{% url 'quotes:new_inquiry' %}">＋ Оферта новому клиенту</a></header>
+<section class="list-panel"><form class="list-filters" method="get"><label class="search-field">Поиск клиента<input name="q" value="{{ search }}" maxlength="200" placeholder="Имя, email или любой телефон"></label><button type="submit">Найти</button><a class="reset-filters" href="{% url 'customers:list' %}">Сбросить</a></form>
+<div class="table-scroll"><table class="offer-table"><thead><tr><th scope="col">Клиент</th><th scope="col">Email</th><th scope="col">Телефоны</th><th scope="col">Оферты</th><th scope="col">Действие</th></tr></thead><tbody>
+{% for customer in page_obj %}<tr data-href="{% url 'customers:detail' customer.pk %}"><td><a href="{% url 'customers:detail' customer.pk %}">{{ customer }}</a>{% if customer.warning_level != 'NONE' %}<span class="subline">⚠ Есть заметка</span>{% endif %}</td><td>{{ customer.email|default:'—' }}</td><td>{{ customer.phone_1|default:'—' }}{% if customer.phone_2 %}<span class="subline">{{ customer.phone_2 }}</span>{% endif %}{% if customer.phone_3 %}<span class="subline">{{ customer.phone_3 }}</span>{% endif %}</td><td>{{ customer.offer_count }}</td><td><a href="{% url 'quotes:customer_offer' customer.pk %}">Дать оферту →</a></td></tr>
+{% empty %}<tr><td colspan="5" class="empty-list"><strong>Клиенты не найдены</strong>Измените поиск или создайте оферту новому клиенту.</td></tr>{% endfor %}
+</tbody></table></div>{% include 'customers/pagination.html' %}</section>
+{% endblock %}

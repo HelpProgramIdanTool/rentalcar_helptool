@@ -164,13 +164,18 @@ def import_car_free(path):
 
 def import_kaizen(path):
     supplier = get_supplier("Kaizen Rent")
+    # Keep validity periods approved by the operator on subsequent imports.
+    existing = PriceList.objects.filter(supplier=supplier, version="2026-COMFORT").first()
+    existing_low = existing.seasons.filter(season_code="LOW_AFTER").first() if existing else None
+    list_end = existing.effective_to if existing else date(2026, 12, 31)
+    low_end = existing_low.rental_date_to if existing_low else date(2026, 12, 31)
     price_list = upsert_price_list(
         supplier,
         "Kaizen With Comfort Package 2026",
         "2026-COMFORT",
         path.name,
         date(2026, 1, 1),
-        date(2026, 12, 31),
+        list_end,
         "Only With Comfort Package is active for Idan customers.",
     )
     ranges = upsert_ranges(
@@ -188,7 +193,7 @@ def import_kaizen(path):
     season_definitions = [
         ("LOW_BEFORE", "Low season", date(2026, 1, 1), date(2026, 6, 23), 67, 92),
         ("HIGH", "High season", date(2026, 6, 24), date(2026, 8, 21), 5, 30),
-        ("LOW_AFTER", "Low season", date(2026, 8, 22), date(2026, 12, 31), 67, 92),
+        ("LOW_AFTER", "Low season", date(2026, 8, 22), low_end, 67, 92),
     ]
     touched = []
     for season_code, season_name, start, end, row_from, row_to in season_definitions:

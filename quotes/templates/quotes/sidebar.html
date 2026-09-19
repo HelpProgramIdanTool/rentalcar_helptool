@@ -1,0 +1,15 @@
+<aside class="app-menu">
+  <a class="app-brand" href="{% url 'quotes:home' %}">IDAN <span>RENT A CAR</span></a>
+  <a class="app-create" href="{% url 'quotes:new_inquiry' %}">＋ Дать оферту</a>
+  <a class="app-create" href="{% url 'quotes:new_booking' %}">＋ Новый заказ</a>
+  <nav aria-label="Главное меню">
+    <a href="{% url 'quotes:home' %}">⌂ На главную</a>
+    <a href="{% url 'quotes:booking_list' %}"{% if active_menu == 'orders' %} aria-current="page"{% endif %}>Заказы</a>
+    <a href="{% url 'quotes:quote_list' %}"{% if active_menu == 'quotes' %} aria-current="page"{% endif %}>Оферты</a>
+    <a href="{% url 'customers:list' %}"{% if active_menu == 'customers' %} aria-current="page"{% endif %}>Клиенты</a>
+  </nav>
+  <div class="app-menu-bottom">
+    {% if request.user.is_staff %}<a href="{% url 'admin:index' %}">⚙ Настройки</a>{% endif %}
+    <span>{{ request.user.get_short_name|default:request.user.username }}</span>
+  </div>
+</aside>

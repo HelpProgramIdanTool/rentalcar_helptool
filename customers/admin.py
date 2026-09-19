@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 
 from bookings.models import Booking
 
@@ -43,8 +45,8 @@ class CustomerBookingInline(admin.TabularInline):
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = (
-        "last_name",
-        "first_name",
+        "customer_label",
+        "offer_action",
         "phone_1",
         "email",
         "country",
@@ -68,13 +70,28 @@ class CustomerAdmin(admin.ModelAdmin):
         "phone_2",
         "phone_3",
     )
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("offer_action", "created_at", "updated_at")
+    list_display_links = ("customer_label",)
+
+    @admin.display(description="Клиент", ordering="first_name")
+    def customer_label(self, obj):
+        return str(obj)
+
+    @admin.display(description="Оферта")
+    def offer_action(self, obj):
+        if not obj or not obj.pk:
+            return "Сначала сохраните клиента."
+        return format_html('<a href="{}">Дать оферту →</a>', reverse("quotes:customer_offer", args=[obj.pk]))
+
+    class Media:
+        js = ("customers/customer_rows.js",)
     inlines = (CustomerEventInline, CustomerBookingInline)
     fieldsets = (
         (
             "Customer",
             {
                 "fields": (
+                    "offer_action",
                     "first_name",
                     "last_name",
                     "full_name_latin",

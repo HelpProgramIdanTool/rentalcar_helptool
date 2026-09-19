@@ -1,0 +1,7 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'quotes/admin_compact.css' %}">
+{% endblock %}
+{% block nav-global %}<a href="{% url 'quotes:home' %}" style="color:var(--header-link-color);font-size:14px;padding:8px">← Рабочий экран</a>{% endblock %}

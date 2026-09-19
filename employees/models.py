@@ -2,6 +2,21 @@ from django.conf import settings
 from django.db import models
 
 
+class SubAgent(models.Model):
+    name = models.CharField("Имя / компания", max_length=200)
+    email = models.EmailField(blank=True)
+    phone = models.CharField("Телефон", max_length=40, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Субагент"
+        verbose_name_plural = "Субагенты"
+
+    def __str__(self):
+        return self.name
+
+
 class Employee(models.Model):
     class Role(models.TextChoices):
         OWNER_ADMIN = "OWNER_ADMIN", "Owner / Admin"

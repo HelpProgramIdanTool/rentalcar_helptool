@@ -17,6 +17,13 @@ class QuoteTemplateBlockInline(admin.TabularInline):
     model = QuoteTemplateBlock
     extra = 0
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        field = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name == "content" and field:
+            field.required = False
+            field.help_text = "В представлении используйте {suppliers} для списка фирм. Ссылки: по одной на строку."
+        return field
+
 
 @admin.register(QuoteTemplate)
 class QuoteTemplateAdmin(admin.ModelAdmin):

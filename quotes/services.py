@@ -9,7 +9,6 @@ from suppliers.models import (
     VehicleComparisonClass,
     VehicleRate,
 )
-from suppliers.deposit_rules import default_deposit_amount
 from .models import QuoteDocumentBlock, QuoteTemplate
 
 
@@ -32,13 +31,37 @@ HEBREW_VEHICLE_CLASS_NAMES = {
     "PASSENGER_VAN_AUTO": "רכב נוסעים 8–9 מקומות — אוטומטי",
 }
 
-KAIZEN_COMFORT_INCLUDED_ITEMS = [
-    "חבילת With Comfort Package",
-    "ביטוח מלא עם ביטול השתתפות - SCDW",
-    "ללא הגבלת ק״מ",
+
+def vehicle_class_presentation(comparison, group):
+    """Avoid promising one body type when a supplier group covers several."""
+    title = HEBREW_VEHICLE_CLASS_NAMES.get(comparison.code, comparison.name)
+    comparison_codes = {item.code for item in group.comparison_classes.all()}
+    mixed_bodies = (
+        any("HATCH" in code for code in comparison_codes)
+        and any("SEDAN" in code for code in comparison_codes)
+    )
+    if mixed_bodies:
+        return title.split(" — ", 1)[0], ""
+    return title, group.get_body_type_display() if group.body_type else ""
+
+STANDARD_INCLUDED_ITEMS = [
+    "ביטוח מלא עם ביטול השתתפות עצמית",
+    "קילומטראז׳ ללא הגבלה",
+    "נהג שני ללא תשלום",
 ]
 
-KAIZEN_CROSS_BORDER_PRICE = Decimal("499.00")
+
+def normalize_included_items(items):
+    """Use the same standard benefits, retaining other selected extras."""
+    legacy_standard_items = {
+        "עד שני נהגים", "חבילת With Comfort Package",
+        "ביטוח מלא עם ביטול השתתפות - SCDW", "ללא הגבלת ק״מ",
+    }
+    return list(dict.fromkeys([
+        "מחיר השכרת הרכב", "מע״מ (VAT)", *STANDARD_INCLUDED_ITEMS,
+        *(item for item in items if item not in legacy_standard_items),
+    ]))
+
 
 HEBREW_EXTRA_NAMES = {
     "ADDITIONAL_DRIVER": "נהג נוסף",
@@ -56,7 +79,7 @@ HEBREW_EXTRA_NAMES = {
 }
 
 
-def find_or_create_customer(data):
+def find_or_create_customer(data, *, selected_customer=None):
     match = Q()
     if data.get("email"):
         match |= Q(email__iexact=data["email"].strip())
@@ -65,7 +88,7 @@ def find_or_create_customer(data):
             phone = data[field].strip()
             match |= Q(phone_1=phone) | Q(phone_2=phone) | Q(phone_3=phone)
 
-    customer = Customer.objects.filter(match).first()
+    customer = selected_customer or Customer.objects.filter(match).first()
     values = {
         field: data.get(field, "")
         for field in (
@@ -109,11 +132,6 @@ def _extra_price(rate, days, quantity=Decimal("1")):
 
 
 def _quoted_extra_price(extra, rate, days, quantity=Decimal("1")):
-    if (
-        extra.supplier.supplier_code == "01"
-        and extra.extra_code == "CROSS_BORDER"
-    ):
-        return KAIZEN_CROSS_BORDER_PRICE * quantity
     return _extra_price(rate, days, quantity)
 
 
@@ -189,19 +207,19 @@ def _service_extra_requests(quote, supplier_code):
     return requests
 
 
-def calculate_quote_options(quote):
+def calculate_quote_options(quote, *, vehicle_group=None):
     pickup_date = timezone.localtime(quote.pickup_datetime).date()
-    requested_group_ids = set(
+    requested_group_ids = {vehicle_group.pk} if vehicle_group else set(
         quote.requested_vehicle_groups.values_list("id", flat=True)
     )
-    comparisons = quote.requested_vehicle_classes.prefetch_related(
-        "vehicle_groups__supplier", "vehicle_groups__models"
+    comparisons = (vehicle_group.comparison_classes if vehicle_group else quote.requested_vehicle_classes).prefetch_related(
+        "vehicle_groups__supplier", "vehicle_groups__models", "vehicle_groups__comparison_classes"
     ).all()
     if not comparisons and quote.vehicle_request:
         comparisons = VehicleComparisonClass.objects.prefetch_related(
-            "vehicle_groups__supplier", "vehicle_groups__models"
+            "vehicle_groups__supplier", "vehicle_groups__models", "vehicle_groups__comparison_classes"
         ).filter(code=quote.vehicle_request)
-    requested_supplier_ids = set(quote.requested_suppliers.values_list("id", flat=True))
+    requested_supplier_ids = {vehicle_group.supplier_id} if vehicle_group else set(quote.requested_suppliers.values_list("id", flat=True))
     results = []
     for comparison in comparisons:
       groups = comparison.vehicle_groups.filter(is_active=True)
@@ -210,6 +228,7 @@ def calculate_quote_options(quote):
       for group in groups:
         if requested_supplier_ids and group.supplier_id not in requested_supplier_ids:
             continue
+        vehicle_title, body_type_label = vehicle_class_presentation(comparison, group)
         rate = VehicleRate.objects.filter(
             is_active=True,
             vehicle_group=group.effective_rate_group,
@@ -232,6 +251,12 @@ def calculate_quote_options(quote):
                 "supplier": group.supplier,
                 "group": group,
                 "models": ", ".join(str(model) for model in group.models.filter(is_active=True)[:4]),
+                "body_type_label": body_type_label,
+                "fuel_type_label": group.fuel_type_note,
+                "transmission_label": (
+                    group.get_transmission_display()
+                    if group.transmission != group.Transmission.UNKNOWN else ""
+                ),
                 "available": False,
                 "reason": "Для этой группы и выбранных дат в ценнике нет действующего тарифа.",
                 "total": None,
@@ -287,6 +312,9 @@ def calculate_quote_options(quote):
             lines.append({
                 "name": _extra_line_name(extra, quantity),
                 "price": price,
+                "extra": extra,
+                "rate": extra_rate,
+                "quantity": quantity,
             })
         unavailable_requests = []
         for canonical_code, quantity in quote.extra_requests.items():
@@ -295,10 +323,9 @@ def calculate_quote_options(quote):
                 unavailable_requests.append(canonical_code)
             elif not extras.filter(extra_code=supplier_extra_code).exists():
                 unavailable_requests.append(canonical_code)
-        included_items = ["מחיר השכרת הרכב", "מע״מ (VAT)", "עד שני נהגים"]
-        if supplier_code == "01":
-            included_items.extend(KAIZEN_COMFORT_INCLUDED_ITEMS)
-        included_items.extend(line["name"] for line in lines if line.get("price") is not None)
+        included_items = normalize_included_items(
+            line["name"] for line in lines if line.get("price") is not None
+        )
 
         optional_labels = {
             "CHILD_SEAT": "כיסא תינוק / בוסטר",
@@ -336,6 +363,7 @@ def calculate_quote_options(quote):
             "group": group,
             "models": ", ".join(str(model) for model in group.models.filter(is_active=True)[:4]),
             "daily_rate": rate.daily_rate_gross,
+            "vehicle_rate": rate,
             "days": quote.rental_days,
             "base": base,
             "extra_lines": lines,
@@ -345,14 +373,14 @@ def calculate_quote_options(quote):
             "season": rate.season.season_name,
             "day_range": rate.day_range.label,
             "currency": rate.currency,
-            "deposit_amount": (
-                group.effective_deposit_amount
-                if group.effective_deposit_amount is not None
-                else default_deposit_amount(supplier_code, group.group_code)
-            ),
+            "deposit_amount": group.effective_deposit_amount,
             "deposit_currency": group.effective_rate_group.deposit_currency,
-            "hebrew_vehicle_class": HEBREW_VEHICLE_CLASS_NAMES.get(
-                comparison.code, comparison.name
+            "hebrew_vehicle_class": vehicle_title,
+            "body_type_label": body_type_label,
+            "fuel_type_label": group.fuel_type_note,
+            "transmission_label": (
+                group.get_transmission_display()
+                if group.transmission != group.Transmission.UNKNOWN else ""
             ),
             "luggage_info": _luggage_info(group),
             "included_items": included_items,
@@ -376,12 +404,32 @@ def ensure_quote_option_presentation(quote):
     for saved_option in quote.options.filter(is_included=True):
         snapshot = dict(saved_option.calculation_snapshot or {})
         calculated = calculated_by_group.get(saved_option.vehicle_group_id)
+        group = saved_option.vehicle_group
+        fallback_title, fallback_body = vehicle_class_presentation(saved_option.comparison_class, group)
+        snapshot["body_type_label"] = (
+            calculated["body_type_label"] if calculated else
+            fallback_body
+        )
+        snapshot["transmission_label"] = (
+            calculated["transmission_label"] if calculated else
+            group.get_transmission_display()
+            if group.transmission != group.Transmission.UNKNOWN else ""
+        )
+        snapshot["fuel_type_label"] = (
+            calculated["fuel_type_label"] if calculated else group.fuel_type_note
+        )
         if not calculated:
+            if group.body_type and not fallback_body:
+                snapshot["hebrew_vehicle_class"] = fallback_title
+            snapshot["included_items"] = normalize_included_items(snapshot.get("included_items", []))
+            saved_option.calculation_snapshot = snapshot
+            saved_option.save(update_fields=["calculation_snapshot"])
             continue
         snapshot["hebrew_vehicle_class"] = calculated["hebrew_vehicle_class"]
         snapshot["luggage_info"] = calculated["luggage_info"]
         snapshot["included_items"] = calculated["included_items"]
         snapshot["excluded_items"] = calculated["excluded_items"]
+        saved_option.calculation_snapshot = snapshot
         if saved_option.deposit_amount is None and calculated["deposit_amount"] is not None:
             saved_option.deposit_amount = calculated["deposit_amount"]
             saved_option.deposit_currency = calculated["deposit_currency"]
@@ -394,26 +442,8 @@ def ensure_quote_option_presentation(quote):
 
 
 def ensure_quote_document_blocks(quote):
+    from .email_tools import load_email_template, ensure_required_blocks
     if quote.document_blocks.exists():
+        ensure_required_blocks(quote)
         return
-    template = QuoteTemplate.objects.filter(
-        language=quote.language, is_active=True
-    ).prefetch_related("blocks").first()
-    if not template:
-        return
-    QuoteDocumentBlock.objects.bulk_create([
-        QuoteDocumentBlock(
-            quote=quote,
-            source_block=block,
-            block_key=block.block_key,
-            title=block.title,
-            content=block.content,
-            display_order=block.display_order,
-            condition_code=block.condition_code,
-            is_enabled=(
-                block.is_active
-                and (block.condition_code != "CROSS_BORDER" or quote.cross_border_requested)
-            ),
-        )
-        for block in template.blocks.all()
-    ])
+    load_email_template(quote)

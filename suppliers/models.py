@@ -12,6 +12,7 @@ class Supplier(models.Model):
 
     supplier_code = models.CharField(max_length=30, unique=True)
     supplier_name = models.CharField(max_length=120)
+    show_in_introduction = models.BooleanField("Показывать в представлении агентства", default=False)
     legal_name = models.CharField(max_length=200, blank=True)
     status = models.CharField(
         max_length=10,

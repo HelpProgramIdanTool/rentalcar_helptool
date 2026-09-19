@@ -1,0 +1,33 @@
+{% autoescape off %}{% for block in introduction_blocks %}{{ block.title }}
+{{ block.content }}
+
+{% endfor %}הצעה {{ quote.quote_number }}
+{{ quote.customer }}
+קבלת הרכב: {{ pickup_location }} — {{ quote.pickup_datetime|date:"d.m.Y H:i" }}
+החזרת הרכב: {{ return_location }} — {{ quote.return_datetime|date:"d.m.Y H:i" }}
+מספר ימי שכירות: {{ quote.rental_days }}
+
+{% for option in options %}--------------------
+{{ forloop.counter }}. {{ option.supplier_name_snapshot }} — {{ option.calculation_snapshot.hebrew_vehicle_class }}
+{{ option.vehicle_models_snapshot }}
+{% if option.calculation_snapshot.body_type_label or option.calculation_snapshot.transmission_label %}{{ option.calculation_snapshot.body_type_label }}{% if option.calculation_snapshot.body_type_label and option.calculation_snapshot.transmission_label %} · {% endif %}{{ option.calculation_snapshot.transmission_label }}
+{% endif %}
+{% if option.calculation_snapshot.fuel_type_label %}{{ option.calculation_snapshot.fuel_type_label }}
+{% endif %}
+מחיר כולל: {{ option.total_price_gross }} {{ option.currency }}
+פיקדון: {% if option.deposit_amount is not None %}{{ option.deposit_amount }} {{ option.deposit_currency }}{% else %}טרם הוזן{% endif %}
+המחיר כולל:
+{% for item in option.calculation_snapshot.included_items %}• {{ item }}
+{% endfor %}תוספות לא כלולות במחיר:
+{% for item in option.calculation_snapshot.excluded_items %}• {{ item }}
+{% empty %}אין תוספות נוספות זמינות.
+{% endfor %}{{ option.customer_comment }}
+
+{% endfor %}{{ child_seat_text }}
+{% for guide in guides %}{{ guide.supplier }}: {{ guide.filename }}
+{% endfor %}
+{% for block in blocks %}--------------------
+{{ block.title }}
+{{ block.content }}
+
+{% endfor %}{% endautoescape %}

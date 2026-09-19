@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="ru">
 <head>
@@ -20,18 +21,53 @@
     #invoice-fields[hidden] { display: none; }
     .date-control{display:grid;grid-template-columns:1fr 52px;gap:8px}.native-date-picker{position:static;width:52px;height:42px;opacity:1;pointer-events:auto;cursor:pointer;padding:7px;color:transparent;background:#e8efff}.native-date-picker::-webkit-datetime-edit{display:none}.native-date-picker::-webkit-calendar-picker-indicator{width:100%;height:100%;margin:0;cursor:pointer}.optional-phone[hidden],.address-field[hidden],#child-seat-count[hidden],#customer-history[hidden]{display:none}.small-button{font-size:14px;padding:8px 12px;background:#e8efff;color:#155eef}.customer-message textarea{direction:rtl;text-align:right;font-size:18px}.next-note{background:#eef5ff;padding:13px;border-radius:8px;color:#344054}.vehicle-classes,.extras-choice,.supplier-choice{grid-column:1/-1}.extras-choice>div,.supplier-choice>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.vehicle-classes>div{display:grid;gap:14px}.vehicle-classes>div>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;background:#f7f9fc;border:1px solid #d8e0eb;border-radius:10px;padding:12px}.vehicle-classes>div>div>label:first-child{grid-column:1/-1;border:0;padding:2px 0 7px;font-size:17px;font-weight:700;color:#173b72}.vehicle-classes>div>div>div{display:contents}.vehicle-classes label,.extras-choice label,.supplier-choice label{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #d8e0eb;border-radius:7px;font-weight:normal;background:#fff}.vehicle-classes input,.extras-choice input,.supplier-choice input{width:auto;margin:0}.customer-history{grid-column:1/-1;padding:14px;border-radius:9px;background:#eef5ff;border:1px solid #bdd2fa}.customer-history.warning{background:#fff4e5;border-color:#f4c77d}.customer-history.serious{background:#fde8e7;border-color:#f2aaa6}.customer-history h3{margin:0 0 8px}.customer-history ul{margin-bottom:5px}
     @media (max-width: 480px) { body{overflow:auto}.app{grid-template-columns:1fr;height:auto;min-height:100vh}.side{display:none}.grid { grid-template-columns: 1fr; } .full { grid-column: auto; } main{height:auto;min-height:100vh;padding:18px;overflow:visible}.work-area{display:grid;grid-template-columns:1fr;height:auto;min-height:0}.message-panel{height:auto;max-height:none}.message-panel textarea{height:260px;min-height:180px;resize:vertical}.form-scroll{height:auto;overflow:visible;padding:0}.vehicle-classes>div>div,.extras-choice>div,.supplier-choice>div{grid-template-columns:1fr} }
+    :root{font-size:14px}main{max-width:1400px;padding:20px}h1{font-size:24px}fieldset{padding:16px}legend{font-size:17px}.grid{gap:10px 14px}input,textarea,select{padding:8px 10px}button{font-size:15px;padding:10px 18px}.form-scroll{gap:14px}.work-area{grid-template-columns:minmax(260px,30%) minmax(0,1fr)}.customer-message textarea{font-size:16px}
+    .vehicle-choice{grid-column:1/-1;min-width:0}.vehicle-choice h2{font-size:16px;margin:0 0 10px}.vehicle-choice small{display:block;color:#667085;margin-top:8px}.vehicle-picker{display:grid;gap:10px}.vehicle-section{border:1px solid #d8e0eb;border-radius:9px;overflow:hidden;background:#fff}.vehicle-section h3{margin:0;padding:8px 12px;background:#eef3fa;color:#173b72;font-size:14px}.vehicle-suppliers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0}.vehicle-supplier{padding:8px;min-width:0;border-inline-end:1px solid #e6eaf0}.vehicle-supplier h4{margin:0 0 6px;color:#475467;font-size:13px}.vehicle-supplier label{display:flex;align-items:flex-start;gap:7px;font-weight:400;font-size:13px;line-height:1.4;padding:7px 5px;border-radius:5px;overflow-wrap:anywhere;cursor:pointer}.vehicle-supplier label:hover{background:#f3f6fc}.vehicle-supplier label:has(input:checked){background:#e7efff;color:#174ea6}.vehicle-supplier label:focus-within{outline:2px solid #155eef;outline-offset:-2px}.vehicle-supplier input{flex:0 0 auto;width:16px;height:16px;margin:1px 0 0;accent-color:#155eef}
+    @media(max-width:900px){.vehicle-suppliers{grid-template-columns:1fr}.vehicle-supplier{border-inline-end:0;border-bottom:1px solid #e6eaf0}}
+    @media(max-width:480px){.work-area{grid-template-columns:1fr}input,textarea,select{font-size:16px}}
   </style>
+  <link rel="stylesheet" href="{% static 'quotes/workspace.css' %}">
+  <style>.app{grid-template-columns:210px minmax(0,1fr)}@media(max-width:600px){body{overflow:auto}.app{display:block;height:auto}.app main{height:auto;min-height:100vh;overflow:visible}.app .work-area{display:grid;grid-template-columns:1fr}.app .form-scroll{height:auto;overflow:visible}.app .message-panel textarea{height:220px}}</style>
+<style>
+  .date-control{grid-template-columns:minmax(140px,1fr) 42px}.date-control input{min-width:0}.date-control .native-date-picker{width:42px}
+  .vehicle-picker [hidden]{display:none!important}
+  #import-result{flex:0 1 180px;font-size:14px;line-height:1.4}
+  .message-panel .customer-message{min-height:140px}
+  @media(max-width:1200px){.form-scroll .grid{grid-template-columns:1fr}.work-area{grid-template-columns:minmax(240px,35%) minmax(260px,1fr)}}
+</style>
+<style>
+  /* The document owns scrolling; panels grow with their content. */
+  html{height:auto;overflow-y:auto}
+  body{height:auto;overflow:visible}
+  .app{height:auto;min-height:100vh;align-items:start}
+  .app main{height:auto;min-height:100vh;overflow:visible;min-width:0}
+  .app form{display:block;min-width:0}
+  .app .work-area{height:auto;min-height:0;align-items:start}
+  .app .message-panel{position:static;height:auto;max-height:none;min-width:0;gap:12px}
+  .app .message-panel .customer-message{flex:none;min-height:0}
+  .app .message-panel textarea{height:260px;min-height:160px;resize:vertical;overscroll-behavior:auto}
+  .app .form-scroll{height:auto;overflow:visible;display:flex;flex-direction:column;padding:0;min-width:0;overscroll-behavior:auto}
+  .app #import-result{flex:none;max-height:none;overflow:visible}
+  .app fieldset{min-width:0}
+  @media(max-width:1000px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%}}
+</style>
 </head>
-<body><div class="app"><aside class="side"><div class="brand">Idan Rent a Car</div><div class="step active">1. Клиент и запрос</div><div class="step">2. Расчёт вариантов</div><div class="step">3. Оферта</div><div class="step">4. Заказ</div></aside><main>
-  <h1>Новое обращение клиента</h1>
+<body><div class="app">{% include 'quotes/sidebar.html' %}<main>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><h1>Новое обращение клиента</h1><a href="{% url 'quotes:home' %}" style="display:inline-block;padding:9px 13px;border-radius:8px;background:#e8efff;color:#155eef;font-weight:700;text-decoration:none">← На главную</a></div>
+  {% if selected_customer %}<p>Оферта для: <strong>{{ selected_customer }}</strong></p>{% endif %}
+  <p class="hint">Из данных клиента достаточно email или любого одного телефона. Имя и остальные данные можно добавить позже.</p>
   <p class="hint">Перенеси сюда данные из первого письма. Сначала сохранится клиент и черновик оферты.</p>
   <form method="post" novalidate autocomplete="off">
     {% csrf_token %}
     {{ form.non_field_errors }}
-    {% if not is_editing %}<div class="actions"><button class="small-button" id="clear-draft" type="button">Очистить и начать новый запрос</button><button class="small-button" id="restore-draft" type="button">Восстановить черновик</button></div>{% endif %}
+    {% if not is_editing and not selected_customer %}<div class="actions"><button class="small-button" id="clear-draft" type="button">Очистить и начать новый запрос</button><button class="small-button" id="restore-draft" type="button">Восстановить черновик</button></div>{% endif %}
     <div class="work-area">
     <fieldset class="message-panel"><legend>Клиент написал</legend>
       <label class="customer-message">{{ form.customer_notes }}{{ form.customer_notes.errors }}</label>
+      <button type="button" id="import-inquiry">Заполнить из заявки и подобрать машины</button>
+      <input type="hidden" name="imported_inquiry" id="imported-inquiry" value="{{ request.POST.imported_inquiry }}">
+      <button type="button" id="show-all-groups" hidden>Показать все категории</button>
+      <div id="import-result" role="status" style="white-space:pre-line"></div>
       <small class="hint">Вставь сюда исходный текст письма клиента. Для иврита текст выравнивается справа.</small>
     </fieldset>
     <div class="form-scroll">
@@ -53,14 +89,14 @@
     </fieldset>
     <fieldset><legend>3. Запрос на аренду</legend><div class="grid">
       <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
-      <label>{{ form.pickup_date.label }}<span class="date-control">{{ form.pickup_date }}<input class="native-date-picker" id="pickup-calendar" type="date" aria-label="Открыть календарь даты получения" title="Выбрать дату получения"></span>{{ form.pickup_date.errors }}</label>
+      <div><label for="id_pickup_date">{{ form.pickup_date.label }}</label><div class="date-control">{{ form.pickup_date }}<input class="native-date-picker" id="pickup-calendar" type="date" aria-label="Открыть календарь даты получения" title="Выбрать дату получения"></div>{{ form.pickup_date.errors }}</div>
       <label>{{ form.pickup_time.label }}{{ form.pickup_time }}{{ form.pickup_time.errors }}</label>
-      <label>{{ form.return_date.label }}<span class="date-control">{{ form.return_date }}<input class="native-date-picker" id="return-calendar" type="date" aria-label="Открыть календарь даты возврата" title="Выбрать дату возврата"></span>{{ form.return_date.errors }}</label>
+      <div><label for="id_return_date">{{ form.return_date.label }}</label><div class="date-control">{{ form.return_date }}<input class="native-date-picker" id="return-calendar" type="date" aria-label="Открыть календарь даты возврата" title="Выбрать дату возврата"></div>{{ form.return_date.errors }}</div>
       <label>{{ form.return_time.label }}{{ form.return_time }}{{ form.return_time.errors }}</label>
       {% for field in form %}{% if field.name in "pickup_city pickup_service return_city return_service driver_count" %}
         <label>{{ field.label }}{{ field }}{{ field.errors }}</label>
       {% endif %}{% endfor %}
-      <label class="vehicle-classes">{{ form.vehicle_groups.label }}{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>Можно отметить любое количество реальных категорий разных поставщиков.</small></label>
+      <div class="vehicle-choice" role="group" aria-labelledby="vehicle-choice-title"><h2 id="vehicle-choice-title">{{ form.vehicle_groups.label }}</h2>{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>После разбора заявки появятся подходящие группы. Для выбора вручную нажмите «Показать все категории» слева.</small></div>
       <label class="extras-choice">{{ form.extra_choices.label }}{{ form.extra_choices }}{{ form.extra_choices.errors }}</label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
       <label class="full address-field" id="pickup-address-box" hidden>{{ form.pickup_address.label }}{{ form.pickup_address }}{{ form.pickup_address.errors }}</label>
@@ -78,16 +114,57 @@
   function toggleInvoice() { invoice.hidden = !checkbox.checked; }
   checkbox.addEventListener('change', toggleInvoice); toggleInvoice();
   const form = document.querySelector('form');
+  function filterGroups(ids) {
+    const allowed = ids === null ? null : new Set(ids.map(String));
+    document.querySelectorAll('.vehicle-picker input[type="checkbox"]').forEach(el => {
+      el.closest('label').hidden = allowed !== null && !allowed.has(el.value);
+    });
+    document.querySelectorAll('.vehicle-supplier, .vehicle-section').forEach(el => {
+      el.hidden = !Array.from(el.querySelectorAll('input[type="checkbox"]')).some(input => !input.closest('label').hidden);
+    });
+    document.querySelector('#show-all-groups').hidden = ids === null;
+  }
+  document.querySelector('#show-all-groups').addEventListener('click', () => filterGroups(null));
+  document.querySelector('#import-inquiry').addEventListener('click', async function () {
+    const result = document.querySelector('#import-result');
+    this.disabled = true;
+    result.textContent = 'Разбираю заявку…';
+    try {
+      const body = new FormData();
+      body.set('text', document.querySelector('#id_customer_notes').value);
+      body.set('csrfmiddlewaretoken', form.elements.csrfmiddlewaretoken.value);
+      const response = await fetch('{% url "quotes:import_inquiry" %}', {method:'POST', body});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Не удалось разобрать заявку.');
+      document.querySelector('#imported-inquiry').value = '1';
+      Object.entries(data.fields).forEach(([name, value]) => {
+        form.querySelectorAll('[name="'+name+'"]').forEach(el => {
+          if (el.type === 'checkbox') el.checked = Array.isArray(value) ? value.map(String).includes(el.value) : Boolean(value);
+          else el.value = value ?? '';
+        });
+      });
+      pickupCalendar.value = isoDate(pickupText.value);
+      filterGroups(data.fields.vehicle_groups);
+      returnCalendar.value = isoDate(returnText.value);
+      returnCalendar.min = pickupCalendar.value;
+      returnServiceChanged = returnService.value !== pickupService.value;
+      toggleAddresses(); toggleChildSeats(); updatePhones(); saveDraft(); scheduleLookup();
+      result.textContent = 'Данные заполнены. Подобрано групп: ' + data.fields.vehicle_groups.length +
+        '. Проверьте и нажмите «Сохранить и перейти к расчёту».\n' + data.warnings.join('\n');
+    } catch (error) { result.textContent = error.message; }
+    finally { this.disabled = false; }
+  });
   const draftKey = 'rentacar-first-inquiry-draft-v2';
   const pickupPlace = document.querySelector('#id_pickup_city');
   const returnPlace = document.querySelector('#id_return_city');
   const pickupService = document.querySelector('#id_pickup_service');
   const returnService = document.querySelector('#id_return_service');
   let returnPlaceChanged = false;
+  let returnServiceChanged = false;
   returnPlace.addEventListener('change', () => { returnPlaceChanged = returnPlace.value !== pickupPlace.value; });
   pickupPlace.addEventListener('change', () => { if (!returnPlaceChanged || !returnPlace.value) returnPlace.value = pickupPlace.value; saveDraft(); });
-  pickupService.addEventListener('change', () => { if (!returnPlaceChanged) returnService.value = pickupService.value; toggleAddresses(); saveDraft(); });
-  returnService.addEventListener('change', toggleAddresses);
+  pickupService.addEventListener('change', () => { if (!returnServiceChanged) returnService.value = pickupService.value; toggleAddresses(); saveDraft(); });
+  returnService.addEventListener('change', () => { returnServiceChanged = true; toggleAddresses(); });
   function toggleAddresses(){document.querySelector('#pickup-address-box').hidden=pickupService.value!=='ADDRESS';document.querySelector('#return-address-box').hidden=returnService.value!=='ADDRESS';}
   const childSeat=document.querySelector('input[name="extra_choices"][value="CHILD_SEAT"]');
   function toggleChildSeats(){document.querySelector('#child-seat-count').hidden=!childSeat.checked;}
@@ -99,6 +176,13 @@
   const returnText = document.querySelector('#id_return_date');
   const pickupCalendar = document.querySelector('#pickup-calendar');
   const returnCalendar = document.querySelector('#return-calendar');
+  for (const calendar of [pickupCalendar, returnCalendar]) {
+    calendar.addEventListener('click', () => {
+      if (typeof calendar.showPicker === 'function') {
+        try { calendar.showPicker(); } catch (_) { /* Native input remains usable. */ }
+      }
+    });
+  }
   pickupCalendar.value = isoDate(pickupText.value);
   returnCalendar.value = isoDate(returnText.value);
   pickupCalendar.addEventListener('change', () => {
@@ -120,9 +204,10 @@
   const historyBox=document.querySelector('#customer-history');let lookupTimer;
   function safe(value){const element=document.createElement('div');element.textContent=value??'';return element.innerHTML;}
   async function lookupCustomer(){
-    const email=document.querySelector('#id_email').value.trim(),phone=document.querySelector('#id_phone_1').value.trim();
+    const email=document.querySelector('#id_email').value.trim(),phone=['#id_phone_1','#id_phone_2','#id_phone_3'].map(id=>document.querySelector(id).value.trim()).find(Boolean)||'';
     if(!email&&!phone){historyBox.hidden=true;return;}
     const params=new URLSearchParams({email,phone});
+    {% if selected_customer %}params.set('customer_id', '{{ selected_customer.pk }}');{% endif %}
     const response=await fetch(`{% url 'quotes:customer_lookup' %}?${params}`);
     const data=await response.json();historyBox.hidden=false;historyBox.className='customer-history';
     if(!data.found){historyBox.innerHTML='<h3>Новый клиент</h3><div>Предыдущих обращений по этому e-mail или телефону не найдено.</div>';return;}
@@ -133,6 +218,8 @@
   function scheduleLookup(){clearTimeout(lookupTimer);lookupTimer=setTimeout(lookupCustomer,450);}
   document.querySelector('#id_email').addEventListener('input',scheduleLookup);
   document.querySelector('#id_phone_1').addEventListener('input',scheduleLookup);
+  document.querySelector('#id_phone_2').addEventListener('input',scheduleLookup);
+  document.querySelector('#id_phone_3').addEventListener('input',scheduleLookup);
 
   function saveDraft() {
     const data = {};
@@ -152,11 +239,14 @@
       pickupCalendar.value = isoDate(pickupText.value);
       returnCalendar.value = isoDate(returnText.value);
       returnCalendar.min = pickupCalendar.value;
+      returnServiceChanged = returnService.value !== pickupService.value;
+      const selectedGroups = Array.from(document.querySelectorAll('.vehicle-picker input[type="checkbox"]:checked'), input => input.value);
+      filterGroups(selectedGroups);
       toggleInvoice(); toggleAddresses(); updatePhones(); toggleChildSeats();
-      if(document.querySelector('#id_email').value||document.querySelector('#id_phone_1').value)lookupCustomer();
+      lookupCustomer();
     } catch (error) {}
   }
-  {% if not is_editing %}
+  {% if not is_editing and not selected_customer %}
   document.querySelector('#restore-draft').addEventListener('click', restoreDraft);
   document.querySelector('#clear-draft').addEventListener('click', () => {
     localStorage.removeItem(draftKey);
@@ -168,8 +258,10 @@
   returnCalendar.min = pickupCalendar.value;
   toggleInvoice();
   toggleAddresses(); updatePhones(); toggleChildSeats();
-  if(document.querySelector('#id_email').value||document.querySelector('#id_phone_1').value)lookupCustomer();
-  {% if not is_editing %}form.addEventListener('input', saveDraft);
+  const initiallySelectedGroups = Array.from(document.querySelectorAll('.vehicle-picker input[type="checkbox"]:checked'), input => input.value);
+  if (!initiallySelectedGroups.length) filterGroups([]);
+  lookupCustomer();
+  {% if not is_editing and not selected_customer %}form.addEventListener('input', saveDraft);
   form.addEventListener('change', saveDraft);{% endif %}
   toggleInvoice();
 </script></body></html>

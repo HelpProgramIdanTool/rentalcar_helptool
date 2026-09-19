@@ -1,0 +1,16 @@
+/* Keep the standard admin controls, with denser tables and forms. */
+html { font-size: 14px; }
+body { font-size: 14px; }
+#content { padding: 20px 24px; }
+#content h1 { font-size: 22px; margin-bottom: 16px; }
+#header { padding: 12px 24px; }
+#site-name { font-size: 20px; }
+th, td { padding: 7px 9px; font-size: 13px; line-height: 1.4; }
+.form-row { padding: 8px 10px; font-size: 14px; }
+input, textarea, select, .vTextField { font-size: 14px; }
+input:not([type=checkbox]):not([type=radio]), select { min-height: 30px; }
+.module h2, .module caption { padding: 8px 10px; font-size: 14px; }
+@media (max-width: 767px) {
+  #content { padding: 14px; }
+  input, textarea, select, .vTextField { font-size: 16px; }
+}

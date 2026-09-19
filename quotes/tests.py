@@ -14,8 +14,8 @@ from .models import Quote, QuoteOption, QuoteTemplate
 from .services import (
     HEBREW_EXTRA_NAMES,
     HEBREW_VEHICLE_CLASS_NAMES,
-    KAIZEN_CROSS_BORDER_PRICE,
-    KAIZEN_COMFORT_INCLUDED_ITEMS,
+    STANDARD_INCLUDED_ITEMS,
+    normalize_included_items,
     _extra_line_name,
     _extra_price,
     _luggage_info,
@@ -24,6 +24,7 @@ from .services import (
     _service_extra_requests,
     ensure_quote_document_blocks,
     ensure_quote_option_presentation,
+    vehicle_class_presentation,
 )
 
 
@@ -68,6 +69,8 @@ class FirstInquiryTests(TestCase):
     def test_new_inquiry_starts_empty_and_offers_draft_controls(self):
         response = self.client.get(reverse("quotes:new_inquiry"))
 
+        self.assertContains(response, "← На главную")
+        self.assertContains(response, f'href="{reverse("quotes:home")}"')
         self.assertContains(response, "Очистить и начать новый запрос")
         self.assertContains(response, "Восстановить черновик")
         self.assertContains(response, "Малые автомобили")
@@ -85,12 +88,42 @@ class FirstInquiryTests(TestCase):
         quote = Quote.objects.get()
         self.assertRedirects(response, reverse("quotes:inquiry_saved", args=[quote.quote_number]))
         self.assertEqual(Customer.objects.count(), 1)
+
         self.assertEqual(quote.status, Quote.Status.DRAFT)
         self.assertEqual(quote.rental_days, 4)
         self.assertEqual(quote.extra_requests["CHILD_SEAT"], 2)
         self.assertEqual(quote.pickup_service, "AIRPORT")
         self.assertEqual(quote.requested_suppliers.count(), 1)
         self.assertEqual(quote.requested_vehicle_groups.count(), 2)
+
+    def test_date_calendars_do_not_share_labels_with_manual_inputs(self):
+        from html.parser import HTMLParser
+
+        class DateLabels(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.depth = 0
+                self.calendars = []
+                self.targets = []
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == "label":
+                    self.depth += 1
+                    self.targets.append(attrs.get("for"))
+                if tag == "input" and attrs.get("type") == "date":
+                    self.calendars.append((attrs.get("id"), self.depth))
+
+            def handle_endtag(self, tag):
+                if tag == "label":
+                    self.depth -= 1
+
+        response = self.client.get(reverse("quotes:new_inquiry"))
+        parsed = DateLabels()
+        parsed.feed(response.content.decode())
+        self.assertEqual(parsed.calendars, [("pickup-calendar", 0), ("return-calendar", 0)])
+        self.assertIn("id_pickup_date", parsed.targets)
+        self.assertIn("id_return_date", parsed.targets)
 
     def test_offer_can_be_created_without_last_name_using_only_phone(self):
         response = self.client.post(
@@ -155,8 +188,46 @@ class FirstInquiryTests(TestCase):
 
     def test_contact_is_required(self):
         response = self.client.post(reverse("quotes:new_inquiry"), self.data(email="", phone_1=""))
-        self.assertContains(response, "Укажите хотя бы e-mail или первый телефон.")
+        self.assertContains(response, "Укажите хотя бы e-mail или номер телефона.")
         self.assertEqual(Quote.objects.count(), 0)
+
+    def test_only_one_contact_is_enough_without_other_customer_fields(self):
+        from .forms import FirstInquiryForm
+
+        for field, value in (("email", "only@example.com"), ("phone_1", "111"), ("phone_2", "222"), ("phone_3", "333")):
+            with self.subTest(field=field):
+                data = self.data(first_name="", last_name="", email="", phone_1="", phone_2="", phone_3="", preferred_language="", wants_invoice=True)
+                data[field] = value
+                form = FirstInquiryForm(data)
+                self.assertTrue(form.is_valid(), form.errors)
+
+    def test_nameless_customer_can_save_offer_and_has_contact_label(self):
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(first_name="", last_name="", phone_1=""))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(str(Quote.objects.get().customer), "anna@example.com")
+
+    def test_customer_offer_prefills_and_keeps_exact_customer_with_shared_email(self):
+        Customer.objects.create(first_name="Other", email="shared@example.com")
+        selected = Customer.objects.create(first_name="", last_name="", email="shared@example.com", phone_2="222")
+        url = reverse("quotes:customer_offer", args=[selected.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.context["form"].initial["phone_2"], "222")
+        self.assertNotContains(response, 'id="restore-draft"')
+        self.client.post(url, self.data(first_name="", last_name="", email="shared@example.com", phone_1="", phone_2="222"))
+        self.assertEqual(Quote.objects.get().customer_id, selected.pk)
+        self.assertEqual(Customer.objects.count(), 2)
+
+    def test_admin_customer_without_name_has_link_and_offer_action(self):
+        self.user.is_staff = self.user.is_superuser = True
+        self.user.save()
+        customer = Customer.objects.create(email="nameless@example.com")
+        url = reverse("quotes:customer_offer", args=[customer.pk])
+        response = self.client.get(reverse("admin:customers_customer_changelist"))
+        self.assertContains(response, "nameless@example.com")
+        self.assertContains(response, url)
+        self.assertContains(response, "customers/customer_rows.js")
+        response = self.client.get(reverse("admin:customers_customer_change", args=[customer.pk]))
+        self.assertContains(response, url)
 
     def test_logged_out_user_is_sent_to_admin_login(self):
         self.client.logout()
@@ -185,6 +256,54 @@ class FirstInquiryTests(TestCase):
         for group in self.form_groups:
             self.assertContains(response, group.group_code)
             self.assertContains(response, group.group_name)
+
+    def test_kaizen_manual_r_is_in_nine_seat_section(self):
+        from .forms import FirstInquiryForm, vehicle_group_section
+
+        group = VehicleGroup.objects.create(
+            supplier=self.supplier, group_code="FVMR", group_name="R",
+            transmission=VehicleGroup.Transmission.MANUAL,
+        )
+        self.assertEqual(vehicle_group_section(group), "NINE_SEAT")
+        widget = FirstInquiryForm().fields["vehicle_groups"].widget
+        sections = widget.get_context("vehicle_groups", [], {})["widget"]["sections"]
+        matching = [section["name"] for section in sections
+                    for _, options in section["columns"] for option in options
+                    if str(option["value"]) == str(group.pk)]
+        self.assertEqual(matching, ["8-9-местные"])
+
+    def test_vehicle_picker_groups_suppliers_without_repeating_names_in_labels(self):
+        from .forms import FirstInquiryForm
+
+        other = Supplier.objects.create(supplier_code="DESIGN", supplier_name="Another supplier")
+        group = VehicleGroup.objects.create(supplier=other, group_code="B_AUTO", group_name="Compact automatic")
+        group.comparison_classes.add(self.form_groups[0].comparison_classes.first())
+        form = FirstInquiryForm(initial={"vehicle_groups": [group.pk]})
+        widget = form.fields["vehicle_groups"].widget
+        context = widget.get_context("vehicle_groups", [str(group.pk)], {"id": "id_vehicle_groups"})
+        options = [option for section in context["widget"]["sections"] for _, column in section["columns"] for option in column]
+        self.assertEqual(len(options), len(set(str(option["value"]) for option in options)))
+        for option in options:
+            self.assertNotIn("supplier", str(option["label"]))
+        selected = [option for option in options if option["selected"]]
+        self.assertEqual([str(option["value"]) for option in selected], [str(group.pk)])
+        html = str(form["vehicle_groups"])
+        self.assertIn('<h4>Another supplier</h4>', html)
+        self.assertIn('name="vehicle_groups"', html)
+        self.assertIn('checked', html)
+
+    def test_vehicle_selection_survives_form_validation_error(self):
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(pickup_date=""))
+        form = response.context["form"]
+        self.assertEqual(set(form["vehicle_groups"].value()), {str(group.pk) for group in self.form_groups})
+        self.assertContains(response, 'checked')
+
+    def test_admin_loads_compact_styles(self):
+        self.user.is_staff = True
+        self.user.is_superuser = True
+        self.user.save()
+        response = self.client.get(reverse("admin:index"))
+        self.assertContains(response, "quotes/admin_compact.css")
 
     def test_customer_lookup_returns_history_and_warning(self):
         customer = Customer.objects.create(
@@ -251,6 +370,104 @@ class FirstInquiryTests(TestCase):
             is_included=True,
         )
 
+    def test_offer_shows_body_and_transmission_from_vehicle_group(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        option = self._add_included_option(quote)
+        group = option.vehicle_group
+        group.body_type = VehicleGroup.BodyType.ESTATE
+        group.transmission = VehicleGroup.Transmission.MANUAL
+        group.save(update_fields=["body_type", "transmission"])
+
+        response = self.client.get(reverse("quotes:quote_preview", args=[quote.quote_number]))
+        self.assertContains(response, group.get_body_type_display())
+        self.assertContains(response, group.get_transmission_display())
+        option.refresh_from_db()
+        self.assertEqual(option.calculation_snapshot["body_type_label"], group.get_body_type_display())
+        self.assertEqual(option.calculation_snapshot["transmission_label"], group.get_transmission_display())
+
+        copied = self.client.get(reverse("quotes:copy_quote", args=[quote.quote_number])).json()
+        self.assertIn(group.get_body_type_display(), copied["text"])
+        self.assertIn(group.get_transmission_display(), copied["text"])
+
+    def test_offer_does_not_invent_missing_body_type(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        option = self._add_included_option(quote)
+        option.vehicle_group.transmission = VehicleGroup.Transmission.AUTOMATIC
+        option.vehicle_group.save(update_fields=["transmission"])
+        response = self.client.get(reverse("quotes:quote_preview", args=[quote.quote_number]))
+        self.assertContains(response, option.vehicle_group.get_transmission_display())
+        option.refresh_from_db()
+        self.assertEqual(option.calculation_snapshot["body_type_label"], "")
+
+    def test_offer_reads_fuel_description_from_group_data(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        option = self._add_included_option(quote)
+        group = option.vehicle_group
+        group.fuel_type_note = "TEST-FUEL-HE"
+        group.save(update_fields=["fuel_type_note"])
+
+        response = self.client.get(reverse("quotes:quote_preview", args=[quote.quote_number]))
+        self.assertContains(response, "TEST-FUEL-HE")
+        option.refresh_from_db()
+        self.assertEqual(option.calculation_snapshot["fuel_type_label"], "TEST-FUEL-HE")
+        copied = self.client.get(reverse("quotes:copy_quote", args=[quote.quote_number])).json()
+        self.assertIn("TEST-FUEL-HE", copied["text"])
+
+    def test_mixed_sedan_hatchback_group_does_not_promise_either_body(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        option = self._add_included_option(quote)
+        group = option.vehicle_group
+        group.body_type = VehicleGroup.BodyType.HATCHBACK
+        group.transmission = VehicleGroup.Transmission.AUTOMATIC
+        group.save(update_fields=["body_type", "transmission"])
+        sedan, _ = VehicleComparisonClass.objects.get_or_create(
+            code="C_AUTO_SEDAN", defaults={"name": "Test sedan"}
+        )
+        hatch, _ = VehicleComparisonClass.objects.get_or_create(
+            code="C_AUTO_HATCH", defaults={"name": "Test hatchback"}
+        )
+        group.comparison_classes.add(sedan, hatch)
+        option.comparison_class = sedan
+        option.save(update_fields=["comparison_class"])
+
+        self.assertEqual(vehicle_class_presentation(sedan, group), ("קבוצה C", ""))
+        response = self.client.get(reverse("quotes:quote_preview", args=[quote.quote_number]))
+        self.assertContains(response, "קבוצה C")
+        option.refresh_from_db()
+        self.assertEqual(option.calculation_snapshot["body_type_label"], "")
+        self.assertEqual(option.calculation_snapshot["transmission_label"], "Automatic")
+
+    def test_copy_offer_returns_formatted_content_without_sending(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        self._add_included_option(quote)
+        response = self.client.get(reverse("quotes:copy_quote", args=[quote.quote_number]))
+        self.assertEqual(response.status_code, 200)
+        content = response.json()
+        self.assertIn('dir="rtl"', content["html"])
+        self.assertIn("1234", content["html"])
+        self.assertNotIn("Выслать оферту клиенту", content["html"])
+        self.assertNotIn("Скопировать оферту", content["html"])
+        self.assertNotIn("<script", content["html"])
+        self.assertTrue(content["text"])
+        self.assertEqual(len(mail.outbox), 0)
+        quote.refresh_from_db()
+        self.assertEqual(quote.status, Quote.Status.DRAFT)
+        self.assertIsNone(quote.sent_at)
+        self.assertFalse(quote.email_deliveries.exists())
+
+    def test_copy_offer_requires_login_and_selected_options(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        url = reverse("quotes:copy_quote", args=[quote.quote_number])
+        self.assertEqual(self.client.get(url).status_code, 400)
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+
     @override_settings(MAILERS={
         "default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
     })
@@ -275,6 +492,35 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(quote.sent_subject, mail.outbox[0].subject)
         self.assertEqual(quote.sent_html_snapshot, mail.outbox[0].alternatives[0].content)
         self.assertNotIn("Выслать оферту клиенту", quote.sent_html_snapshot)
+        self.assertIn('dir="rtl"', quote.sent_html_snapshot)
+        self.assertIn('max-width:760px', quote.sent_html_snapshot)
+        self.assertIn('text-align:right', quote.sent_html_snapshot)
+        for benefit in STANDARD_INCLUDED_ITEMS:
+            self.assertEqual(quote.sent_html_snapshot.count(f"<li>{benefit}</li>"), 1)
+
+    @override_settings(MAILERS={
+        "default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
+    })
+    def test_resending_offer_uses_new_subject_and_keeps_complete_content(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        self._add_included_option(quote)
+        url = reverse("quotes:send_quote", args=[quote.quote_number])
+
+        self.client.post(url)
+        self.client.post(url)
+
+        self.assertEqual(len(mail.outbox), 2)
+        first, second = mail.outbox
+        self.assertNotEqual(first.subject, second.subject)
+        for message in mail.outbox:
+            self.assertIn(quote.quote_number, message.subject)
+            self.assertIn("Version", message.subject)
+            for benefit in STANDARD_INCLUDED_ITEMS:
+                self.assertIn(benefit, message.alternatives[0].content)
+        self.assertEqual(first.alternatives[0].content, second.alternatives[0].content)
+        quote.refresh_from_db()
+        self.assertEqual(quote.sent_subject, second.subject)
 
     @override_settings(MAILERS={
         "default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
@@ -319,7 +565,9 @@ class FirstInquiryTests(TestCase):
             reverse("quotes:quote_preview", args=[quote.quote_number])
         )
 
-        self.assertContains(response, "Выслать оферту клиенту")
+        self.assertContains(response, "Выслать из системы")
+        self.assertNotContains(response, "Дополнительно: отправка из системы")
+        self.assertContains(response, quote.customer.email)
         self.assertContains(
             response, reverse("quotes:send_quote", args=[quote.quote_number])
         )
@@ -360,11 +608,39 @@ class FirstInquiryTests(TestCase):
             "SUV גדול — אוטומטי",
         )
 
-    def test_kaizen_uses_idans_scdw_wording(self):
-        self.assertIn(
-            "ביטוח מלא עם ביטול השתתפות - SCDW",
-            KAIZEN_COMFORT_INCLUDED_ITEMS,
+    def test_supplier_specific_class_name_comes_from_data(self):
+        comparison = VehicleComparisonClass.objects.create(
+            code="TEST-CUSTOM-CLASS", name="TEST-NAME-HE"
         )
+        group = self.form_groups[0]
+        self.assertEqual(vehicle_class_presentation(comparison, group)[0], "TEST-NAME-HE")
+
+    def test_standard_benefits_replace_legacy_wording_and_keep_selected_extras(self):
+        items = normalize_included_items([
+            "עד שני נהגים", "חבילת With Comfort Package",
+            "ביטוח מלא עם ביטול השתתפות - SCDW", "ללא הגבלת ק״מ",
+            "כיסא תינוק / בוסטר × 1", "נהג נוסף × 1",
+            *STANDARD_INCLUDED_ITEMS,
+        ])
+        for benefit in STANDARD_INCLUDED_ITEMS:
+            self.assertEqual(items.count(benefit), 1)
+        self.assertIn("כיסא תינוק / בוסטר × 1", items)
+        self.assertIn("נהג נוסף × 1", items)
+        self.assertNotIn("עד שני נהגים", items)
+        self.assertNotIn("ביטוח מלא עם ביטול השתתפות - SCDW", items)
+
+    def test_every_supplier_option_shows_standard_benefits_in_preview(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        for code in ("01", "02", "03"):
+            supplier, _ = Supplier.objects.get_or_create(
+                supplier_code=code, defaults={"supplier_name": f"Supplier {code}"},
+            )
+            self.supplier = supplier
+            self._add_included_option(quote)
+        response = self.client.get(reverse("quotes:quote_preview", args=[quote.quote_number]))
+        for benefit in STANDARD_INCLUDED_ITEMS:
+            self.assertContains(response, f"<li>{benefit}</li>", count=3)
 
     def test_customer_offer_translates_mandatory_service_fees(self):
         self.assertEqual(
@@ -439,7 +715,7 @@ class FirstInquiryTests(TestCase):
         self.assertIn("460", _luggage_info(known))
         self.assertEqual(_luggage_info(unknown), "")
 
-    def test_old_option_presentation_is_left_unchanged_without_current_rate(self):
+    def test_old_option_gets_standard_benefits_without_changing_price_or_days(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())
         quote = Quote.objects.get()
         comparison = VehicleComparisonClass.objects.first()
@@ -459,7 +735,10 @@ class FirstInquiryTests(TestCase):
         )
         ensure_quote_option_presentation(quote)
         option.refresh_from_db()
-        self.assertEqual(option.calculation_snapshot, {"days": 4})
+        self.assertEqual(option.calculation_snapshot["days"], 4)
+        self.assertEqual(option.total_price_gross, Decimal("100.00"))
+        for benefit in STANDARD_INCLUDED_ITEMS:
+            self.assertIn(benefit, option.calculation_snapshot["included_items"])
 
     def test_hebrew_preview_does_not_use_russian_location_labels(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())
@@ -514,7 +793,7 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(Quote.objects.count(), 1)
         self.assertEqual(Customer.objects.count(), 1)
         self.assertEqual(quote.rental_days, 6)
-        self.assertFalse(quote.document_blocks.exists())
+        self.assertTrue(quote.document_blocks.exists())
 
     def test_duplicate_creates_new_quote_for_same_customer_without_prices(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())
@@ -571,7 +850,7 @@ class FirstInquiryTests(TestCase):
             QuoteTemplate.objects.filter(blocks__content__contains=sentence).exists()
         )
 
-    def test_kaizen_cross_border_offer_rate_is_499_per_rental(self):
+    def test_kaizen_cross_border_offer_uses_selected_rate(self):
         from types import SimpleNamespace
 
         extra = SimpleNamespace(
@@ -582,8 +861,7 @@ class FirstInquiryTests(TestCase):
             formula_config={}, calculation_type="PER_RENTAL",
             amount_gross=Decimal("299.00"),
         )
-        self.assertEqual(KAIZEN_CROSS_BORDER_PRICE, Decimal("499.00"))
         self.assertEqual(
             _quoted_extra_price(extra, old_rate, Decimal("5")),
-            Decimal("499.00"),
+            Decimal("299.00"),
         )

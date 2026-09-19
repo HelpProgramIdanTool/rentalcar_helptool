@@ -1,0 +1,16 @@
+{% extends 'customers/base.html' %}
+{% block title %}Заказы{% endblock %}
+{% block content %}
+<h1>Заказы</h1>
+<p><a class="app-create" href="{% url 'quotes:new_booking' %}">＋ Новый заказ вручную</a></p>
+<form method="get"><label>Поиск <input name="q" value="{{ q }}" placeholder="Номер, клиент, телефон, email"></label>
+<label>Статус <select name="status"><option value="">Все</option>{% for value,label in statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>Фирма <select name="supplier"><option value="">Все</option>{% for supplier in suppliers %}<option value="{{ supplier.pk }}" {% if supplier_id == supplier.pk|stringformat:'s' %}selected{% endif %}>{{ supplier }}</option>{% endfor %}</select></label>
+<button>Найти</button> <a href="{% url 'quotes:booking_list' %}">Сбросить</a></form>
+<p>Найдено: {{ page_obj.paginator.count }}</p>
+<div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th>Заказ</th><th>Резервация фирмы</th><th>Клиент</th><th>Фирма / группа</th><th>Получение</th><th>Возврат</th><th>Сумма</th><th>Статус</th></tr></thead><tbody>
+{% for booking in page_obj %}<tr data-href="{% url 'quotes:booking_detail' booking.pk %}"><td><a href="{% url 'quotes:booking_detail' booking.pk %}">{{ booking.booking_number }}</a></td><td><a href="{% url 'quotes:booking_detail' booking.pk %}#reservation-number">{{ booking.supplier_booking_number|default:'＋ Внести номер' }}</a></td><td>{{ booking.customer_name_snapshot|default:booking.customer_email_snapshot }}<br><small>{{ booking.get_order_source_display }}{% if booking.salesperson_employee %} ? {{ booking.salesperson_employee }}{% endif %}{% if booking.sub_agent %} ? {{ booking.sub_agent }}{% endif %}</small></td><td>{{ booking.supplier }} / {{ booking.vehicle_group.group_name }}</td><td>{{ booking.pickup_datetime|date:'d.m.Y H:i' }}<br>{{ booking.pickup_location_text }}</td><td>{{ booking.return_datetime|date:'d.m.Y H:i' }}<br>{{ booking.return_location_text }}</td><td>{{ booking.total_price_gross }} {{ booking.currency }}</td><td>{{ booking.get_status_display }}</td></tr>{% empty %}<tr><td colspan="8">Заказов пока нет. Создайте заказ из выбранного варианта оферты.</td></tr>{% endfor %}
+</tbody></table></div>
+<p>{% if page_obj.has_previous %}<a href="?q={{ q|urlencode }}&status={{ status|urlencode }}&supplier={{ supplier_id|urlencode }}&page={{ page_obj.previous_page_number }}">Назад</a>{% endif %} {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} {% if page_obj.has_next %}<a href="?q={{ q|urlencode }}&status={{ status|urlencode }}&supplier={{ supplier_id|urlencode }}&page={{ page_obj.next_page_number }}">Дальше</a>{% endif %}</p>
+<style>th,td{padding:10px;text-align:left;border-bottom:1px solid #ddd;font-size:14px}tr[data-href]{cursor:pointer}tr[data-href]:hover{background:#eef5ff}form{display:flex;gap:12px;flex-wrap:wrap}input,select,button{padding:8px}</style>
+{% endblock %}

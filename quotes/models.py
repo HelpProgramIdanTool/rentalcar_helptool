@@ -75,6 +75,7 @@ class Quote(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True)
     sent_to_email = models.EmailField(blank=True)
     sent_subject = models.CharField(max_length=250, blank=True)
+    email_subject = models.CharField(max_length=200, blank=True)
     sent_html_snapshot = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -107,6 +108,7 @@ class QuoteOption(models.Model):
     supplier_name_snapshot = models.CharField(max_length=120)
     vehicle_group_name_snapshot = models.CharField(max_length=120)
     vehicle_models_snapshot = models.TextField(blank=True)
+    customer_comment = models.TextField(blank=True)
     total_price_gross = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=3, default="PLN")
     deposit_amount = models.DecimalField(
@@ -167,3 +169,15 @@ class QuoteDocumentBlock(models.Model):
     class Meta:
         ordering = ["display_order", "id"]
         constraints = [models.UniqueConstraint(fields=["quote", "block_key"], name="unique_document_block_per_quote")]
+
+
+class QuoteEmailDelivery(models.Model):
+    quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name="email_deliveries")
+    sent_at = models.DateTimeField(auto_now_add=True)
+    recipient = models.EmailField()
+    subject = models.CharField(max_length=250)
+    html = models.TextField()
+    attachments = models.JSONField(default=list)
+
+    class Meta:
+        ordering = ["-sent_at", "-pk"]

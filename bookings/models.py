@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.conf import settings
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -7,6 +8,18 @@ from django.db.models import Q
 from django.utils import timezone
 
 from config.rental_duration import calculate_rental_days
+
+
+class SupplierEmailDelivery(models.Model):
+    token = models.UUIDField(unique=True)
+    booking = models.ForeignKey("Booking", on_delete=models.PROTECT, related_name="supplier_deliveries")
+    recipient = models.EmailField()
+    subject = models.CharField(max_length=250)
+    body = models.TextField()
+    status = models.CharField(max_length=20, default="SENDING")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
 
 
 class BookingNumberSequence(models.Model):
@@ -42,6 +55,15 @@ class Booking(models.Model):
 
     booking_number = models.CharField(max_length=20, unique=True, editable=False)
     supplier_booking_number = models.CharField(max_length=100, blank=True)
+    source_quote = models.OneToOneField(
+        "quotes.Quote", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="created_booking", editable=False,
+    )
+    source_quote_snapshot = models.JSONField(default=dict, blank=True, editable=False)
+    manual_entry_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
+    created_by_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, editable=False)
+    order_source = models.CharField(max_length=20, choices=[("SELF", "Мой заказ"), ("EMPLOYEE", "Заказ сотрудника"), ("SUBAGENT", "Заказ субагента")], default="SELF")
+    sub_agent = models.ForeignKey("employees.SubAgent", on_delete=models.PROTECT, null=True, blank=True)
     customer = models.ForeignKey(
         "customers.Customer",
         on_delete=models.PROTECT,
@@ -820,6 +842,20 @@ class BookingExtra(models.Model):
     def _calculate_price(self):
         self.calculation_complete = True
         self.calculation_warning = ""
+        reviewed_extras = self.booking.source_quote_snapshot.get("extras", [])
+        if any(item["extra_id"] == self.extra_id for item in reviewed_extras):
+            # Converted extras retain the same per-item cap and quantity rules
+            # as the reviewed offer, including before driver names are entered.
+            from types import SimpleNamespace
+            from quotes.services import _quoted_extra_price
+            rate = SimpleNamespace(
+                calculation_type=self.calculation_type_snapshot,
+                amount_gross=self.unit_price_gross_snapshot,
+                minimum_amount_gross=self.minimum_amount_gross_snapshot,
+                maximum_amount_gross=self.maximum_amount_gross_snapshot,
+                formula_config=self.formula_snapshot,
+            )
+            return _quoted_extra_price(self.extra, rate, Decimal(self.booking.rental_days or 1), self.quantity)
         calculation_type = self.calculation_type_snapshot
         days = Decimal(self.booking.rental_days or 1)
         formula = self.formula_snapshot or {}

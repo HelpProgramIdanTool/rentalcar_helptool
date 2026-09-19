@@ -271,6 +271,44 @@ class BookingTests(TestCase):
         self.assertEqual(booking.calculated_vehicle_price_gross, Decimal("300.00"))
         self.assertEqual(booking.total_price_gross, Decimal("360.00"))
 
+    def test_totals_include_only_enabled_and_completely_calculated_extras(self):
+        booking = self.create_booking(
+            manual_vehicle_price_gross=Decimal("300.00"),
+            manual_price_override_reason="Invented price for test",
+        )
+        for index, (amount, included, complete) in enumerate((
+            ("50.00", True, True),
+            ("25.00", True, True),
+            ("100.00", False, True),
+            ("200.00", True, False),
+        )):
+            extra = SupplierExtra.objects.create(
+                supplier=self.supplier, extra_code=f"TEST-{index}", name=f"Test extra {index}",
+            )
+            rate = SupplierExtraRate.objects.create(
+                extra=extra, rate_code="TEST", calculation_type="PER_RENTAL",
+                amount_gross=Decimal(amount), valid_from=date(2026, 1, 1),
+            )
+            item = BookingExtra.objects.create(booking=booking, extra=extra, rate=rate)
+            BookingExtra.objects.filter(pk=item.pk).update(
+                included_in_total=included, calculation_complete=complete,
+            )
+
+        booking.recalculate_totals()
+        booking.refresh_from_db()
+        self.assertEqual(booking.extras_total_gross, Decimal("75.00"))
+        self.assertEqual(booking.total_price_gross, Decimal("375.00"))
+
+        booking.manual_vehicle_price_gross = Decimal("0.00")
+        booking.save()
+        # Saving retries incomplete calculations. Exclude all extras to verify
+        # that a new total clears the old amount rather than retaining it.
+        booking.extras.update(included_in_total=False)
+        booking.recalculate_totals()
+        booking.refresh_from_db()
+        self.assertEqual(booking.extras_total_gross, Decimal("0.00"))
+        self.assertEqual(booking.total_price_gross, Decimal("0.00"))
+
     def test_one_rent_mandatory_delivery_is_added_automatically(self):
         self.supplier.supplier_name = "One Rent"
         self.supplier.save(update_fields=["supplier_name"])
@@ -340,6 +378,11 @@ class BookingTests(TestCase):
 
         self.assertEqual(booking_extra.unit_price_gross_snapshot, Decimal("50.00"))
         self.assertEqual(booking_extra.calculated_price_gross, Decimal("100.00"))
+        booking.refresh_from_db()
+        self.assertEqual(booking.total_price_gross, Decimal("600.00"))
+        booking.save()
+        booking.refresh_from_db()
+        self.assertEqual(booking.total_price_gross, Decimal("600.00"))
 
     def test_extra_of_another_supplier_is_rejected(self):
         booking = self.create_booking()
