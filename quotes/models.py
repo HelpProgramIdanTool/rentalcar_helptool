@@ -38,6 +38,10 @@ class Quote(models.Model):
         blank=True,
         related_name="created_quotes",
     )
+    sent_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="sent_quotes", editable=False,
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     language = models.CharField(max_length=50, blank=True)
     pickup_datetime = models.DateTimeField()
@@ -109,6 +113,8 @@ class QuoteOption(models.Model):
     vehicle_group_name_snapshot = models.CharField(max_length=120)
     vehicle_models_snapshot = models.TextField(blank=True)
     customer_comment = models.TextField(blank=True)
+    manual_adjustment_label = models.CharField(max_length=200, blank=True)
+    manual_adjustment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_price_gross = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=3, default="PLN")
     deposit_amount = models.DecimalField(
@@ -173,6 +179,10 @@ class QuoteDocumentBlock(models.Model):
 
 class QuoteEmailDelivery(models.Model):
     quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name="email_deliveries")
+    sent_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="quote_email_deliveries", editable=False,
+    )
     sent_at = models.DateTimeField(auto_now_add=True)
     recipient = models.EmailField()
     subject = models.CharField(max_length=250)

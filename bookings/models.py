@@ -1,4 +1,6 @@
 from decimal import Decimal
+from pathlib import Path
+from uuid import uuid4
 from django.conf import settings
 
 from django.core.exceptions import ValidationError
@@ -62,6 +64,10 @@ class Booking(models.Model):
     source_quote_snapshot = models.JSONField(default=dict, blank=True, editable=False)
     manual_entry_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     created_by_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, editable=False)
+    confirmed_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="confirmed_bookings", editable=False,
+    )
     order_source = models.CharField(max_length=20, choices=[("SELF", "Мой заказ"), ("EMPLOYEE", "Заказ сотрудника"), ("SUBAGENT", "Заказ субагента")], default="SELF")
     sub_agent = models.ForeignKey("employees.SubAgent", on_delete=models.PROTECT, null=True, blank=True)
     customer = models.ForeignKey(
@@ -115,6 +121,9 @@ class Booking(models.Model):
     pickup_address = models.CharField(max_length=300, blank=True)
     return_address = models.CharField(max_length=300, blank=True)
     hotel_name = models.CharField(max_length=200, blank=True)
+    return_hotel_name = models.CharField(max_length=200, blank=True)
+    manual_adjustment_label = models.CharField(max_length=200, blank=True)
+    manual_adjustment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     flight_number = models.CharField(max_length=50, blank=True)
     vehicle_group = models.ForeignKey(
         "suppliers.VehicleGroup",
@@ -567,7 +576,7 @@ class Booking(models.Model):
             ),
             Decimal("0.00"),
         )
-        total = self.vehicle_price_gross + extras_total
+        total = self.vehicle_price_gross + extras_total + self.manual_adjustment_amount
         type(self).objects.filter(pk=self.pk).update(
             extras_total_gross=extras_total,
             total_price_gross=total,
@@ -952,3 +961,18 @@ class BookingHistoryEvent(models.Model):
 
     def __str__(self):
         return f"{self.booking} - {self.get_event_type_display()}"
+
+
+def booking_voucher_path(instance, filename):
+    return f"vouchers/{instance.booking_id}/{uuid4().hex}{Path(filename).suffix.lower()}"
+
+
+class BookingVoucher(models.Model):
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name="vouchers")
+    file = models.FileField(upload_to=booking_voucher_path)
+    original_filename = models.CharField(max_length=255)
+    uploaded_by_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-received_at", "-id"]

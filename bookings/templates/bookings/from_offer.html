@@ -1,7 +1,7 @@
 {% extends 'customers/base.html' %}
 {% block title %}Создать заказ{% endblock %}
 {% block content %}
-<style>.booking-form{max-width:1000px}.booking-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.booking-fields label{display:block;font-weight:600;margin-bottom:5px}.booking-fields input:not([type=checkbox]),.booking-fields select,.booking-fields textarea{box-sizing:border-box;width:100%;padding:8px;font:inherit}.booking-fields textarea{height:75px}.errorlist{color:#b42318}.review{margin:22px 0;padding:20px;background:#eef5ff;border:1px solid #b5c9ed;border-radius:8px}.price-change{background:#fff4df;border-color:#e6a540}.booking-form button{padding:12px 18px;background:#155eef;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer}</style>
+<style>.booking-form{max-width:1000px}.booking-fields,.driver-name-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.booking-fields label,.driver-name-fields label{display:block;font-weight:600;margin-bottom:5px}.booking-fields input:not([type=checkbox]),.booking-fields select,.booking-fields textarea,.driver-name-fields input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:8px;font:inherit}.booking-fields textarea{height:75px}.location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start}.location-zone h2{margin:0;font-size:20px}.driver-section{margin:20px 0}.driver-section h2{font-size:20px;margin:0 0 12px}.driver-count-box{width:130px;margin-bottom:14px}.driver-count-box input{width:80px!important}.driver-name-fields p{display:flex;align-items:center;gap:8px;margin:10px 0 0}.driver-name-fields p label{display:inline;margin:0}.errorlist{color:#b42318}.review{margin:22px 0;padding:20px;background:#eef5ff;border:1px solid #b5c9ed;border-radius:8px}.price-change{background:#fff4df;border-color:#e6a540}.booking-form button{padding:12px 18px;background:#155eef;color:white;border:0;border-radius:8px;font:inherit}</style>
 {% if manual_entry %}
 <a href="{% url 'quotes:booking_list' %}">← Все заказы</a><h1>Новый заказ вручную</h1>
 <p>Оферта не создаётся. Вносите данные клиента, выберите фирму и ответственного, затем проверьте расчёт.</p>
@@ -21,7 +21,8 @@
 <button type="button" id="parse-booking">Заполнить из текста</button>
 <p id="paste-status" role="status"></p>
 </section>{% endif %}
-<div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
+<div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% elif 'driver_' in field.name and field.name != 'driver_count' %}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
+<section class="driver-section"><h2>Водители</h2><div class="driver-name-fields">{% for name_field, young_field in form.driver_fields %}<div data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<p>{{ young_field }} {{ young_field.label_tag }}{{ young_field.errors }}</p></div>{% endfor %}</div><p>Впишите имя и фамилию каждого водителя в одно поле. Отметьте молодого водителя: если у фирмы есть такая доплата, она войдёт в расчёт.</p></section>
 <p><button name="action" value="calculate" formnovalidate>Пересчитать</button></p>
 {% if deposit_pending %}
 <p><button type="button" id="open-deposit">Заполнить отсутствующий депозит</button></p>
@@ -47,6 +48,7 @@
 {% if not manual_entry %}<p>Цена оферты: {{ option.total_price_gross }} {{ option.currency }}</p>{% endif %}
 <p>Аренда: {{ result.base }} {{ result.currency }} · {{ result.days }} дн.</p>
 <ul>{% for line in result.extra_lines %}<li>{{ line.name }} — {{ line.price }} {{ result.currency }}</li>{% endfor %}</ul>
+{% if result.manual_adjustment_amount %}<p>{{ result.manual_adjustment_label }} — {{ result.manual_adjustment_amount }} {{ result.currency }}</p>{% endif %}
 <p><strong>Новая сумма: {{ result.total }} {{ result.currency }}</strong>{% if delta != None %} · Разница: {{ delta }} {{ result.currency }}{% endif %}</p>
 <p>Депозит: {{ result.deposit_amount|default_if_none:'уточняется' }} {{ result.deposit_currency }}</p>
 <input type="hidden" name="review_token" value="{{ review_token }}">
@@ -57,6 +59,42 @@
 <script>
 const bookingForm=document.querySelector('.booking-form');
 const invoiceToggle=document.getElementById('id_wants_invoice');
+const bookingFields=bookingForm.querySelector('.booking-fields');
+function groupLocation(title,names){const boxes=names.map(name=>bookingFields.querySelector(`[data-field="${name}"]`)).filter(Boolean);if(!boxes.length)return;const zone=document.createElement('section');zone.className='location-zone';zone.dataset.zone=names[0].split('_')[0];const heading=document.createElement('h2');heading.textContent=title;zone.append(heading);boxes[0].insertAdjacentElement('beforebegin',zone);boxes.forEach(box=>zone.append(box));}
+groupLocation('Получение',['pickup_date','pickup_time','pickup_city','pickup_other_country','pickup_other_city','pickup_service','pickup_address','flight_number','hotel_name']);
+groupLocation('Возврат',['return_date','return_time','return_city','return_other_country','return_other_city','return_service','return_address','return_hotel_name']);
+function toggleOtherLocations(){for(const side of ['pickup','return']){const other=document.getElementById(`id_${side}_city`)?.value==='OTHER';for(const name of [`${side}_other_country`,`${side}_other_city`]){const box=bookingForm.querySelector(`[data-field="${name}"]`);if(box)box.hidden=!other;}}}
+for(const side of ['pickup','return'])document.getElementById(`id_${side}_city`)?.addEventListener('change',toggleOtherLocations);toggleOtherLocations();
+const driverSection=bookingForm.querySelector('.driver-section'),driverCount=bookingFields.querySelector('[data-field="driver_count"]');if(driverSection&&driverCount){driverCount.classList.add('driver-count-box');driverSection.querySelector('h2').insertAdjacentElement('afterend',driverCount);}
+function syncDriverFields(){
+ const count=Math.min(Math.max(Number(document.getElementById('id_driver_count').value)||1,1),20);
+ const fields=bookingForm.querySelector('.driver-name-fields');
+ for(let index=1;index<=count;index++){
+   const name=`driver_${index}_name`;
+   let box=fields.querySelector(`[data-field="${name}"]`);
+   if(!box){
+    box=document.createElement('div');box.dataset.field=name;
+    const caption=document.createElement('label');caption.htmlFor=`id_${name}`;caption.textContent=`Водитель ${index} — имя и фамилия латиницей`;
+    const input=document.createElement('input');input.id=`id_${name}`;input.name=name;input.type='text';input.maxLength=201;input.autocomplete='off';
+    const young=document.createElement('input');young.id=`id_driver_${index}_young`;young.name=`driver_${index}_young`;young.type='checkbox';
+    const youngLabel=document.createElement('label');youngLabel.htmlFor=young.id;youngLabel.textContent=` Молодой водитель`;
+    const line=document.createElement('p');line.append(young,youngLabel);
+    box.append(caption,input,line);
+    fields.append(box);
+   }
+ }
+ fields.querySelectorAll('[data-field^="driver_"]').forEach(box=>{
+  if(box.dataset.field!=='driver_count'&&Number(box.dataset.field.split('_')[1])>count)box.remove();
+ });
+}
+document.getElementById('id_driver_count').addEventListener('input',syncDriverFields);
+syncDriverFields();
+{% if manual_entry %}
+const phoneOne=bookingForm.querySelector('[data-field="phone_1"]');
+const extraPhones=['phone_2','phone_3'].map(name=>bookingForm.querySelector(`[data-field="${name}"]`)).filter(Boolean);
+extraPhones.forEach(box=>box.hidden=!box.querySelector('input').value);
+if(phoneOne&&extraPhones.length){const addPhone=document.createElement('button');addPhone.type='button';addPhone.textContent='+ Добавить телефон';addPhone.style.cssText='margin-top:8px;background:#fff;color:#155eef;border:1px solid #155eef';addPhone.onclick=()=>{const box=extraPhones.find(item=>item.hidden);if(box){box.hidden=false;box.querySelector('input').focus();}if(!extraPhones.some(item=>item.hidden))addPhone.hidden=true;};phoneOne.append(addPhone);if(!extraPhones.some(item=>item.hidden))addPhone.hidden=true;}
+{% endif %}
 function showInvoice(){bookingForm.querySelectorAll('[data-field^="invoice_"]').forEach(box=>box.hidden=!invoiceToggle.checked);}
 invoiceToggle.addEventListener('change',showInvoice);showInvoice();
 const vehicleBox=bookingForm.querySelector('[data-field="vehicle_group"]'),noteBox=bookingForm.querySelector('[data-field="vehicle_note"]');
@@ -91,7 +129,7 @@ document.getElementById('parse-booking').addEventListener('click',async function
   if(!response.ok)throw new Error(data.error||'Не удалось разобрать текст.');
   Object.entries(data.fields).forEach(([name,value])=>bookingForm.querySelectorAll('[name="'+name+'"]').forEach(el=>{if(el.type==='checkbox')el.checked=Array.isArray(value)?value.includes(el.value):Boolean(value);else el.value=value;}));
   bookingForm.querySelectorAll('input[name^="deposit-"]').forEach(el=>el.value='');
-  document.getElementById('id_driver_names').dispatchEvent(new Event('input',{bubbles:true}));
+  const pasted=(data.fields.driver_names||'').split(/\r?\n/).filter(Boolean);if(pasted.length){document.getElementById('id_driver_count').value=pasted.length;syncDriverFields();pasted.forEach((value,index)=>{const field=document.getElementById(`id_driver_${index+1}_name`);if(field)field.value=value;});}
   status.textContent='Заполнено. Выберите фирму и группу автомобиля. Проверьте места, дополнительные услуги и цену: сумма из текста сохранена в заметке, расчёт выполняется по тарифам.';
  }catch(error){status.textContent=error.message;}finally{this.disabled=false;}
 });

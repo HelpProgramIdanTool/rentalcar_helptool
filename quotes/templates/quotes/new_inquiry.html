@@ -49,7 +49,12 @@
   .app .form-scroll{height:auto;overflow:visible;display:flex;flex-direction:column;padding:0;min-width:0;overscroll-behavior:auto}
   .app #import-result{flex:none;max-height:none;overflow:visible}
   .app fieldset{min-width:0}
+  .rental-locations{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start;background:#f8fafc}
+  .location-zone h2{margin:0;font-size:18px;color:#173b72}
+  .location-zone .address-field{grid-column:auto}
   @media(max-width:1000px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%}}
+  @media(max-width:700px){.rental-locations{grid-template-columns:1fr}}
 </style>
 </head>
 <body><div class="app">{% include 'quotes/sidebar.html' %}<main>
@@ -89,18 +94,32 @@
     </fieldset>
     <fieldset><legend>3. Запрос на аренду</legend><div class="grid">
       <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
-      <div><label for="id_pickup_date">{{ form.pickup_date.label }}</label><div class="date-control">{{ form.pickup_date }}<input class="native-date-picker" id="pickup-calendar" type="date" aria-label="Открыть календарь даты получения" title="Выбрать дату получения"></div>{{ form.pickup_date.errors }}</div>
-      <label>{{ form.pickup_time.label }}{{ form.pickup_time }}{{ form.pickup_time.errors }}</label>
-      <div><label for="id_return_date">{{ form.return_date.label }}</label><div class="date-control">{{ form.return_date }}<input class="native-date-picker" id="return-calendar" type="date" aria-label="Открыть календарь даты возврата" title="Выбрать дату возврата"></div>{{ form.return_date.errors }}</div>
-      <label>{{ form.return_time.label }}{{ form.return_time }}{{ form.return_time.errors }}</label>
-      {% for field in form %}{% if field.name in "pickup_city pickup_service return_city return_service driver_count" %}
-        <label>{{ field.label }}{{ field }}{{ field.errors }}</label>
-      {% endif %}{% endfor %}
-      <div class="vehicle-choice" role="group" aria-labelledby="vehicle-choice-title"><h2 id="vehicle-choice-title">{{ form.vehicle_groups.label }}</h2>{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>После разбора заявки появятся подходящие группы. Для выбора вручную нажмите «Показать все категории» слева.</small></div>
+      <div class="rental-locations">
+        <section class="location-zone" data-location-zone="pickup">
+          <h2>Получение</h2>
+          <div><label for="id_pickup_date">{{ form.pickup_date.label }}</label><div class="date-control">{{ form.pickup_date }}<input class="native-date-picker" id="pickup-calendar" type="date" aria-label="Открыть календарь даты получения" title="Выбрать дату получения"></div>{{ form.pickup_date.errors }}</div>
+          <label>{{ form.pickup_time.label }}{{ form.pickup_time }}{{ form.pickup_time.errors }}</label>
+          <label>{{ form.pickup_city.label }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</label>
+          <label class="other-location" data-other-side="pickup" hidden>{{ form.pickup_other_country.label }}{{ form.pickup_other_country }}{{ form.pickup_other_country.errors }}</label>
+          <label class="other-location" data-other-side="pickup" hidden>{{ form.pickup_other_city.label }}{{ form.pickup_other_city }}{{ form.pickup_other_city.errors }}</label>
+          <label>{{ form.pickup_service.label }}{{ form.pickup_service }}{{ form.pickup_service.errors }}</label>
+          <label class="address-field" id="pickup-address-box" hidden>{{ form.pickup_address.label }}{{ form.pickup_address }}{{ form.pickup_address.errors }}</label>
+        </section>
+        <section class="location-zone" data-location-zone="return">
+          <h2>Возврат</h2>
+          <div><label for="id_return_date">{{ form.return_date.label }}</label><div class="date-control">{{ form.return_date }}<input class="native-date-picker" id="return-calendar" type="date" aria-label="Открыть календарь даты возврата" title="Выбрать дату возврата"></div>{{ form.return_date.errors }}</div>
+          <label>{{ form.return_time.label }}{{ form.return_time }}{{ form.return_time.errors }}</label>
+          <label>{{ form.return_city.label }}{{ form.return_city }}{{ form.return_city.errors }}</label>
+          <label class="other-location" data-other-side="return" hidden>{{ form.return_other_country.label }}{{ form.return_other_country }}{{ form.return_other_country.errors }}</label>
+          <label class="other-location" data-other-side="return" hidden>{{ form.return_other_city.label }}{{ form.return_other_city }}{{ form.return_other_city.errors }}</label>
+          <label>{{ form.return_service.label }}{{ form.return_service }}{{ form.return_service.errors }}</label>
+          <label class="address-field" id="return-address-box" hidden>{{ form.return_address.label }}{{ form.return_address }}{{ form.return_address.errors }}</label>
+        </section>
+      </div>
+      <label>{{ form.driver_count.label }}{{ form.driver_count }}{{ form.driver_count.errors }}</label>
+      <div class="vehicle-choice" role="group" aria-labelledby="vehicle-choice-title"><h2 id="vehicle-choice-title">{{ form.vehicle_groups.label }}</h2>{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>При ручном заполнении показаны все категории. После разбора текста заявки останутся подходящие группы.</small></div>
       <label class="extras-choice">{{ form.extra_choices.label }}{{ form.extra_choices }}{{ form.extra_choices.errors }}</label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
-      <label class="full address-field" id="pickup-address-box" hidden>{{ form.pickup_address.label }}{{ form.pickup_address }}{{ form.pickup_address.errors }}</label>
-      <label class="full address-field" id="return-address-box" hidden>{{ form.return_address.label }}{{ form.return_address }}{{ form.return_address.errors }}</label>
       <label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
       <label class="full">{{ form.internal_notes.label }}{{ form.internal_notes }}{{ form.internal_notes.errors }}</label>
     </div></fieldset>
@@ -114,6 +133,14 @@
   function toggleInvoice() { invoice.hidden = !checkbox.checked; }
   checkbox.addEventListener('change', toggleInvoice); toggleInvoice();
   const form = document.querySelector('form');
+  document.querySelectorAll('.vehicle-picker input[type="checkbox"]').forEach(group => {
+    group.addEventListener('change', () => {
+      if (group.checked) {
+        const supplier = document.querySelector('input[name="suppliers"][value="' + group.dataset.supplierId + '"]');
+        if (supplier) supplier.checked = true;
+      }
+    });
+  });
   function filterGroups(ids) {
     const allowed = ids === null ? null : new Set(ids.map(String));
     document.querySelectorAll('.vehicle-picker input[type="checkbox"]').forEach(el => {
@@ -144,13 +171,14 @@
         });
       });
       pickupCalendar.value = isoDate(pickupText.value);
-      filterGroups(data.fields.vehicle_groups);
+      if(Array.isArray(data.fields.vehicle_groups))filterGroups(data.fields.vehicle_groups);
       returnCalendar.value = isoDate(returnText.value);
       returnCalendar.min = pickupCalendar.value;
       returnServiceChanged = returnService.value !== pickupService.value;
       toggleAddresses(); toggleChildSeats(); updatePhones(); saveDraft(); scheduleLookup();
-      result.textContent = 'Данные заполнены. Подобрано групп: ' + data.fields.vehicle_groups.length +
-        '. Проверьте и нажмите «Сохранить и перейти к расчёту».\n' + data.warnings.join('\n');
+      const groupText=Array.isArray(data.fields.vehicle_groups)?' Подобрано групп: '+data.fields.vehicle_groups.length+'.':'';
+      result.textContent = 'Данные заполнены.' + groupText +
+        ' Проверьте и нажмите «Сохранить и перейти к расчёту».\n' + data.warnings.join('\n');
     } catch (error) { result.textContent = error.message; }
     finally { this.disabled = false; }
   });
@@ -161,11 +189,11 @@
   const returnService = document.querySelector('#id_return_service');
   let returnPlaceChanged = false;
   let returnServiceChanged = false;
-  returnPlace.addEventListener('change', () => { returnPlaceChanged = returnPlace.value !== pickupPlace.value; });
-  pickupPlace.addEventListener('change', () => { if (!returnPlaceChanged || !returnPlace.value) returnPlace.value = pickupPlace.value; saveDraft(); });
+  returnPlace.addEventListener('change', () => { returnPlaceChanged = returnPlace.value !== pickupPlace.value; toggleAddresses(); });
+  pickupPlace.addEventListener('change', () => { if (!returnPlaceChanged || !returnPlace.value) returnPlace.value = pickupPlace.value; toggleAddresses(); saveDraft(); });
   pickupService.addEventListener('change', () => { if (!returnServiceChanged) returnService.value = pickupService.value; toggleAddresses(); saveDraft(); });
   returnService.addEventListener('change', () => { returnServiceChanged = true; toggleAddresses(); });
-  function toggleAddresses(){document.querySelector('#pickup-address-box').hidden=pickupService.value!=='ADDRESS';document.querySelector('#return-address-box').hidden=returnService.value!=='ADDRESS';}
+  function toggleAddresses(){document.querySelector('#pickup-address-box').hidden=pickupService.value!=='ADDRESS';document.querySelector('#return-address-box').hidden=returnService.value!=='ADDRESS';document.querySelectorAll('[data-other-side="pickup"]').forEach(el=>el.hidden=pickupPlace.value!=='OTHER');document.querySelectorAll('[data-other-side="return"]').forEach(el=>el.hidden=returnPlace.value!=='OTHER');}
   const childSeat=document.querySelector('input[name="extra_choices"][value="CHILD_SEAT"]');
   function toggleChildSeats(){document.querySelector('#child-seat-count').hidden=!childSeat.checked;}
   childSeat.addEventListener('change',toggleChildSeats);
@@ -241,7 +269,7 @@
       returnCalendar.min = pickupCalendar.value;
       returnServiceChanged = returnService.value !== pickupService.value;
       const selectedGroups = Array.from(document.querySelectorAll('.vehicle-picker input[type="checkbox"]:checked'), input => input.value);
-      filterGroups(selectedGroups);
+      filterGroups(document.querySelector('#imported-inquiry').value === '1' ? selectedGroups : null);
       toggleInvoice(); toggleAddresses(); updatePhones(); toggleChildSeats();
       lookupCustomer();
     } catch (error) {}
@@ -259,7 +287,7 @@
   toggleInvoice();
   toggleAddresses(); updatePhones(); toggleChildSeats();
   const initiallySelectedGroups = Array.from(document.querySelectorAll('.vehicle-picker input[type="checkbox"]:checked'), input => input.value);
-  if (!initiallySelectedGroups.length) filterGroups([]);
+  filterGroups(document.querySelector('#imported-inquiry').value === '1' ? initiallySelectedGroups : null);
   lookupCustomer();
   {% if not is_editing and not selected_customer %}form.addEventListener('input', saveDraft);
   form.addEventListener('change', saveDraft);{% endif %}

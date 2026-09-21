@@ -36,7 +36,11 @@ def parse_booking_text(raw):
             raise ValueError('Проверьте даты и время в исходном тексте.')
         data[side+'_date'] = parsed.strftime('%d-%m-%Y')
         data[side+'_time'] = time
-        cities = {city.casefold(): city for city, _ in FirstInquiryForm.CITY_CHOICES}
+        cities = {
+            city.casefold(): city
+            for city, _ in FirstInquiryForm.CITY_CHOICES
+            if city and city != "OTHER"
+        }
         cities.update({'krakow': 'Kraków', 'warsaw': 'Warszawa', 'wroclaw': 'Wrocław', 'gdansk': 'Gdańsk'})
         data[side+'_city'] = next((city for alias, city in cities.items() if re.search(r'\b'+re.escape(alias)+r'\b', location.casefold())), '')
         data[side+'_service'] = 'AIRPORT' if 'airport' in location.casefold() else 'ADDRESS'

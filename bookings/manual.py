@@ -13,7 +13,7 @@ from customers.models import Customer
 from employees.models import Employee, SubAgent
 from suppliers.models import Supplier
 from quotes.models import Quote
-from .models import Booking, BookingDriver
+from .models import Booking
 from .quote_conversion import BookingFromOfferForm, calculate, create_draft, fingerprint, review_snapshot
 from .missing_data import MissingDepositForm, new_deposit_form, apply_deposit
 
@@ -25,12 +25,21 @@ class ManualBookingForm(BookingFromOfferForm):
     order_source = forms.ChoiceField(label="Чей заказ", choices=Booking._meta.get_field("order_source").choices)
     responsible = forms.ModelChoiceField(label="Ответственный сотрудник", queryset=Employee.objects.filter(status="ACTIVE"), required=False)
     sub_agent = forms.ModelChoiceField(label="Субагент", queryset=SubAgent.objects.filter(is_active=True), required=False)
-    driver_names = forms.CharField(label="Имена водителей латиницей — каждый с новой строки", widget=forms.Textarea(attrs={"rows": 3}))
-    flight_number = forms.CharField(label="Номер рейса", max_length=50, required=False)
-    hotel_name = forms.CharField(label="Отель", max_length=200, required=False)
+    customer_name = forms.CharField(label="Имя и фамилия", max_length=201)
+    hotel_name = forms.CharField(label="Отель при получении", max_length=200, required=False)
+    return_hotel_name = forms.CharField(label="Отель при возврате", max_length=200, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields.pop("first_name", None)
+        self.fields.pop("last_name", None)
+        self.order_fields(["entry_token", "existing_customer", "customer_name", "email", "phone_1", "phone_2", "phone_3"])
 
     def clean(self):
         data = super().clean()
+        parts = data.get("customer_name", "").strip().split(maxsplit=1)
+        data["first_name"] = parts[0] if parts else ""
+        data["last_name"] = parts[1] if len(parts) > 1 else ""
         group, supplier = data.get("vehicle_group"), data.get("supplier")
         if group and supplier and group.supplier_id != supplier.pk:
             self.add_error("vehicle_group", "Выберите группу указанной фирмы.")
@@ -40,11 +49,9 @@ class ManualBookingForm(BookingFromOfferForm):
             self.add_error("sub_agent", "Выберите субагента.")
         if data.get("order_source") != "SUBAGENT" and data.get("sub_agent"):
             self.add_error("sub_agent", "Субагент указывается для заказа субагента.")
-        names = [name.strip() for name in data.get("driver_names", "").splitlines() if name.strip()]
-        if names and len(names) != data.get("driver_count"):
-            self.add_error("driver_names", "Количество имён должно совпадать с количеством водителей.")
-        if any(len(part) > 100 for name in names for part in name.split(maxsplit=1)):
-            self.add_error("driver_names", "Имя или фамилия не должны превышать 100 символов.")
+        for index in range(1, (data.get("driver_count") or 0) + 1):
+            if not data.get(f"driver_{index}_name", "").strip():
+                self.add_error(f"driver_{index}_name", "Укажите имя и фамилию водителя.")
         return data
 
 
@@ -57,11 +64,12 @@ def new_booking(request):
     customer_id = request.GET.get("customer", "")
     selected = Customer.objects.filter(pk=customer_id).first() if customer_id.isdigit() else None
     if selected:
-        for name in ("first_name", "last_name", "email", "phone_1", "phone_2", "phone_3", "country", "address", "preferred_language",
+        for name in ("email", "phone_1", "phone_2", "phone_3", "country", "address", "preferred_language",
                      "wants_invoice", "invoice_name", "invoice_tax_id", "invoice_address", "invoice_email"):
             initial[name] = getattr(selected, name)
+        initial["customer_name"] = " ".join(filter(None, [selected.first_name, selected.last_name]))
         initial["existing_customer"] = selected.pk
-        initial["driver_names"] = selected.full_name_latin
+        initial["driver_1_name"] = selected.full_name_latin
     form = ManualBookingForm(request.POST or None, initial=initial)
     result = token = deposit_form = None
     deposit_pending = deposit_once = False
@@ -119,15 +127,8 @@ def new_booking(request):
                         Booking.objects.filter(pk=booking.pk).update(manual_entry_key=entry["key"], order_source=data["order_source"],
                             salesperson_employee=actor if data["order_source"] == "SELF" else data["responsible"],
                             sub_agent=data["sub_agent"], flight_number=data["flight_number"], hotel_name=data["hotel_name"],
+                            return_hotel_name=data["return_hotel_name"],
                             supplier_booking_number="")
-                        drivers = []
-                        for index, name in enumerate(data["driver_names"].splitlines()):
-                            if not name.strip():
-                                continue
-                            parts = name.strip().split(maxsplit=1)
-                            drivers.append(BookingDriver(booking=booking, first_name=parts[0], last_name=parts[1] if len(parts)>1 else "",
-                                role="MAIN" if not drivers else "ADDITIONAL", display_order=index+1))
-                        BookingDriver.objects.bulk_create(drivers)
                         return redirect("quotes:booking_detail", pk=booking.pk)
                     form.add_error(None, "Проверьте расчёт заново и подтвердите сумму: данные или тариф изменились.")
                 token = signing.dumps(stamp, salt="manual-review")

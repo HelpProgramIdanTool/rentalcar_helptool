@@ -10,11 +10,15 @@
 {% for option in options %}--------------------
 {{ forloop.counter }}. {{ option.supplier_name_snapshot }} — {{ option.calculation_snapshot.hebrew_vehicle_class }}
 {{ option.vehicle_models_snapshot }}
+{% if option.airport_pickup_message %}{{ option.airport_pickup_message }}
+{% endif %}
 {% if option.calculation_snapshot.body_type_label or option.calculation_snapshot.transmission_label %}{{ option.calculation_snapshot.body_type_label }}{% if option.calculation_snapshot.body_type_label and option.calculation_snapshot.transmission_label %} · {% endif %}{{ option.calculation_snapshot.transmission_label }}
 {% endif %}
 {% if option.calculation_snapshot.fuel_type_label %}{{ option.calculation_snapshot.fuel_type_label }}
 {% endif %}
 מחיר כולל: {{ option.total_price_gross }} {{ option.currency }}
+{% if option.manual_adjustment_amount %}{{ option.manual_adjustment_label }}: {{ option.manual_adjustment_amount }} {{ option.currency }}
+{% endif %}
 פיקדון: {% if option.deposit_amount is not None %}{{ option.deposit_amount }} {{ option.deposit_currency }}{% else %}טרם הוזן{% endif %}
 המחיר כולל:
 {% for item in option.calculation_snapshot.included_items %}• {{ item }}

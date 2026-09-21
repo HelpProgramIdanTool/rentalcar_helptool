@@ -123,6 +123,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Supplier vouchers contain customer information and are never served as static files.
+MEDIA_ROOT = BASE_DIR / 'private_uploads'
+
 # The operator-facing pages use the same secure login as Django Admin.
 LOGIN_URL = '/admin/login/'
 

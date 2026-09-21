@@ -126,6 +126,7 @@ KAIZEN_LOCATIONS = [
         "address": "Wolności 90, 42-625 Ożarowice",
         "airport_code": "KTW",
         "phone": "+48 881 212 022",
+        "supports_terminal_delivery": True,
         "pickup": "Staff will contact the customer and take them from the arrivals terminal to the Kaizen office at Transportowa 2, Pyrzowice.",
         "return": "Return the car to the Kaizen office at Transportowa 2, Pyrzowice. Staff will drive the customer back to the airport.",
     },

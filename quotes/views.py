@@ -1,4 +1,5 @@
 from uuid import uuid4
+from decimal import Decimal, InvalidOperation
 import base64
 import hashlib
 from smtplib import SMTPException
@@ -26,6 +27,7 @@ from .models import Quote, QuoteOption, QuoteEmailDelivery
 from .email_tools import load_email_template, seat_guides, child_seat_text
 from .email_forms import EmailSubjectForm, BlockFormSet, OptionFormSet
 from .email_content import REQUIRED_BLOCKS
+from .airport_pickup import airport_pickup_messages
 from .services import find_or_create_customer
 from .services import (
     calculate_quote_options,
@@ -37,7 +39,7 @@ from .services import (
 @login_required
 def quote_list(request):
     filters = QuoteListFilterForm(request.GET)
-    quotes = Quote.objects.select_related("customer")
+    quotes = Quote.objects.select_related("customer", "created_by_user", "sent_by_user")
     if filters.is_valid():
         data = filters.cleaned_data
         for term in data["q"].split():
@@ -213,6 +215,8 @@ def new_inquiry(request, customer_id=None):
             ).exclude(comparison_classes__id__isnull=True).distinct()
             quote.requested_vehicle_classes.set(comparison_ids)
             quote.requested_suppliers.set(form.cleaned_data["suppliers"])
+        if form.cleaned_data.get("skipped_suppliers"):
+            messages.warning(request, "Фирмы без машин выбранных классов не добавлены в расчёт: " + ", ".join(form.cleaned_data["skipped_suppliers"]) + ".")
         return redirect("quotes:calculate_quote" if request.POST.get("imported_inquiry") else "quotes:inquiry_saved", quote_number=quote.quote_number)
     return render(request, "quotes/new_inquiry.html", {
         "form": form, "selected_customer": selected_customer,
@@ -235,6 +239,8 @@ def edit_quote(request, quote_number):
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             _update_quote_from_form(quote, form.cleaned_data)
+        if form.cleaned_data.get("skipped_suppliers"):
+            messages.warning(request, "Фирмы без машин выбранных классов не добавлены в расчёт: " + ", ".join(form.cleaned_data["skipped_suppliers"]) + ".")
         return redirect("quotes:calculate_quote", quote_number=quote.quote_number)
     return render(request, "quotes/new_inquiry.html", {
         "form": form, "quote": quote, "is_editing": True,
@@ -267,14 +273,35 @@ def duplicate_quote(request, quote_number):
 def calculate_quote(request, quote_number):
     quote = Quote.objects.select_related("customer").get(quote_number=quote_number)
     options = calculate_quote_options(quote)
+    display_options = [option for option in options if option["available"]]
+    missing_options = [option for option in options if not option["available"]]
     if request.method == "POST":
         selected_ids = {int(value) for value in request.POST.getlist("selected_options") if value.isdigit()}
         available = {option["group"].id: option for option in options if option["available"]}
         selected = [available[group_id] for group_id in selected_ids if group_id in available]
+        adjustment_error = ""
+        for option in selected:
+            group_id = option["group"].id
+            label = request.POST.get(f"manual_label_{group_id}", "").strip()
+            raw_amount = request.POST.get(f"manual_amount_{group_id}", "").strip()
+            try:
+                amount = Decimal(raw_amount) if raw_amount else Decimal("0")
+            except InvalidOperation:
+                amount = Decimal("-1")
+            option["manual_label"], option["manual_amount"] = label, raw_amount
+            if amount < 0 or bool(label) != bool(amount):
+                adjustment_error = "Для ручной доплаты заполните описание и положительную сумму."
+            else:
+                option["adjustment_amount"] = amount
         if not selected:
             return render(request, "quotes/calculate_quote.html", {
-                "quote": quote, "options": options,
+                "quote": quote, "options": display_options, "missing_options": missing_options,
                 "selection_error": "Отметь хотя бы один рассчитанный вариант.",
+            })
+        if adjustment_error:
+            return render(request, "quotes/calculate_quote.html", {
+                "quote": quote, "options": display_options, "missing_options": missing_options,
+                "selection_error": adjustment_error,
             })
         with transaction.atomic():
             quote.options.update(is_included=False)
@@ -292,7 +319,9 @@ def calculate_quote(request, quote_number):
                         "supplier_name_snapshot": option["supplier"].supplier_name,
                         "vehicle_group_name_snapshot": option["group"].group_name,
                         "vehicle_models_snapshot": option["models"],
-                        "total_price_gross": option["total"],
+                        "total_price_gross": option["total"] + option["adjustment_amount"],
+                        "manual_adjustment_label": option["manual_label"],
+                        "manual_adjustment_amount": option["adjustment_amount"],
                         "currency": option["currency"],
                         "deposit_amount": option["deposit_amount"],
                         "deposit_currency": option["deposit_currency"],
@@ -300,6 +329,8 @@ def calculate_quote(request, quote_number):
                             "daily_rate": str(option["daily_rate"]), "days": option["days"],
                             "base": str(option["base"]), "extras_total": str(option["extras_total"]),
                             "season": option["season"], "day_range": option["day_range"], "lines": lines,
+                            "manual_adjustment_label": option["manual_label"],
+                            "manual_adjustment_amount": str(option["adjustment_amount"]),
                             "hebrew_vehicle_class": option["hebrew_vehicle_class"],
                             "body_type_label": option["body_type_label"],
                             "fuel_type_label": option["fuel_type_label"],
@@ -315,7 +346,7 @@ def calculate_quote(request, quote_number):
     return render(
         request,
         "quotes/calculate_quote.html",
-        {"quote": quote, "options": options},
+        {"quote": quote, "options": display_options, "missing_options": missing_options},
     )
 
 
@@ -404,7 +435,10 @@ def email_delivery(request, quote_number, delivery_id):
 def _quote_preview_context(quote, *, is_email=False):
     ensure_quote_document_blocks(quote)
     ensure_quote_option_presentation(quote)
-    options = quote.options.filter(is_included=True).select_related("comparison_class")
+    options = list(quote.options.filter(is_included=True).select_related("comparison_class"))
+    pickup_messages = airport_pickup_messages(quote, {option.supplier_id for option in options})
+    for option in options:
+        option.airport_pickup_message = pickup_messages.get(option.supplier_id, "")
     blocks = quote.document_blocks.filter(Q(is_enabled=True) | Q(block_key__in=REQUIRED_BLOCKS)).exclude(content="")
     introduction_keys = {"GREETING", "IMPORTANT", "CROSS_BORDER"}
     introduction_blocks = [block for block in blocks if block.block_key in introduction_keys]
@@ -479,15 +513,19 @@ def send_quote(request, quote_number):
     except (SMTPException, OSError):
         messages.error(request, "Не удалось отправить письмо. Черновик сохранён. Проверьте подключение к почте.")
         return redirect("quotes:email_editor", quote_number=quote.quote_number)
-    QuoteEmailDelivery.objects.create(quote=quote, recipient=email, subject=subject, html=html, attachments=attachments)
+    QuoteEmailDelivery.objects.create(
+        quote=quote, sent_by_user=request.user, recipient=email,
+        subject=subject, html=html, attachments=attachments,
+    )
 
     quote.status = Quote.Status.SENT
+    quote.sent_by_user = request.user
     quote.sent_at = timezone.now()
     quote.sent_to_email = email
     quote.sent_subject = subject
     quote.sent_html_snapshot = html
     quote.save(update_fields=(
-        "status", "sent_at", "sent_to_email", "sent_subject",
+        "status", "sent_by_user", "sent_at", "sent_to_email", "sent_subject",
         "sent_html_snapshot", "updated_at",
     ))
     messages.success(request, f"Оферта отправлена клиенту на {email}.")

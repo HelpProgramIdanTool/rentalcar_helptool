@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from customers.models import Customer
-from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup
+from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup, PriceList, PriceSeason, PriceDayRange, VehicleRate
 
 from .models import Quote, QuoteOption, QuoteTemplate
 from .services import (
@@ -22,6 +22,7 @@ from .services import (
     _rate_description,
     _quoted_extra_price,
     _service_extra_requests,
+    calculate_quote_options,
     ensure_quote_document_blocks,
     ensure_quote_option_presentation,
     vehicle_class_presentation,
@@ -47,6 +48,22 @@ class FirstInquiryTests(TestCase):
         ]
         for comparison, group in zip(comparisons, self.form_groups):
             comparison.vehicle_groups.add(group)
+        price_list = PriceList.objects.create(
+            supplier=self.supplier, name="Form prices", version="1",
+            effective_from=self.pickup.date() - timedelta(days=1), status="ACTIVE",
+        )
+        season = PriceSeason.objects.create(
+            price_list=price_list, season_code="ALL", season_name="All",
+            rental_date_from=self.pickup.date() - timedelta(days=1),
+        )
+        day_range = PriceDayRange.objects.create(
+            price_list=price_list, range_code="ALL", label="All", days_from=1,
+        )
+        for group in self.form_groups:
+            VehicleRate.objects.create(
+                season=season, day_range=day_range, vehicle_group=group,
+                daily_rate_gross=100,
+            )
 
     def data(self, **changes):
         values = {
@@ -248,8 +265,40 @@ class FirstInquiryTests(TestCase):
 
     def test_form_offers_city_and_service_separately(self):
         response = self.client.get(reverse("quotes:new_inquiry"))
+        self.assertContains(response, 'data-location-zone="pickup"')
+        self.assertContains(response, 'data-location-zone="return"')
+        self.assertContains(response, "Получение")
+        self.assertContains(response, "Возврат")
         self.assertContains(response, "Город получения")
         self.assertContains(response, "Доставка по адресу клиента")
+        self.assertContains(response, "Другой город / страна")
+        choices = list(response.context["form"].fields["pickup_city"].choices)
+        self.assertEqual(choices[:2], [("", "Выберите город"), ("OTHER", "Другой город / страна")])
+
+    def test_other_pickup_and_return_city_are_saved_with_country(self):
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(
+            pickup_city="OTHER", pickup_other_country="Germany", pickup_other_city="Berlin",
+            return_city="OTHER", return_other_country="Austria", return_other_city="Vienna",
+        ))
+        self.assertEqual(response.status_code, 302)
+        quote = Quote.objects.get()
+        self.assertEqual(quote.pickup_city, "Berlin, Germany")
+        self.assertEqual(quote.return_city, "Vienna, Austria")
+
+    def test_manual_adjustment_is_added_to_one_offer_option(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data(extra_choices=[]))
+        quote = Quote.objects.get()
+        group = self.form_groups[0]
+        response = self.client.post(reverse("quotes:calculate_quote", args=[quote.quote_number]), {
+            "selected_options": [group.pk],
+            f"manual_label_{group.pk}": "Delivery to Vienna",
+            f"manual_amount_{group.pk}": "125.50",
+        })
+        self.assertEqual(response.status_code, 302)
+        option = quote.options.get(vehicle_group=group)
+        self.assertEqual(option.manual_adjustment_label, "Delivery to Vienna")
+        self.assertEqual(option.manual_adjustment_amount, Decimal("125.50"))
+        self.assertEqual(option.total_price_gross, Decimal("525.50"))
 
     def test_form_offers_real_supplier_vehicle_groups(self):
         response = self.client.get(reverse("quotes:new_inquiry"))
@@ -257,7 +306,15 @@ class FirstInquiryTests(TestCase):
             self.assertContains(response, group.group_code)
             self.assertContains(response, group.group_name)
 
-    def test_kaizen_manual_r_is_in_nine_seat_section(self):
+    def test_new_form_does_not_preselect_unrelated_suppliers(self):
+        from .forms import FirstInquiryForm
+
+        form = FirstInquiryForm()
+        self.assertIsNone(form.fields["suppliers"].initial)
+        response = self.client.get(reverse("quotes:new_inquiry"))
+        self.assertContains(response, f'data-supplier-id="{self.supplier.pk}"')
+
+    def test_group_without_any_price_is_not_offered(self):
         from .forms import FirstInquiryForm, vehicle_group_section
 
         group = VehicleGroup.objects.create(
@@ -270,13 +327,13 @@ class FirstInquiryTests(TestCase):
         matching = [section["name"] for section in sections
                     for _, options in section["columns"] for option in options
                     if str(option["value"]) == str(group.pk)]
-        self.assertEqual(matching, ["8-9-местные"])
+        self.assertEqual(matching, [])
 
     def test_vehicle_picker_groups_suppliers_without_repeating_names_in_labels(self):
         from .forms import FirstInquiryForm
 
         other = Supplier.objects.create(supplier_code="DESIGN", supplier_name="Another supplier")
-        group = VehicleGroup.objects.create(supplier=other, group_code="B_AUTO", group_name="Compact automatic")
+        group = VehicleGroup.objects.create(supplier=other, group_code="B_AUTO", group_name="Compact automatic", rate_source_group=self.form_groups[0])
         group.comparison_classes.add(self.form_groups[0].comparison_classes.first())
         form = FirstInquiryForm(initial={"vehicle_groups": [group.pk]})
         widget = form.fields["vehicle_groups"].widget
@@ -485,6 +542,8 @@ class FirstInquiryTests(TestCase):
         )
         quote.refresh_from_db()
         self.assertEqual(quote.status, Quote.Status.SENT)
+        self.assertEqual(quote.sent_by_user, self.user)
+        self.assertEqual(quote.email_deliveries.get().sent_by_user, self.user)
         self.assertIsNotNone(quote.sent_at)
         self.assertEqual(quote.sent_to_email, "anna@example.com")
         self.assertEqual(len(mail.outbox), 1)
@@ -495,6 +554,7 @@ class FirstInquiryTests(TestCase):
         self.assertIn('dir="rtl"', quote.sent_html_snapshot)
         self.assertIn('max-width:760px', quote.sent_html_snapshot)
         self.assertIn('text-align:right', quote.sent_html_snapshot)
+        self.assertIn("ההצעה הזו הוכנה בעזרת בינה מלאכותית", quote.sent_html_snapshot)
         for benefit in STANDARD_INCLUDED_ITEMS:
             self.assertEqual(quote.sent_html_snapshot.count(f"<li>{benefit}</li>"), 1)
 
@@ -589,6 +649,71 @@ class FirstInquiryTests(TestCase):
         )
         self.assertContains(response, "Сначала клиент должен выбрать вариант")
 
+    def test_groups_without_any_price_are_hidden_before_offer_creation(self):
+        VehicleRate.objects.all().delete()
+        response = self.client.get(reverse("quotes:new_inquiry"))
+        for group in self.form_groups:
+            self.assertNotContains(response, group.group_code)
+
+    def test_selected_supplier_gets_matching_class_when_no_group_was_checked(self):
+        from suppliers.models import PriceDayRange, PriceList, PriceSeason, VehicleRate
+
+        other = Supplier.objects.create(supplier_code="03", supplier_name="Test third supplier")
+        comparison = self.form_groups[0].comparison_classes.first()
+        matching = VehicleGroup.objects.create(
+            supplier=other, group_code="MATCH", group_name="Matching class"
+        )
+        matching.comparison_classes.add(comparison)
+        unrelated = VehicleGroup.objects.create(
+            supplier=other, group_code="OTHER", group_name="Other class"
+        )
+        unrelated.comparison_classes.add(self.form_groups[1].comparison_classes.first())
+        pickup_date = timezone.localtime(self.pickup).date()
+        price_list = PriceList.objects.create(
+            supplier=other, name="Test rates", version="test-v1",
+            effective_from=pickup_date, status="ACTIVE",
+        )
+        season = PriceSeason.objects.create(
+            price_list=price_list, season_code="TEST", season_name="Test season",
+            rental_date_from=pickup_date,
+        )
+        day_range = PriceDayRange.objects.create(
+            price_list=price_list, range_code="TEST", label="Test days", days_from=1,
+        )
+        VehicleRate.objects.create(
+            season=season, day_range=day_range, vehicle_group=matching,
+            daily_rate_gross=100,
+        )
+        self.client.post(reverse("quotes:new_inquiry"), self.data(
+            suppliers=[str(self.supplier.pk), str(other.pk)],
+            vehicle_groups=[str(self.form_groups[0].pk)],
+        ))
+        options = calculate_quote_options(Quote.objects.get())
+        self.assertTrue(any(item["group"] == matching and item["available"] for item in options))
+        self.assertFalse(any(item["group"] == unrelated for item in options))
+
+    def test_supplier_without_matching_class_is_skipped_with_visible_warning(self):
+        other = Supplier.objects.create(supplier_code="NO_MATCH", supplier_name="No match supplier")
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(
+            suppliers=[str(self.supplier.pk), str(other.pk)],
+            vehicle_groups=[str(self.form_groups[0].pk)],
+        ))
+        quote = Quote.objects.get()
+        self.assertRedirects(response, reverse("quotes:inquiry_saved", args=[quote.quote_number]), fetch_redirect_response=False)
+        self.assertNotIn(other, quote.requested_suppliers.all())
+        self.assertContains(self.client.get(response.url), "No match supplier")
+
+    def test_imported_form_with_old_supplier_defaults_reaches_calculation(self):
+        other = Supplier.objects.create(supplier_code="NO_MATCH", supplier_name="No match supplier")
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(
+            suppliers=[str(self.supplier.pk), str(other.pk)],
+            vehicle_groups=[str(self.form_groups[0].pk)],
+            imported_inquiry="1",
+        ))
+        quote = Quote.objects.get()
+        self.assertRedirects(response, reverse("quotes:calculate_quote", args=[quote.quote_number]), fetch_redirect_response=False)
+        self.assertContains(self.client.get(response.url), "No match supplier")
+
     def test_quote_gets_editable_snapshot_of_template_blocks(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())
         quote = Quote.objects.get()
@@ -601,6 +726,20 @@ class FirstInquiryTests(TestCase):
         template_block.save(update_fields=["content"])
         first_block.refresh_from_db()
         self.assertEqual(first_block.content, original_content)
+
+    def test_existing_draft_gets_editable_ai_note(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        ensure_quote_document_blocks(quote)
+        quote.document_blocks.filter(block_key="AI_NOTE").delete()
+        ensure_quote_document_blocks(quote)
+        note = quote.document_blocks.get(block_key="AI_NOTE")
+        self.assertTrue(note.is_enabled)
+        self.assertIn("ההצעה הזו הוכנה בעזרת בינה מלאכותית", note.content)
+        self.assertContains(
+            self.client.get(reverse("quotes:quote_preview", args=[quote.quote_number])),
+            note.content,
+        )
 
     def test_customer_offer_uses_hebrew_vehicle_class_name(self):
         self.assertEqual(
@@ -750,6 +889,30 @@ class FirstInquiryTests(TestCase):
         self.assertNotContains(response, "Аэропорт")
         self.assertNotContains(response, "Доставка по адресу клиента")
         self.assertIn("no-cache", response.headers["Cache-Control"])
+
+    def test_airport_pickup_method_appears_in_preview_and_copy(self):
+        from suppliers.models import AirportPickupWording, SupplierLocation
+
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        SupplierLocation.objects.create(
+            supplier=self.supplier, location_code="KRK", location_name="Airport",
+            city="Kraków", location_type="AIRPORT", airport_code="KRK",
+            has_rental_desk=True,
+        )
+        group = self.form_groups[0]
+        QuoteOption.objects.create(
+            quote=quote, supplier=self.supplier, vehicle_group=group,
+            comparison_class=group.comparison_classes.first(),
+            supplier_name_snapshot=self.supplier.supplier_name,
+            vehicle_group_name_snapshot=group.group_name,
+            total_price_gross=Decimal("100.00"), is_included=True,
+        )
+        expected = AirportPickupWording.objects.get(method_code="DESK").text_he
+        preview = self.client.get(reverse("quotes:quote_preview", args=[quote.quote_number]))
+        copied = self.client.get(reverse("quotes:copy_quote", args=[quote.quote_number]))
+        self.assertContains(preview, expected)
+        self.assertIn(expected, copied.json()["text"])
 
     def test_new_preview_address_uses_the_same_updated_template(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())

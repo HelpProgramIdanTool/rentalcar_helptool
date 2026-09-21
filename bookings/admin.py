@@ -51,6 +51,7 @@ class BookingAdmin(admin.ModelAdmin):
         "customer",
         "supplier",
         "status",
+        "confirmed_by_user",
         "pickup_location",
         "return_location",
         "vehicle_group",
@@ -114,6 +115,7 @@ class BookingAdmin(admin.ModelAdmin):
                     "pickup_address",
                     "return_address",
                     "hotel_name",
+                    "return_hotel_name",
                     "flight_number",
                 )
             },
@@ -175,6 +177,9 @@ class BookingAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         employee = getattr(request.user, "employee_profile", None)
+        previous_status = Booking.objects.filter(pk=obj.pk).values_list("status", flat=True).first() if change else None
+        if obj.status == Booking.Status.CONFIRMED and previous_status != Booking.Status.CONFIRMED:
+            obj.confirmed_by_user = request.user
         if not obj.created_by_employee and employee:
             obj.created_by_employee = employee
         obj._history_actor = employee

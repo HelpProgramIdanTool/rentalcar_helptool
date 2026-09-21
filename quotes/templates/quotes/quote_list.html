@@ -17,12 +17,12 @@
     <div class="table-scroll"><table class="offer-table"><thead><tr><th scope="col">Оферта</th><th scope="col">Клиент</th><th scope="col">Получение</th><th scope="col">Возврат</th><th scope="col">Статус</th><th scope="col">Отправлена</th><th scope="col">Действие</th></tr></thead><tbody>
     {% for quote in page_obj %}
       <tr data-href="{% url 'quotes:inquiry_saved' quote.quote_number %}">
-        <td><a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">{{ quote.quote_number }}</a><span class="subline">Создана {{ quote.created_at|date:'d.m.Y' }}</span></td>
+        <td><a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">{{ quote.quote_number }}</a><span class="subline">Создана {{ quote.created_at|date:'d.m.Y' }}</span>{% if quote.created_by_user %}<span class="subline">Создал: {{ quote.created_by_user.get_full_name|default:quote.created_by_user.username }}</span>{% endif %}</td>
         <td>{{ quote.customer }}<span class="subline">{{ quote.customer.email|default:quote.customer.phone_1 }}</span></td>
         <td>{{ quote.pickup_datetime|date:'d.m.Y H:i' }}<span class="subline">{{ quote.pickup_city|default:quote.pickup_location_text }}</span></td>
         <td>{{ quote.return_datetime|date:'d.m.Y H:i' }}<span class="subline">{{ quote.return_city|default:quote.return_location_text }}</span></td>
         <td><span class="status-badge status-{{ quote.status }}">{{ quote.status_label }}</span></td>
-        <td>{{ quote.sent_at|date:'d.m.Y H:i'|default:'—' }}</td>
+        <td>{{ quote.sent_at|date:'d.m.Y H:i'|default:'—' }}{% if quote.sent_by_user %}<span class="subline">Отправил: {{ quote.sent_by_user.get_full_name|default:quote.sent_by_user.username }}</span>{% endif %}</td>
         <td><a href="{% url 'quotes:edit_quote' quote.quote_number %}" aria-label="Изменить {{ quote.quote_number }}">Изменить</a></td>
       </tr>
     {% empty %}<tr><td colspan="7" class="empty-list"><strong>Оферты не найдены</strong>Измените фильтры или создайте новую оферту.</td></tr>{% endfor %}

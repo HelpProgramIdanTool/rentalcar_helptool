@@ -199,12 +199,30 @@ def _service_extra_requests(quote, supplier_code):
     )
     if supplier_code in {"01", "03"} and address_sides:
         requests["CITY_ADDRESS_DELIVERY"] = Decimal(address_sides)
-    if supplier_code == "02" and "AIRPORT" in {
-        quote.pickup_service,
-        quote.return_service,
-    }:
+    if supplier_code == "02" and quote.pickup_service == "AIRPORT":
         requests["AIRPORT_FEE"] = Decimal("1")
     return requests
+
+
+def _missing_rate_reason(group, pickup_date, days):
+    rates = VehicleRate.objects.filter(
+        is_active=True, vehicle_group=group.effective_rate_group,
+        season__is_active=True, season__price_list__status="ACTIVE",
+        day_range__is_active=True, day_range__days_from__lte=days,
+    ).filter(Q(day_range__days_to__isnull=True) | Q(day_range__days_to__gte=days)).select_related(
+        "season__price_list"
+    )
+    coverage_ends = []
+    for rate in rates:
+        ends = [end for end in (
+            rate.season.price_list.effective_to, rate.season.rental_date_to
+        ) if end is not None]
+        if not ends:
+            return "Для выбранной даты пока нет подтверждённой цены. Проверьте ценник поставщика."
+        coverage_ends.append(min(ends))
+    if coverage_ends and max(coverage_ends) < pickup_date:
+        return f"Последний загруженный тариф действует до {max(coverage_ends):%d.%m.%Y}. Для выбранной даты нужна новая цена поставщика."
+    return "Для выбранной даты пока нет подтверждённой цены. Проверьте ценник поставщика."
 
 
 def calculate_quote_options(quote, *, vehicle_group=None):
@@ -220,11 +238,15 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             "vehicle_groups__supplier", "vehicle_groups__models", "vehicle_groups__comparison_classes"
         ).filter(code=quote.vehicle_request)
     requested_supplier_ids = {vehicle_group.supplier_id} if vehicle_group else set(quote.requested_suppliers.values_list("id", flat=True))
+    selected_supplier_ids = {vehicle_group.supplier_id} if vehicle_group else set(
+        quote.requested_vehicle_groups.values_list("supplier_id", flat=True)
+    )
+    suppliers_missing_groups = requested_supplier_ids - selected_supplier_ids if requested_group_ids else set()
     results = []
     for comparison in comparisons:
       groups = comparison.vehicle_groups.filter(is_active=True)
       if requested_group_ids:
-        groups = groups.filter(id__in=requested_group_ids)
+        groups = groups.filter(Q(id__in=requested_group_ids) | Q(supplier_id__in=suppliers_missing_groups))
       for group in groups:
         if requested_supplier_ids and group.supplier_id not in requested_supplier_ids:
             continue
@@ -258,7 +280,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
                     if group.transmission != group.Transmission.UNKNOWN else ""
                 ),
                 "available": False,
-                "reason": "Для этой группы и выбранных дат в ценнике нет действующего тарифа.",
+                "reason": _missing_rate_reason(group, pickup_date, quote.rental_days),
                 "total": None,
             })
             continue
@@ -277,6 +299,14 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             for canonical_code, mapping in requested_code_map.items()
             if canonical_code in quote.extra_requests and supplier_code in mapping
         }
+        # Some booking-only requests already use the supplier's own configured
+        # code (for example a young-driver fee), so they need no translation.
+        direct_codes = set(group.supplier.extras.filter(
+            is_active=True, extra_code__in=quote.extra_requests,
+        ).values_list("extra_code", flat=True))
+        requested_supplier_codes.update({
+            code: Decimal(str(quote.extra_requests[code])) for code in direct_codes
+        })
         requested_supplier_codes.update(
             _service_extra_requests(quote, supplier_code)
         )
@@ -318,7 +348,8 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             })
         unavailable_requests = []
         for canonical_code, quantity in quote.extra_requests.items():
-            supplier_extra_code = requested_code_map.get(canonical_code, {}).get(supplier_code)
+            supplier_extra_code = (canonical_code if canonical_code in direct_codes else
+                                   requested_code_map.get(canonical_code, {}).get(supplier_code))
             if not supplier_extra_code:
                 unavailable_requests.append(canonical_code)
             elif not extras.filter(extra_code=supplier_extra_code).exists():

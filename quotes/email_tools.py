@@ -36,7 +36,7 @@ def ensure_required_blocks(quote):
     template = QuoteTemplate.objects.filter(language="Hebrew", is_active=True).first()
     if not template:
         return
-    for source in template.blocks.filter(block_key__in=REQUIRED_BLOCKS | {"SIGNATURE"}):
+    for source in template.blocks.filter(block_key__in=REQUIRED_BLOCKS | {"SIGNATURE", "AI_NOTE"}):
         block, created = quote.document_blocks.get_or_create(block_key=source.block_key, defaults={
             "source_block": source, "title": source.title, "content": source.content,
             "display_order": source.display_order, "is_enabled": True,

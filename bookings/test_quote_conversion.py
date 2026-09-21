@@ -4,11 +4,11 @@ from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from customers.models import Customer
-from suppliers.models import Supplier, VehicleGroup, VehicleComparisonClass, PriceList, PriceSeason, PriceDayRange, VehicleRate, SupplierExtra, SupplierExtraRate
+from suppliers.models import Supplier, SupplierLocation, VehicleGroup, VehicleComparisonClass, PriceList, PriceSeason, PriceDayRange, VehicleRate, SupplierExtra, SupplierExtraRate
 from quotes.models import Quote, QuoteOption
 from .models import Booking
 
@@ -49,7 +49,116 @@ class QuoteConversionTests(TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, "old@example.com")
         self.assertContains(response, 'value="01-10-2026"')
+        self.assertContains(response, 'name="driver_1_name"')
+        self.assertContains(response, 'name="driver_2_name"')
+        self.assertNotContains(response, 'name="driver_2_first_name"')
         self.assertFalse(Booking.objects.exists())
+
+    def test_two_driver_names_are_saved_in_the_order(self):
+        data, response = self.review(
+            driver_1_name="Anna Nowak", driver_2_name="Piotr Kowalski",
+        )
+        self.create(data, response)
+        self.assertEqual(
+            list(Booking.objects.get().drivers.values_list("first_name", "last_name", "role")),
+            [("Anna", "Nowak", "MAIN"), ("Piotr", "Kowalski", "ADDITIONAL")],
+        )
+        detail = self.client.get(reverse("quotes:booking_detail", args=[Booking.objects.get().pk]))
+        self.assertContains(detail, "Anna Nowak")
+        self.assertContains(detail, "Piotr Kowalski")
+
+    def test_car_free_prague_airport_is_a_regular_supplier_location(self):
+        self.supplier.supplier_code = "01"
+        self.supplier.save(update_fields=["supplier_code"])
+        airport = SupplierLocation.objects.create(
+            supplier=self.supplier, location_code="PRG", location_name="Prague Airport",
+            city="Prague Airport", country="Czech Republic", location_type="AIRPORT",
+            airport_code="PRG", supports_pickup=True, supports_return=True,
+        )
+        data, response = self.review(
+            pickup_city="Prague", return_city="Prague",
+            pickup_service="AIRPORT", return_service="AIRPORT",
+        )
+        self.create(data, response)
+        booking = Booking.objects.get()
+        self.assertEqual(booking.pickup_location, airport)
+        self.assertEqual(booking.return_location, airport)
+        self.assertFalse(booking.extras.filter(extra__extra_code="FOREIGN_CITY_DELIVERY").exists())
+
+    def test_manual_adjustment_from_offer_is_saved_in_booking_total(self):
+        self.option.manual_adjustment_label = "Special route"
+        self.option.manual_adjustment_amount = 40
+        self.option.total_price_gross = 340
+        self.option.save(update_fields=["manual_adjustment_label", "manual_adjustment_amount", "total_price_gross"])
+        data, response = self.review(
+            manual_adjustment_label="Special route", manual_adjustment_amount="40",
+        )
+        self.assertEqual(response.context["result"]["total"], 340)
+        self.create(data, response)
+        booking = Booking.objects.get()
+        self.assertEqual(booking.manual_adjustment_label, "Special route")
+        self.assertEqual(booking.manual_adjustment_amount, 40)
+        self.assertEqual(booking.total_price_gross, 340)
+
+    def test_created_booking_marks_its_quote_accepted(self):
+        data, response = self.review()
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, Quote.Status.DRAFT)
+        self.create(data, response)
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, Quote.Status.ACCEPTED)
+        self.assertEqual(Booking.objects.get().source_quote, self.quote)
+
+    @override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}})
+    def test_offer_to_supplier_confirmation_flow(self):
+        self.supplier.booking_email = "supplier@example.com"
+        self.supplier.save(update_fields=["booking_email"])
+        data, reviewed = self.review()
+        self.create(data, reviewed)
+        booking = Booking.objects.get()
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, Quote.Status.ACCEPTED)
+
+        message_url = reverse("quotes:supplier_message", args=[booking.pk])
+        message_page = self.client.get(message_url)
+        self.client.post(message_url, {
+            "recipient": "supplier@example.com", "subject": "Test booking request",
+            "body": "Please confirm test booking", "action": "send",
+            "send_token": message_page.context["send_token"],
+        })
+        booking.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(booking.status, Booking.Status.WAITING_CONFIRMATION)
+
+        detail_url = reverse("quotes:booking_detail", args=[booking.pk])
+        self.client.post(detail_url, {
+            "supplier_booking_number": "TEST-RES-100", "status": Booking.Status.CONFIRMED,
+        })
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+        self.assertEqual(booking.supplier_booking_number, "TEST-RES-100")
+        self.assertEqual(booking.confirmed_by_user, self.user)
+        self.assertEqual(
+            list(booking.history_events.filter(event_type="STATUS_CHANGED").values_list("old_status", "new_status")),
+            [(Booking.Status.WAITING_CONFIRMATION, Booking.Status.CONFIRMED),
+             (Booking.Status.DRAFT, Booking.Status.WAITING_CONFIRMATION)],
+        )
+
+    def test_flight_number_from_offer_is_saved_in_booking(self):
+        page = self.client.get(self.url)
+        self.assertContains(page, 'name="flight_number"')
+        self.assertLess(
+            page.content.find(b'name="pickup_address"'),
+            page.content.find(b'name="flight_number"'),
+        )
+        data, response = self.review(flight_number="LO123")
+        self.create(data, response)
+        booking = Booking.objects.get()
+        self.assertEqual(booking.flight_number, "LO123")
+        self.assertContains(
+            self.client.get(reverse("quotes:booking_detail", args=[booking.pk])),
+            "LO123",
+        )
 
     def test_deposit_uses_group_settings_instead_of_fallback(self):
         from unittest.mock import patch
@@ -228,6 +337,31 @@ class QuoteConversionTests(TestCase):
         self.create(data, response)
         self.assertEqual(Booking.objects.count(), 1)
 
+    def test_one_rent_airport_return_does_not_add_fee_to_booking(self):
+        airport_fee = SupplierExtra.objects.create(
+            supplier=self.supplier, extra_code="AIRPORT_FEE", name="Test airport fee"
+        )
+        SupplierExtraRate.objects.create(
+            extra=airport_fee, valid_from=date(2026, 1, 1),
+            calculation_type="PER_RENTAL", amount_gross=50,
+        )
+        self.option.total_price_gross = Decimal("300.00")
+        self.option.save(update_fields=["total_price_gross"])
+        data, response = self.review(
+            pickup_service="ADDRESS", pickup_address="Test hotel",
+            return_service="AIRPORT",
+        )
+        self.assertEqual(response.context["result"]["total"], Decimal("300.00"))
+        self.assertFalse(response.context["changed"])
+        self.assertNotIn(
+            "AIRPORT_FEE",
+            {line["extra"].extra_code for line in response.context["result"]["extra_lines"]},
+        )
+        self.create(data, response)
+        booking = Booking.objects.get()
+        self.assertEqual(booking.total_price_gross, Decimal("300.00"))
+        self.assertFalse(booking.extras.filter(extra__extra_code="AIRPORT_FEE").exists())
+
     def test_tariff_changed_between_review_and_confirmation(self):
         data, response = self.review()
         VehicleRate.objects.filter(pk=self.rate.pk).update(daily_rate_gross=120)
@@ -246,6 +380,8 @@ class QuoteConversionTests(TestCase):
         for changes in ({"action": "create", "confirm_price": "yes"}, {"email": ""}):
             self.client.post(self.url, {**self.data, **changes})
             self.assertFalse(Booking.objects.exists())
+            self.quote.refresh_from_db()
+            self.assertEqual(self.quote.status, Quote.Status.DRAFT)
 
     def test_missing_rate_blocks_creation(self):
         self.rate.is_active = False

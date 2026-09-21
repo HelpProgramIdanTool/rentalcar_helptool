@@ -6,7 +6,7 @@ from django.urls import reverse
 from customers.models import Customer
 from employees.models import Employee, SubAgent
 from quotes.models import Quote, QuoteOption
-from suppliers.models import Supplier
+from suppliers.models import Supplier, SupplierExtra, SupplierExtraRate
 from .models import Booking
 from . import test_quote_conversion as conversion_test_data
 
@@ -19,8 +19,8 @@ class ManualBookingTests(TestCase):
         Quote.objects.all().delete()
         self.url = reverse("quotes:new_booking")
         token = self.client.get(self.url).context["form"]["entry_token"].value()
-        self.data.update(supplier=self.supplier.pk, order_source="SELF", driver_count=1,
-                         driver_names="Test Driver", entry_token=token)
+        self.data.update(supplier=self.supplier.pk, order_source="SELF", customer_name="Test Customer", driver_count=1,
+                         driver_1_name="Test Driver", entry_token=token)
 
     def review(self, **changes):
         data = {**self.data, **changes}
@@ -46,6 +46,29 @@ class ManualBookingTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
         self.confirm(data, response)
         self.assertEqual(Booking.objects.count(), 1)
+
+    def test_two_drivers_and_young_driver_are_visible_saved_and_priced(self):
+        extra = SupplierExtra.objects.create(
+            supplier=self.supplier, extra_code="YOUNG_DRIVER", name="Young driver fee",
+        )
+        SupplierExtraRate.objects.create(
+            extra=extra, calculation_type="PER_DRIVER_DAY", amount_gross=10,
+            valid_from="2026-01-01",
+        )
+        page = self.client.get(self.url)
+        self.assertContains(page, 'name="driver_1_name"')
+        self.assertContains(page, 'name="driver_1_young"')
+        data, response = self.review(
+            driver_count=2, driver_1_name="First Driver", driver_2_name="Second Driver",
+            driver_2_young="on",
+        )
+        self.assertEqual(response.context["result"]["total"], 330)
+        self.confirm(data, response)
+        booking = Booking.objects.get()
+        self.assertEqual(booking.drivers.count(), 2)
+        self.assertFalse(booking.drivers.get(display_order=1).young_driver_status)
+        self.assertTrue(booking.drivers.get(display_order=2).young_driver_status)
+        self.assertEqual(booking.total_price_gross, 330)
 
     def test_employee_owner_and_actual_creator_are_separate(self):
         owner = Employee.objects.create(first_name="Sales", last_name="Person", role="SALES")
@@ -83,7 +106,7 @@ class ManualBookingTests(TestCase):
     def test_required_employee_or_subagent_and_supplier_validation(self):
         for changes, field in (({"order_source": "EMPLOYEE"}, "responsible"),
                                ({"order_source": "SUBAGENT"}, "sub_agent"),
-                               ({"driver_count": 2}, "driver_names")):
+                               ({"driver_count": 2}, "driver_2_name")):
             response = self.client.post(self.url, {**self.data, **changes})
             self.assertIn(field, response.context["form"].errors)
         self.assertFalse(Booking.objects.exists())
@@ -140,3 +163,18 @@ class ManualBookingTests(TestCase):
         self.assertContains(response, 'data-field="invoice_name" hidden')
         self.assertContains(response, 'id="id_wants_invoice"')
         self.assertContains(response, 'placeholder="ДД-ММ-ГГГГ"')
+
+    def test_compact_customer_and_location_fields(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, 'name="customer_name"')
+        self.assertNotContains(response, 'name="first_name"')
+        self.assertNotContains(response, 'name="last_name"')
+        self.assertContains(response, "+ Добавить телефон")
+        self.assertContains(response, "Отель при получении")
+        self.assertContains(response, "Отель при возврате")
+        data, reviewed = self.review(hotel_name="Pickup Test Hotel", return_hotel_name="Return Test Hotel")
+        self.confirm(data, reviewed)
+        booking = Booking.objects.get()
+        self.assertEqual(booking.customer_name_snapshot, "Test Customer")
+        self.assertEqual(booking.hotel_name, "Pickup Test Hotel")
+        self.assertEqual(booking.return_hotel_name, "Return Test Hotel")

@@ -12,5 +12,6 @@
 {% endfor %}{{ price_breakdown }} // Deposit: {% if booking.source_quote_snapshot.deposit and booking.source_quote_snapshot.deposit != 'None' %}{{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% else %}[please specify]{% endif %}
 {{ booking.customer_address_snapshot }}{% if booking.customer_postal_code_snapshot %}, {{ booking.customer_postal_code_snapshot }}{% endif %}{% if booking.customer_city_snapshot %} - {{ booking.customer_city_snapshot }}{% endif %}{% if booking.customer_country_snapshot %}, {{ booking.customer_country_snapshot }}{% endif %}
 {% if booking.flight_number %}Flight: {{ booking.flight_number }}
-{% endif %}{% if booking.hotel_name %}Hotel: {{ booking.hotel_name }}
+{% endif %}{% if booking.hotel_name %}Pickup hotel: {{ booking.hotel_name }}
+{% endif %}{% if booking.return_hotel_name %}Return hotel: {{ booking.return_hotel_name }}
 {% endif %}{% endautoescape %}

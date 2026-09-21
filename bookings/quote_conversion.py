@@ -8,27 +8,62 @@ from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from config.rental_duration import calculate_rental_days
 from employees.models import Employee
-from suppliers.models import SupplierLocation
+from suppliers.models import SupplierLocation, VehicleGroup
 from quotes.forms import FirstInquiryForm
+from quotes.airport_pickup import airport_code_for_city
 from quotes.models import Quote, QuoteOption
 from quotes.services import calculate_quote_options, _active_extra_rate, _quoted_extra_price
 from decimal import Decimal
 from quotes.views import _quote_form_initial
-from .models import Booking, BookingExtra, BookingHistoryEvent
+from .models import Booking, BookingDriver, BookingExtra, BookingHistoryEvent
 from .missing_data import MissingDepositForm, new_deposit_form, apply_deposit
 
 
 class BookingFromOfferForm(FirstInquiryForm):
     vehicle_note = forms.CharField(label="Примечание к автомобилю (например, SEDAN)", max_length=200, required=False)
+    flight_number = forms.CharField(label="Номер рейса", max_length=50, required=False)
+    manual_adjustment_label = forms.CharField(label="Описание ручной доплаты", max_length=200, required=False)
+    manual_adjustment_amount = forms.DecimalField(label="Ручная доплата", min_value=0, max_digits=10, decimal_places=2, required=False)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        field_order = list(self.fields)
+        field_order.remove("flight_number")
+        field_order.insert(field_order.index("pickup_address") + 1, "flight_number")
+        self.order_fields(field_order)
+        self.fields["driver_count"].max_value = 20
+        count_value = self.data.get("driver_count") if self.is_bound else self.initial.get("driver_count", 2)
+        try:
+            minimum = 1 if "entry_token" in self.fields else 2
+            driver_count = min(max(int(count_value), minimum), 20)
+        except (TypeError, ValueError):
+            driver_count = 1
+        for index in range(1, driver_count + 1):
+            self.fields[f"driver_{index}_name"] = forms.CharField(
+                label=f"Водитель {index} — имя и фамилия латиницей",
+                max_length=201,
+                required=False,
+            )
+            self.fields[f"driver_{index}_young"] = forms.BooleanField(
+                label="Молодой водитель",
+                required=False,
+            )
+        self.driver_name_fields = [self[f"driver_{index}_name"] for index in range(1, driver_count + 1)]
+        self.driver_fields = [
+            (self[f"driver_{index}_name"], self[f"driver_{index}_young"])
+            for index in range(1, driver_count + 1)
+        ]
         groups = self.fields.pop("vehicle_groups").queryset
+        if "entry_token" not in self.fields:
+            selected_group = self.data.get("vehicle_group") if self.is_bound else self.initial.get("vehicle_group")
+            if selected_group:
+                groups = VehicleGroup.objects.filter(Q(pk__in=groups.values("pk")) | Q(pk=selected_group)).distinct()
         self.fields.pop("vehicle_classes")
         self.fields.pop("suppliers")
         self.fields["vehicle_group"] = forms.ModelChoiceField(
@@ -38,6 +73,12 @@ class BookingFromOfferForm(FirstInquiryForm):
             self.fields[name].input_formats = ["%Y-%m-%d", "%d-%m-%Y"]
             self.fields[name].widget = forms.DateInput(format="%d-%m-%Y", attrs={"placeholder": "ДД-ММ-ГГГГ", "autocomplete": "off"})
 
+    def clean(self):
+        data = super().clean()
+        label, amount = data.get("manual_adjustment_label", "").strip(), data.get("manual_adjustment_amount")
+        if bool(label) != (amount is not None and amount != 0):
+            self.add_error("manual_adjustment_label" if not label else "manual_adjustment_amount", "Заполните описание и сумму ручной доплаты.")
+        return data
 
 def calculate(option, data):
     inquiry = copy.copy(option.quote)
@@ -50,10 +91,22 @@ def calculate(option, data):
         code: data["child_seat_quantity"] if code == "CHILD_SEAT" else 1
         for code in data["extra_choices"]
     }
+    young_count = sum(bool(data.get(f"driver_{index}_young")) for index in range(1, data["driver_count"] + 1))
+    if young_count:
+        young_extra = data["vehicle_group"].supplier.extras.filter(
+            is_active=True, extra_code__in=("YOUNG_DRIVER", "YOUNG_DRIVER_21_24")
+        ).order_by("pk").first()
+        if young_extra:
+            inquiry.extra_requests[young_extra.extra_code] = young_count
     results = calculate_quote_options(inquiry, vehicle_group=data["vehicle_group"])
     if not results or not results[0]["available"]:
         raise forms.ValidationError("Нет действующего тарифа для выбранной машины и дат. Заказ не создан.")
     result = results[0]
+    manual_amount = data.get("manual_adjustment_amount") or Decimal("0.00")
+    if manual_amount:
+        result["manual_adjustment_label"] = data["manual_adjustment_label"]
+        result["manual_adjustment_amount"] = manual_amount
+        result["total"] += manual_amount
     # Apply the booking register's existing after-hours rules in the review too.
     probe = Booking(supplier=result["supplier"], pickup_datetime=inquiry.pickup_datetime,
                     return_datetime=inquiry.return_datetime)
@@ -61,10 +114,11 @@ def calculate(option, data):
     for side in ("pickup", "return"):
         locations[side] = None
         if data[f"{side}_service"] == "AIRPORT":
+            airport_code = airport_code_for_city(data[f"{side}_city"])
             locations[side] = SupplierLocation.objects.filter(
                 supplier=result["supplier"], is_active=True,
-                city__iexact=data[f"{side}_city"], location_type="AIRPORT",
-            ).first()
+                location_type="AIRPORT", **{f"supports_{side}": True},
+            ).filter(Q(airport_code=airport_code) if airport_code else Q(city__iexact=data[f"{side}_city"])).first()
     result["locations"] = locations
     night_count = sum(probe._needs_after_hours_charge(data[f"{side}_datetime"], locations[side])
                       for side in ("pickup", "return"))
@@ -157,14 +211,32 @@ def create_draft(option, data, result, snapshot, user):
         "price_calculation_status": Booking.PriceCalculationStatus.CALCULATED,
         "customer_name_snapshot": " ".join(filter(None, [data["first_name"], data["last_name"]])),
         "wants_invoice_snapshot": data["wants_invoice"],
+        "flight_number": data.get("flight_number", ""),
     }
     for field in ("email", "phone_1", "phone_2", "phone_3", "country", "address"):
         updates[f"customer_{field}_snapshot"] = data[field]
     for field in ("invoice_name", "invoice_tax_id", "invoice_address", "invoice_email"):
         updates[f"{field}_snapshot"] = data[field]
     Booking.objects.filter(pk=booking.pk).update(**updates)
+    Booking.objects.filter(pk=booking.pk).update(
+        manual_adjustment_label=data.get("manual_adjustment_label", ""),
+        manual_adjustment_amount=data.get("manual_adjustment_amount") or Decimal("0.00"),
+    )
     booking.refresh_from_db()
     booking.recalculate_totals()
+    if "driver_1_name" in data:
+        drivers = []
+        for index in range(1, data["driver_count"] + 1):
+            full_name = data.get(f"driver_{index}_name", "").strip()
+            if full_name:
+                parts = full_name.split(maxsplit=1)
+                drivers.append(BookingDriver(
+                    booking=booking, first_name=parts[0],
+                    last_name=parts[1] if len(parts) > 1 else "",
+                    role="MAIN" if index == 1 else "ADDITIONAL", display_order=index,
+                    young_driver_status=bool(data.get(f"driver_{index}_young")),
+                ))
+        BookingDriver.objects.bulk_create(drivers)
     booking.log_history(BookingHistoryEvent.EventType.DETAILS_CHANGED,
                         f"Created from {option.quote.quote_number}; current price confirmed",
                         changes={**snapshot, "operator_user_id": user.pk}, created_by=actor)
@@ -185,7 +257,9 @@ def from_offer(request, quote_number, option_id):
     initial = _quote_form_initial(quote)
     initial.update(vehicle_group=option.vehicle_group_id,
                    pickup_date=timezone.localtime(quote.pickup_datetime).date(),
-                   return_date=timezone.localtime(quote.return_datetime).date())
+                   return_date=timezone.localtime(quote.return_datetime).date(),
+                   manual_adjustment_label=option.manual_adjustment_label,
+                   manual_adjustment_amount=option.manual_adjustment_amount or None)
     form = BookingFromOfferForm(request.POST or None, initial=initial)
     result = snapshot = token = None
     deposit_form = None
@@ -221,6 +295,8 @@ def from_offer(request, quote_number, option_id):
                     previous = None
                 if previous == stamp and request.POST.get("confirm_price") == "yes":
                     booking = create_draft(option, form.cleaned_data, result, snapshot, request.user)
+                    quote.status = Quote.Status.ACCEPTED
+                    quote.save(update_fields=["status", "updated_at"])
                     return redirect("quotes:booking_detail", pk=booking.pk)
                 form.add_error(None, "Проверьте актуальный расчёт и подтвердите его. Данные или тариф могли измениться.")
             token = signing.dumps(stamp, salt="booking-review")

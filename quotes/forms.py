@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 from django.utils import timezone
 from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup
 
@@ -73,6 +74,7 @@ class VehicleGroupCheckboxes(forms.CheckboxSelectMultiple):
             columns = {supplier: [] for supplier in dict.fromkeys(self.suppliers_by_group.values())}
             for option in options:
                 supplier = self.suppliers_by_group[str(option["value"])]
+                option["attrs"]["data-supplier-id"] = self.supplier_ids_by_group[str(option["value"])]
                 columns.setdefault(supplier, []).append(option)
             sections.append({"name": section_name, "columns": columns.items()})
         context["widget"]["sections"] = sections
@@ -87,6 +89,9 @@ class FirstInquiryForm(forms.Form):
         ("Polish", "Polski"),
     ]
     CITY_CHOICES = [
+        ("", "Выберите город"),
+        ("OTHER", "Другой город / страна"),
+    ] + [
         (city, city) for city in (
             "Warszawa", "Kraków", "Katowice", "Gdańsk", "Lublin", "Łódź",
             "Modlin", "Olsztyn", "Poznań", "Rzeszów", "Szczecin", "Wrocław",
@@ -143,6 +148,10 @@ class FirstInquiryForm(forms.Form):
     return_city = forms.ChoiceField(label="Город возврата", choices=CITY_CHOICES)
     return_service = forms.ChoiceField(label="Способ возврата", choices=SERVICE_CHOICES)
     return_address = forms.CharField(label="Адрес возврата", max_length=300, required=False)
+    pickup_other_country = forms.CharField(label="Страна получения", max_length=100, required=False)
+    pickup_other_city = forms.CharField(label="Город / место получения", max_length=150, required=False)
+    return_other_country = forms.CharField(label="Страна возврата", max_length=100, required=False)
+    return_other_city = forms.CharField(label="Город / место возврата", max_length=150, required=False)
     vehicle_classes = forms.ModelMultipleChoiceField(
         label="Классы автомобилей",
         queryset=VehicleComparisonClass.objects.none(),
@@ -186,19 +195,27 @@ class FirstInquiryForm(forms.Form):
         self.fields["vehicle_classes"].queryset = VehicleComparisonClass.objects.filter(
             is_active=True
         ).order_by("display_order", "name")
+        priced_groups = Q(rates__is_active=True, rates__season__is_active=True,
+                          rates__season__price_list__status="ACTIVE", rates__day_range__is_active=True)
+        shared_priced_groups = Q(rate_source_group__rates__is_active=True,
+                                 rate_source_group__rates__season__is_active=True,
+                                 rate_source_group__rates__season__price_list__status="ACTIVE",
+                                 rate_source_group__rates__day_range__is_active=True)
         self.fields["vehicle_groups"].queryset = VehicleGroup.objects.filter(
-            is_active=True, supplier__status=Supplier.Status.ACTIVE
+            Q(is_active=True, supplier__status=Supplier.Status.ACTIVE) & (priced_groups | shared_priced_groups)
         ).select_related("supplier").prefetch_related("comparison_classes").order_by(
             "supplier__supplier_name", "display_order", "group_name"
-        )
+        ).distinct()
         section_labels = dict(VEHICLE_GROUP_SECTIONS)
         grouped_choices = {code: [] for code, _label in VEHICLE_GROUP_SECTIONS}
         self.fields["vehicle_groups"].widget.suppliers_by_group = {}
+        self.fields["vehicle_groups"].widget.supplier_ids_by_group = {}
         for group in self.fields["vehicle_groups"].queryset:
             grouped_choices[vehicle_group_section(group)].append(
                 (group.pk, f"{group.group_name} ({group.group_code})")
             )
             self.fields["vehicle_groups"].widget.suppliers_by_group[str(group.pk)] = group.supplier.supplier_name
+            self.fields["vehicle_groups"].widget.supplier_ids_by_group[str(group.pk)] = str(group.supplier_id)
         self.fields["vehicle_groups"].widget.choices = [
             (section_labels[code], choices)
             for code, choices in grouped_choices.items()
@@ -208,17 +225,50 @@ class FirstInquiryForm(forms.Form):
             "supplier_name"
         )
         self.fields["suppliers"].queryset = supplier_queryset
-        if not self.is_bound:
-            self.fields["suppliers"].initial = list(
-                supplier_queryset.values_list("id", flat=True)
-            )
         for field_name in ("email", "phone_1", "phone_2", "phone_3"):
             self.fields[field_name].widget.attrs["autocomplete"] = (
                 "email" if field_name == "email" else "tel"
             )
+        known_cities = {value for value, _label in self.CITY_CHOICES}
+        for side in ("pickup", "return"):
+            city = self.initial.get(f"{side}_city", "")
+            if city and city not in known_cities:
+                parts = [part.strip() for part in city.rsplit(",", 1)]
+                self.initial[f"{side}_city"] = "OTHER"
+                self.initial[f"{side}_other_city"] = parts[0]
+                if len(parts) == 2:
+                    self.initial[f"{side}_other_country"] = parts[1]
 
     def clean(self):
         cleaned = super().clean()
+        for side, label in (("pickup", "получения"), ("return", "возврата")):
+            if cleaned.get(f"{side}_city") == "OTHER":
+                country = cleaned.get(f"{side}_other_country", "").strip()
+                city = cleaned.get(f"{side}_other_city", "").strip()
+                if not country:
+                    self.add_error(f"{side}_other_country", f"Укажите страну {label}.")
+                if not city:
+                    self.add_error(f"{side}_other_city", f"Укажите город или место {label}.")
+                if country and city:
+                    cleaned[f"{side}_city"] = f"{city}, {country}"
+        groups = cleaned.get("vehicle_groups")
+        suppliers = cleaned.get("suppliers")
+        if groups is not None and suppliers is not None:
+            selected_supplier_ids = set(groups.values_list("supplier_id", flat=True))
+            missing_ids = {supplier.pk for supplier in suppliers} - selected_supplier_ids
+            comparison_ids = set(groups.values_list("comparison_classes__id", flat=True)) - {None}
+            unmatched = [
+                supplier for supplier in suppliers
+                if supplier.pk in missing_ids and not VehicleGroup.objects.filter(
+                    is_active=True, supplier=supplier,
+                    comparison_classes__id__in=comparison_ids,
+                ).exists()
+            ]
+            if unmatched:
+                cleaned["skipped_suppliers"] = [supplier.supplier_name for supplier in unmatched]
+                cleaned["suppliers"] = suppliers.exclude(
+                    pk__in=[supplier.pk for supplier in unmatched]
+                )
         if not any(cleaned.get(field) for field in ("email", "phone_1", "phone_2", "phone_3")):
             raise forms.ValidationError("Укажите хотя бы e-mail или номер телефона.")
         cleaned["preferred_language"] = cleaned.get("preferred_language") or "Hebrew"

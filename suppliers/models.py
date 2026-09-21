@@ -93,6 +93,14 @@ class SupplierLocation(models.Model):
         return f"{self.supplier.supplier_name} — {self.location_name}"
 
 
+class AirportPickupWording(models.Model):
+    method_code = models.CharField(max_length=20, unique=True)
+    text_he = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.method_code
+
+
 class VehicleGroup(models.Model):
     class Transmission(models.TextChoices):
         MANUAL = "MANUAL", "Manual"

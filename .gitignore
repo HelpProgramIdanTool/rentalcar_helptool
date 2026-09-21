@@ -1,6 +1,7 @@
 # Supplier price lists and other private source documents
 supplyer price lists/
 input/
+private_uploads/
 
 # Python
 .venv/

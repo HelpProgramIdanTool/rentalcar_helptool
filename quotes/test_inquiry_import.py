@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from .inquiry_import import parse_inquiry, suitable_group
 from .models import Quote
-from suppliers.models import Supplier, VehicleGroup
+from suppliers.models import Supplier, VehicleGroup, PriceList, PriceSeason, PriceDayRange, VehicleRate
 
 
 SAMPLE = '''מספר פנייה: TEST-123
@@ -43,6 +43,20 @@ GPS: לא
 
 
 class ParserTests(SimpleTestCase):
+    def test_free_hebrew_message_fills_certain_details_and_keeps_alternative(self):
+        raw = ('התאריכים שלנו הם נחיתה ב11 לדצמבר, 09:00 (נרצה לאסוף רכב מהשדה),\n'
+               'והחזרה אם אפשר בעיר קרקוב ב15/12 אחהצ-ערב, או ב16/12 ב7 בבוקר בשדה.')
+        data, requirements, warnings = parse_inquiry(raw)
+        self.assertEqual(data["pickup_date"], "11-12-2026")
+        self.assertEqual(data["pickup_time"], "09:00")
+        self.assertEqual(data["pickup_city"], "Kraków")
+        self.assertEqual(data["pickup_service"], "AIRPORT")
+        self.assertEqual(data["return_date"], "15-12-2026")
+        self.assertEqual(data["return_city"], "Kraków")
+        self.assertEqual(data["return_service"], "CITY_BRANCH")
+        self.assertIn("16/12", data["internal_notes"])
+        self.assertTrue(any("альтернативный" in warning for warning in warnings))
+        self.assertIsNone(requirements["passengers"])
     def test_dates_contacts_and_original_preserved(self):
         data, requirements, warnings = parse_inquiry(SAMPLE)
         self.assertEqual(data['pickup_date'], '26-09-2026')
@@ -168,10 +182,14 @@ class ImportViewTests(TestCase):
         supplier = Supplier.objects.create(supplier_code='TEST', supplier_name='Test supplier')
         other = Supplier.objects.create(supplier_code='OTHER', supplier_name='Other supplier')
         group = VehicleGroup.objects.create(supplier=supplier, group_code='T', group_name='Test van', seats=9, transmission='AUTOMATIC')
+        price_list = PriceList.objects.create(supplier=supplier, name="Test", version="1", effective_from="2026-01-01", status="ACTIVE")
+        season = PriceSeason.objects.create(price_list=price_list, season_code="ALL", season_name="All", rental_date_from="2026-01-01")
+        day_range = PriceDayRange.objects.create(price_list=price_list, range_code="ALL", label="All", days_from=1)
+        VehicleRate.objects.create(season=season, day_range=day_range, vehicle_group=group, daily_rate_gross=100)
         response = self.client.post(reverse('quotes:import_inquiry'), {'text': SAMPLE})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['fields']['vehicle_groups'], [group.pk])
-        self.assertIn(other.pk, response.json()['fields']['suppliers'])
+        self.assertEqual(response.json()['fields']['suppliers'], [supplier.pk])
         self.assertEqual(Quote.objects.count(), 0)
         fields = response.json()['fields']
         fields['imported_inquiry'] = '1'
@@ -187,3 +205,14 @@ class ImportViewTests(TestCase):
         self.assertEqual(self.client.post(reverse('quotes:import_inquiry'), {'text':'hello'}).status_code, 400)
         self.client.logout()
         self.assertEqual(self.client.post(reverse('quotes:import_inquiry'), {'text':SAMPLE}).status_code, 302)
+
+    def test_free_text_returns_partial_fields_without_clearing_vehicle_choice(self):
+        raw = ('התאריכים שלנו הם נחיתה ב11 לדצמבר, 09:00 (נרצה לאסוף רכב מהשדה),\n'
+               'והחזרה אם אפשר בעיר קרקוב ב15/12 אחהצ-ערב, או ב16/12 ב7 בבוקר בשדה.')
+        response = self.client.post(reverse('quotes:import_inquiry'), {'text': raw})
+        self.assertEqual(response.status_code, 200)
+        fields = response.json()["fields"]
+        self.assertEqual(fields["pickup_service"], "AIRPORT")
+        self.assertEqual(fields["return_service"], "CITY_BRANCH")
+        self.assertNotIn("vehicle_groups", fields)
+        self.assertNotIn("suppliers", fields)

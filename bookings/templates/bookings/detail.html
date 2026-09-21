@@ -4,18 +4,46 @@
 <h1>{{ booking.booking_number }}</h1>
 <p><a href="{% url 'quotes:booking_list' %}">← Все заказы</a></p>
 <p><a href="{% url 'quotes:supplier_message' booking.pk %}">Подготовить письмо поставщику</a></p>
+{% if booking.supplier_booking_number %}
+<p>Номер заказа у поставщика: <strong>{{ booking.supplier_booking_number }}</strong></p>
+<p><a href="{% url 'admin:bookings_booking_change' booking.pk %}">Изменить данные заказа</a> · <a href="{% url 'quotes:supplier_message' booking.pk %}?change=1">Подготовить письмо об изменении</a></p>
+{% if booking.status == 'UPDATE_PENDING' %}<p role="status">Изменения отправлены поставщику. Ожидаем новое подтверждение по тому же номеру заказа.</p>{% endif %}
+{% endif %}
 <p>{{ booking.get_order_source_display }}{% if booking.salesperson_employee %} · Ответственный: {{ booking.salesperson_employee }}{% endif %}{% if booking.sub_agent %} · Субагент: {{ booking.sub_agent }}{% endif %}</p>
 {% if booking.created_by_user %}<p>Внёс в систему: {{ booking.created_by_user }}</p>{% endif %}
+{% if booking.confirmed_by_user %}<p>Подтвердил заказ: {{ booking.confirmed_by_user.get_full_name|default:booking.confirmed_by_user.username }}</p>{% endif %}
 <form method="post" id="reservation-number">{% csrf_token %}{{ reservation_form.as_p }}<button type="submit">Сохранить номер и статус</button></form>
+<section>
+  <h2>Ваучеры поставщика</h2>
+  <p><strong>Подтверждённых изменений: {{ voucher_change_count }}</strong>. Считаются обновлённые подтверждения по этому заказу; загрузка файла для подсчёта не нужна.</p>
+  <form method="post" action="{% url 'quotes:upload_voucher' booking.pk %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="voucher-file">PDF, JPG или PNG, до 10 МБ</label>
+    <input id="voucher-file" type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required>
+    <button type="submit">Сохранить ваучер</button>
+  </form>
+  {% if booking.vouchers.exists %}
+  <ul>{% for voucher in booking.vouchers.all %}
+    <li><a href="{% url 'quotes:download_voucher' booking.pk voucher.pk %}">{{ voucher.original_filename }}</a> · {{ voucher.received_at|date:'d.m.Y H:i' }} · {{ voucher.uploaded_by_user.get_full_name|default:voucher.uploaded_by_user.username }}</li>
+  {% endfor %}</ul>
+  {% endif %}
+</section>
+{% if status_history %}<section><h2>История статусов</h2><ul>{% for event in status_history %}<li>{{ event.at|date:'d.m.Y H:i' }} · {{ event.old }} → {{ event.new }} · {{ event.actor }}</li>{% endfor %}</ul></section>{% endif %}
+{% if booking.supplier_deliveries.exists %}<p>Изменения в карточке заказа не отправляются поставщику автоматически. Проверьте ранее отправленное письмо перед новым сообщением.</p>{% endif %}
 <p>Статус: {{ booking.get_status_display }}. {% if booking.status == 'DRAFT' %}Заказ поставщику ещё не отправлен.{% endif %}</p>
 {% if booking.source_quote %}<p>Оферта: <a href="{% url 'quotes:inquiry_saved' booking.source_quote.quote_number %}">{{ booking.source_quote.quote_number }}</a></p>{% endif %}
 <p>Клиент: {{ booking.customer_name_snapshot }} · {{ booking.customer_email_snapshot }} · {{ booking.customer_phone_1_snapshot }} {{ booking.customer_phone_2_snapshot }} {{ booking.customer_phone_3_snapshot }}</p>
 <p>{{ booking.supplier }} · {{ booking.vehicle_group }}</p>
 {% if booking.source_quote_snapshot.request.vehicle_note %}<p>{{ booking.source_quote_snapshot.request.vehicle_note }}</p>{% endif %}
 <p>Получение: {{ booking.pickup_datetime|date:'d.m.Y H:i' }} · {{ booking.pickup_location_text }} {{ booking.pickup_address }}</p>
+{% if booking.hotel_name %}<p>Отель при получении: {{ booking.hotel_name }}</p>{% endif %}
+{% if booking.flight_number %}<p>Номер рейса: {{ booking.flight_number }}</p>{% endif %}
 <p>Возврат: {{ booking.return_datetime|date:'d.m.Y H:i' }} · {{ booking.return_location_text }} {{ booking.return_address }}</p>
+{% if booking.return_hotel_name %}<p>Отель при возврате: {{ booking.return_hotel_name }}</p>{% endif %}
 <p>Водителей: {{ booking.source_quote_snapshot.request.driver_count }} · Выезд за границу: {{ booking.source_quote_snapshot.request.cross_border_requested|yesno:'да,нет' }}</p>
+{% if booking.drivers.exists %}<ul>{% for driver in booking.drivers.all %}<li>Водитель {{ driver.display_order }}: {{ driver.first_name }} {{ driver.last_name }}</li>{% endfor %}</ul>{% endif %}
 <ul>{% for extra in booking.extras.all %}<li>{{ extra.customer_visible_name }} × {{ extra.quantity }} — {{ extra.calculated_price_gross }} {{ extra.currency_snapshot }}</li>{% endfor %}</ul>
+{% if booking.manual_adjustment_amount %}<p>{{ booking.manual_adjustment_label }} — {{ booking.manual_adjustment_amount }} {{ booking.currency }}</p>{% endif %}
 <p><strong>Итого: {{ booking.total_price_gross }} {{ booking.currency }}</strong></p>
 <p>Депозит: {{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% if booking.source_quote_snapshot.deposit_usage == 'once' %} (только для этого заказа){% endif %}</p>
 <p>Заметка клиента: {{ booking.source_quote_snapshot.request.customer_notes }}</p>

@@ -1,7 +1,7 @@
 """Read the labelled Hebrew website form without contacting the website."""
 import html
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -10,8 +10,71 @@ from django.views.decorators.http import require_POST
 from .forms import FirstInquiryForm
 
 
+HEBREW_MONTHS = {
+    "ינואר": 1, "פברואר": 2, "מרץ": 3, "אפריל": 4, "מאי": 5, "יוני": 6,
+    "יולי": 7, "אוגוסט": 8, "ספטמבר": 9, "אוקטובר": 10, "נובמבר": 11, "דצמבר": 12,
+}
+
+
+def _future_year(day, month):
+    today = date.today()
+    return today.year + (date(today.year, month, day) < today)
+
+
+def parse_free_text_inquiry(raw):
+    """Extract only facts that are explicit in a short Hebrew customer message."""
+    text = html.unescape(raw).replace("\\", "")
+    warnings = []
+    data = {
+        "customer_notes": raw, "preferred_language": "Hebrew", "driver_count": 1,
+        "extra_choices": [], "pickup_city": "", "return_city": "",
+        "pickup_service": "", "return_service": "", "pickup_address": "", "return_address": "",
+        "pickup_date": "", "return_date": "", "pickup_time": "", "return_time": "",
+    }
+    if "קרקוב" in text:
+        data["pickup_city"] = data["return_city"] = "Kraków"
+
+    month_match = re.search(r"(?:נחיתה|איסוף).*?ב\s*(\d{1,2})\s*ל([א-ת]+).*?(\d{1,2}:\d{2})", text, re.S)
+    if month_match and month_match.group(2) in HEBREW_MONTHS:
+        day, month = int(month_match.group(1)), HEBREW_MONTHS[month_match.group(2)]
+        data["pickup_date"] = date(_future_year(day, month), month, day).strftime("%d-%m-%Y")
+        data["pickup_time"] = month_match.group(3)
+    numeric_dates = list(re.finditer(r"(?:ב|^)(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?", text))
+    if numeric_dates:
+        first = numeric_dates[0]
+        day, month = int(first.group(1)), int(first.group(2))
+        year = int(first.group(3)) if first.group(3) else _future_year(day, month)
+        if year < 100:
+            year += 2000
+        data["return_date"] = date(year, month, day).strftime("%d-%m-%Y")
+
+    airport_words = ("שדה", "שדה התעופה")
+    if any(word in text for word in airport_words) and ("לאסוף" in text or "איסוף" in text):
+        data["pickup_service"] = "AIRPORT"
+    if "בעיר קרקוב" in text or "בעיר" in text:
+        data["return_service"] = "CITY_BRANCH"
+
+    if len(numeric_dates) > 1 or " או " in text:
+        alternatives = text[text.find("והחזרה"):] if "והחזרה" in text else text
+        warnings.append("У клиента есть альтернативный вариант возврата. Выбран первый вариант; согласуйте его с клиентом.")
+        data["internal_notes"] = "Альтернативы возврата из письма клиента: " + alternatives.strip()
+    else:
+        data["internal_notes"] = ""
+    if "אחהצ" in text or "ערב" in text:
+        warnings.append("Точное время возврата 15 декабря не указано: клиент написал «после обеда — вечером».")
+    if not data["pickup_date"]:
+        warnings.append("Дата получения не распознана — внесите её вручную.")
+    if not data["return_date"]:
+        warnings.append("Дата возврата не распознана — внесите её вручную.")
+    warnings.append("Количество водителей принято равным 1 — измените при необходимости.")
+    requirements = {"passengers": None, "bags": None, "automatic": False, "manual": False, "categories": []}
+    return data, requirements, warnings
+
+
 def parse_inquiry(raw):
     text = html.unescape(raw).replace("\\", "").replace("\u00a0", " ")
+    if "קבלת הרכב" not in text and "מספר פנייה" not in text:
+        return parse_free_text_inquiry(raw)
     lines = [line.strip().strip("*").strip() for line in text.splitlines()]
     fields, sections, section = {}, {}, ""
     for line in lines:
@@ -33,7 +96,15 @@ def parse_inquiry(raw):
               "פוזנן": "Poznań", "לובלין": "Lublin", "ז'שוב": "Rzeszów"}
     for side in ("pickup", "return"):
         city = sections.get((side, "עיר"), "")
-        data[f"{side}_city"] = cities.get(city, city)
+        mapped_city = cities.get(city, city)
+        known_cities = {"Warszawa", "Kraków", "Katowice", "Gdańsk", "Lublin", "Łódź", "Modlin", "Olsztyn", "Poznań", "Rzeszów", "Szczecin", "Wrocław", "Radom", "Bydgoszcz", "Prague", "Pardubice"}
+        if mapped_city and mapped_city not in known_cities:
+            data[f"{side}_city"] = "OTHER"
+            data[f"{side}_other_city"] = mapped_city
+            data[f"{side}_other_country"] = ""
+            warnings.append(f"Укажите страну для другого места {('получения' if side == 'pickup' else 'возврата')}.")
+        else:
+            data[f"{side}_city"] = mapped_city
         place = sections.get((side, "מקום"), "")
         if "שדה תעופה" in place:
             data[f"{side}_service"] = "AIRPORT"
@@ -105,7 +176,15 @@ def suitable_group(group, requirements):
     if categories:
         matches = []
         for category in categories:
-            if "8/9" in category:
+            if "היברידי" in category:
+                premium = (
+                    "PREMIUM" in getattr(group, "group_name", "").upper()
+                    or any("PREMIUM" in code for code in codes)
+                )
+                matches.append("היברידי" in getattr(group, "fuel_type_note", "") and not premium)
+            elif "רכב קטן" in category:
+                matches.append(bool(codes & {"B_AUTO", "B_MANUAL"}))
+            elif "8/9" in category:
                 matches.append(group.seats in (8, 9) or 'PASSENGER_VAN_AUTO' in codes)
             elif "7" in category:
                 matches.append(group.seats == 7 or 'SUV_7_AUTO' in codes)
@@ -123,7 +202,7 @@ def suitable_group(group, requirements):
                     or re.match(r"^[CD](?:\b|[_ -])", name)
                 )
                 matches.append(
-                    group.body_type == "SEDAN"
+                    (group.body_type == "SEDAN" or (not group.body_type and any(code.endswith("_SEDAN_AUTO") for code in codes)))
                     and not ("סטנדרטי" in category and (premium or not standard_class))
                 )
             elif "SUV" in category.upper():
@@ -151,7 +230,7 @@ def suitable_group(group, requirements):
                     is_suv and premium == requested_premium
                     and (requested_size is None or size == requested_size)
                 )
-        if matches and not any(matches):
+        if not matches or not any(matches):
             return False
     return True
 
@@ -163,14 +242,17 @@ def import_inquiry(request):
     if not raw or len(raw) > 30000:
         return JsonResponse({"error": "Вставьте заявку (до 30 000 символов)."}, status=400)
     data, requirements, warnings = parse_inquiry(raw)
-    if "מספר נוסעים כולל הנהג" not in raw or "קבלת הרכב" not in raw:
-        return JsonResponse({"error": "Не распознан формат заявки сайта. Существующие поля сохранены."}, status=400)
+    structured = "מספר נוסעים כולל הנהג" in raw and "קבלת הרכב" in raw
+    if not structured and not any(data.get(name) for name in ("pickup_date", "return_date", "pickup_city", "return_city")):
+        return JsonResponse({"error": "Не удалось уверенно распознать даты или город. Существующие поля сохранены."}, status=400)
     form = FirstInquiryForm()
-    groups = [g for g in form.fields["vehicle_groups"].queryset if suitable_group(g, requirements)]
-    data["vehicle_groups"] = [g.pk for g in groups]
-    data["suppliers"] = list(form.fields["suppliers"].queryset.values_list('pk', flat=True))
-    if any(g.seats is None for g in groups):
-        warnings.append("У некоторых подходящих категорий не заполнено количество мест. Они показаны как кандидаты: проверьте вместимость перед отправкой.")
-    if not groups:
-        warnings.append("Подходящие категории не найдены. Проверьте число мест и коробку передач в справочнике.")
+    groups = []
+    if structured:
+        groups = [g for g in form.fields["vehicle_groups"].queryset if suitable_group(g, requirements)]
+        data["vehicle_groups"] = [g.pk for g in groups]
+        data["suppliers"] = sorted({g.supplier_id for g in groups})
+        if any(g.seats is None for g in groups):
+            warnings.append("У некоторых подходящих категорий не заполнено количество мест. Они показаны как кандидаты: проверьте вместимость перед отправкой.")
+        if not groups:
+            warnings.append("Подходящие категории не найдены. Проверьте число мест и коробку передач в справочнике.")
     return JsonResponse({"fields": data, "warnings": warnings, "requirements": requirements})

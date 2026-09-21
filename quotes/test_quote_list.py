@@ -40,6 +40,15 @@ class QuoteListTests(TestCase):
         self.assertEqual(reverse("quotes:new_inquiry"), "/offers/new/")
         self.assertTemplateUsed(self.client.get(reverse("quotes:new_inquiry")), "quotes/new_inquiry.html")
 
+    def test_list_identifies_creator_and_sender_separately(self):
+        self.draft.created_by_user = self.user
+        self.draft.save(update_fields=["created_by_user"])
+        self.sent.sent_by_user = self.user
+        self.sent.save(update_fields=["sent_by_user"])
+        response = self.client.get(reverse("quotes:quote_list"))
+        self.assertContains(response, "Создал: list-user")
+        self.assertContains(response, "Отправил: list-user")
+
     def test_search_matches_number_full_name_email_and_phone(self):
         for term in ("Anna Cohen", "anna@example.com", "48123456789", self.sent.quote_number):
             with self.subTest(term=term):

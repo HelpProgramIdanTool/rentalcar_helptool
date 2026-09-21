@@ -5,6 +5,7 @@ from .models import (
     SupplierExtra,
     SupplierExtraRate,
     SupplierLocation,
+    AirportPickupWording,
     PriceDayRange,
     PriceList,
     PriceSeason,
@@ -61,6 +62,11 @@ class SupplierLocationAdmin(admin.ModelAdmin):
         "phone",
         "supplier__supplier_name",
     )
+
+
+@admin.register(AirportPickupWording)
+class AirportPickupWordingAdmin(admin.ModelAdmin):
+    list_display = ("method_code", "text_he")
 
 
 class VehicleModelInline(admin.TabularInline):
