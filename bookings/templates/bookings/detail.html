@@ -43,6 +43,7 @@
 <p>Водителей: {{ booking.source_quote_snapshot.request.driver_count }} · Выезд за границу: {{ booking.source_quote_snapshot.request.cross_border_requested|yesno:'да,нет' }}</p>
 {% if booking.drivers.exists %}<ul>{% for driver in booking.drivers.all %}<li>Водитель {{ driver.display_order }}: {{ driver.first_name }} {{ driver.last_name }}</li>{% endfor %}</ul>{% endif %}
 <ul>{% for extra in booking.extras.all %}<li>{{ extra.customer_visible_name }} × {{ extra.quantity }} — {{ extra.calculated_price_gross }} {{ extra.currency_snapshot }}</li>{% endfor %}</ul>
+{% if booking.child_seat_details %}<h3>Детские кресла</h3><ul>{% for seat in booking.child_seat_details %}<li>Кресло {{ forloop.counter }}: возраст {{ seat.age|default:'не указан' }}, рост {{ seat.height|default:'не указан' }}{% if seat.height %} см{% endif %}, тип/номер {{ seat.type_number|default:'не указан' }}</li>{% endfor %}</ul>{% endif %}
 {% if booking.manual_adjustment_amount %}<p>{{ booking.manual_adjustment_label }} — {{ booking.manual_adjustment_amount }} {{ booking.currency }}</p>{% endif %}
 <p><strong>Итого: {{ booking.total_price_gross }} {{ booking.currency }}</strong></p>
 <p>Депозит: {{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% if booking.source_quote_snapshot.deposit_usage == 'once' %} (только для этого заказа){% endif %}</p>

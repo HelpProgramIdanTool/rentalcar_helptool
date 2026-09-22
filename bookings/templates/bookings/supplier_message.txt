@@ -9,6 +9,7 @@
 {% if booking.source_quote_snapshot.request.vehicle_note %}{{ booking.source_quote_snapshot.request.vehicle_note }}
 {% endif %}Additional driver for free + full insurance with zero excess + unlimited mileage{% if booking.source_quote_snapshot.request.cross_border_requested %} + border crossing to EU countries{% endif %}
 {% for extra in extras %}{{ extra.supplier_visible_name }} x {{ extra.quantity }}{% if not extra.calculation_complete %} [price requires confirmation]{% endif %}
+{% endfor %}{% for seat in booking.child_seat_details %}Child seat {{ forloop.counter }}:{% if seat.age %} age {{ seat.age }}{% endif %}{% if seat.height %}, height {{ seat.height }} cm{% endif %}{% if seat.type_number %}, type/number {{ seat.type_number }}{% endif %}
 {% endfor %}{{ price_breakdown }} // Deposit: {% if booking.source_quote_snapshot.deposit and booking.source_quote_snapshot.deposit != 'None' %}{{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% else %}[please specify]{% endif %}
 {{ booking.customer_address_snapshot }}{% if booking.customer_postal_code_snapshot %}, {{ booking.customer_postal_code_snapshot }}{% endif %}{% if booking.customer_city_snapshot %} - {{ booking.customer_city_snapshot }}{% endif %}{% if booking.customer_country_snapshot %}, {{ booking.customer_country_snapshot }}{% endif %}
 {% if booking.flight_number %}Flight: {{ booking.flight_number }}

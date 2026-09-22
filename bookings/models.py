@@ -125,6 +125,7 @@ class Booking(models.Model):
     manual_adjustment_label = models.CharField(max_length=200, blank=True)
     manual_adjustment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     flight_number = models.CharField(max_length=50, blank=True)
+    child_seat_details = models.JSONField(default=list, blank=True)
     vehicle_group = models.ForeignKey(
         "suppliers.VehicleGroup",
         on_delete=models.PROTECT,

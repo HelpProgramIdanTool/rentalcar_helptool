@@ -1,7 +1,7 @@
 {% extends 'customers/base.html' %}
 {% block title %}Создать заказ{% endblock %}
 {% block content %}
-<style>.booking-form{max-width:1000px}.booking-fields,.driver-name-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.booking-fields label,.driver-name-fields label{display:block;font-weight:600;margin-bottom:5px}.booking-fields input:not([type=checkbox]),.booking-fields select,.booking-fields textarea,.driver-name-fields input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:8px;font:inherit}.booking-fields textarea{height:75px}.location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start}.location-zone h2{margin:0;font-size:20px}.driver-section{margin:20px 0}.driver-section h2{font-size:20px;margin:0 0 12px}.driver-count-box{width:130px;margin-bottom:14px}.driver-count-box input{width:80px!important}.driver-name-fields p{display:flex;align-items:center;gap:8px;margin:10px 0 0}.driver-name-fields p label{display:inline;margin:0}.errorlist{color:#b42318}.review{margin:22px 0;padding:20px;background:#eef5ff;border:1px solid #b5c9ed;border-radius:8px}.price-change{background:#fff4df;border-color:#e6a540}.booking-form button{padding:12px 18px;background:#155eef;color:white;border:0;border-radius:8px;font:inherit}</style>
+<style>.booking-form{max-width:1000px}.booking-fields,.driver-name-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.booking-fields label,.driver-name-fields label{display:block;font-weight:600;margin-bottom:5px}.booking-fields input:not([type=checkbox]),.booking-fields select,.booking-fields textarea,.driver-name-fields input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:8px;font:inherit}.booking-fields textarea{height:75px}.location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start}.location-zone h2{margin:0;font-size:20px}.driver-section,.child-seat-section{margin:20px 0}.driver-section h2,.child-seat-section h2{font-size:20px;margin:0 0 12px}.driver-count-box{width:130px;margin-bottom:14px}.driver-count-box input{width:80px!important}.driver-name-fields p{display:flex;align-items:center;gap:8px;margin:10px 0 0}.driver-name-fields p label{display:inline;margin:0}.child-seat-list{display:grid;gap:12px}.child-seat-row{padding:14px;border:1px solid #d5dfec;border-radius:10px;background:#f8fafc}.child-seat-row h3{margin:0 0 10px}.child-seat-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.child-seat-fields label{display:block;font-weight:600}.child-seat-fields input{box-sizing:border-box;width:100%;padding:8px;font:inherit}@media(max-width:700px){.child-seat-fields{grid-template-columns:1fr}}.errorlist{color:#b42318}.review{margin:22px 0;padding:20px;background:#eef5ff;border:1px solid #b5c9ed;border-radius:8px}.price-change{background:#fff4df;border-color:#e6a540}.booking-form button{padding:12px 18px;background:#155eef;color:white;border:0;border-radius:8px;font:inherit}</style>
 {% if manual_entry %}
 <a href="{% url 'quotes:booking_list' %}">← Все заказы</a><h1>Новый заказ вручную</h1>
 <p>Оферта не создаётся. Вносите данные клиента, выберите фирму и ответственного, затем проверьте расчёт.</p>
@@ -21,8 +21,9 @@
 <button type="button" id="parse-booking">Заполнить из текста</button>
 <p id="paste-status" role="status"></p>
 </section>{% endif %}
-<div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% elif 'driver_' in field.name and field.name != 'driver_count' %}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
+<div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% elif 'driver_' in field.name and field.name != 'driver_count' %}{% elif 'child_seat_' in field.name and field.name != 'child_seat_quantity' %}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
 <section class="driver-section"><h2>Водители</h2><div class="driver-name-fields">{% for name_field, young_field in form.driver_fields %}<div data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<p>{{ young_field }} {{ young_field.label_tag }}{{ young_field.errors }}</p></div>{% endfor %}</div><p>Впишите имя и фамилию каждого водителя в одно поле. Отметьте молодого водителя: если у фирмы есть такая доплата, она войдёт в расчёт.</p></section>
+<section class="child-seat-section" {% if not form.child_seat_fields %}hidden{% endif %}><h2>Данные детских кресел</h2><div class="child-seat-list">{% for fields in form.child_seat_fields %}<div class="child-seat-row" data-seat="{{ forloop.counter }}"><h3>Кресло {{ forloop.counter }}</h3><div class="child-seat-fields">{% for field in fields %}<label>{{ field.label }}{{ field }}{{ field.errors }}</label>{% endfor %}</div></div>{% endfor %}</div><p>Заполните известные данные: возраст, рост и выбранный тип или номер кресла.</p></section>
 <p><button name="action" value="calculate" formnovalidate>Пересчитать</button></p>
 {% if deposit_pending %}
 <p><button type="button" id="open-deposit">Заполнить отсутствующий депозит</button></p>
@@ -89,6 +90,30 @@ function syncDriverFields(){
 }
 document.getElementById('id_driver_count').addEventListener('input',syncDriverFields);
 syncDriverFields();
+const childSeatSection=bookingForm.querySelector('.child-seat-section');
+const childSeatList=childSeatSection.querySelector('.child-seat-list');
+const childSeatChoice=bookingForm.querySelector('input[name="extra_choices"][value="CHILD_SEAT"]');
+const childSeatQuantity=document.getElementById('id_child_seat_quantity');
+function syncChildSeatFields(){
+ const count=childSeatChoice?.checked?Math.min(Math.max(Number(childSeatQuantity?.value)||0,0),10):0;
+ childSeatSection.hidden=count===0;
+ for(let index=1;index<=count;index++){
+  let row=childSeatList.querySelector(`[data-seat="${index}"]`);
+  if(!row){
+   row=document.createElement('div');row.className='child-seat-row';row.dataset.seat=index;row.innerHTML=`<h3>Кресло ${index}</h3><div class="child-seat-fields"></div>`;
+   const fields=row.querySelector('.child-seat-fields');
+   for(const [suffix,label,maxLength] of [['age','Возраст ребёнка',30],['height','Рост ребёнка (см)',30],['type_number','Тип или номер кресла',100]]){
+    const name=`child_seat_${index}_${suffix}`,box=document.createElement('label'),input=document.createElement('input');
+    box.textContent=label;input.name=name;input.id=`id_${name}`;input.maxLength=maxLength;input.autocomplete='off';box.append(input);fields.append(box);
+   }
+   childSeatList.append(row);
+  }
+ }
+ childSeatList.querySelectorAll('[data-seat]').forEach(row=>{if(Number(row.dataset.seat)>count)row.remove();});
+}
+childSeatChoice?.addEventListener('change',syncChildSeatFields);
+childSeatQuantity?.addEventListener('input',syncChildSeatFields);
+syncChildSeatFields();
 {% if manual_entry %}
 const phoneOne=bookingForm.querySelector('[data-field="phone_1"]');
 const extraPhones=['phone_2','phone_3'].map(name=>bookingForm.querySelector(`[data-field="${name}"]`)).filter(Boolean);

@@ -59,6 +59,34 @@ class BookingFromOfferForm(FirstInquiryForm):
             (self[f"driver_{index}_name"], self[f"driver_{index}_young"])
             for index in range(1, driver_count + 1)
         ]
+        selected_extras = (
+            self.data.getlist("extra_choices")
+            if self.is_bound else self.initial.get("extra_choices", [])
+        )
+        seat_count_value = (
+            self.data.get("child_seat_quantity")
+            if self.is_bound else self.initial.get("child_seat_quantity", 0)
+        )
+        try:
+            seat_count = min(max(int(seat_count_value), 0), 10)
+        except (TypeError, ValueError):
+            seat_count = 0
+        if "CHILD_SEAT" not in selected_extras:
+            seat_count = 0
+        self.child_seat_fields = []
+        for index in range(1, seat_count + 1):
+            fields = []
+            for suffix, label, max_length in (
+                ("age", "Возраст ребёнка", 30),
+                ("height", "Рост ребёнка (см)", 30),
+                ("type_number", "Тип или номер кресла", 100),
+            ):
+                name = f"child_seat_{index}_{suffix}"
+                self.fields[name] = forms.CharField(
+                    label=label, max_length=max_length, required=False,
+                )
+                fields.append(self[name])
+            self.child_seat_fields.append(fields)
         groups = self.fields.pop("vehicle_groups").queryset
         if "entry_token" not in self.fields:
             selected_group = self.data.get("vehicle_group") if self.is_bound else self.initial.get("vehicle_group")
@@ -78,6 +106,14 @@ class BookingFromOfferForm(FirstInquiryForm):
         label, amount = data.get("manual_adjustment_label", "").strip(), data.get("manual_adjustment_amount")
         if bool(label) != (amount is not None and amount != 0):
             self.add_error("manual_adjustment_label" if not label else "manual_adjustment_amount", "Заполните описание и сумму ручной доплаты.")
+        data["child_seat_details"] = [
+            {
+                "age": data.get(f"child_seat_{index}_age", "").strip(),
+                "height": data.get(f"child_seat_{index}_height", "").strip(),
+                "type_number": data.get(f"child_seat_{index}_type_number", "").strip(),
+            }
+            for index in range(1, len(self.child_seat_fields) + 1)
+        ]
         return data
 
 def calculate(option, data):
@@ -212,6 +248,7 @@ def create_draft(option, data, result, snapshot, user):
         "customer_name_snapshot": " ".join(filter(None, [data["first_name"], data["last_name"]])),
         "wants_invoice_snapshot": data["wants_invoice"],
         "flight_number": data.get("flight_number", ""),
+        "child_seat_details": data.get("child_seat_details", []),
     }
     for field in ("email", "phone_1", "phone_2", "phone_3", "country", "address"):
         updates[f"customer_{field}_snapshot"] = data[field]

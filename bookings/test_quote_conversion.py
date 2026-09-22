@@ -397,11 +397,28 @@ class QuoteConversionTests(TestCase):
     def test_extras_quantity_caps_survive_booking_save(self):
         extra = SupplierExtra.objects.create(supplier=self.supplier, extra_code="CHILD_SEAT", name="Seat")
         SupplierExtraRate.objects.create(extra=extra, valid_from=date(2026, 1, 1), calculation_type="PER_DAY", amount_gross=20, maximum_amount_gross=50)
-        data, response = self.review(extra_choices=["CHILD_SEAT"], child_seat_quantity=2)
+        data, response = self.review(
+            extra_choices=["CHILD_SEAT"], child_seat_quantity=2,
+            child_seat_1_age="2", child_seat_1_height="88",
+            child_seat_1_type_number="Seat 1",
+            child_seat_2_age="6", child_seat_2_height="122",
+            child_seat_2_type_number="Booster",
+        )
+        self.assertContains(response, 'name="child_seat_1_age"')
+        self.assertContains(response, 'name="child_seat_2_type_number"')
         self.assertEqual(response.context["result"]["total"], Decimal("400"))
         self.create(data, response)
         booking = Booking.objects.get()
         self.assertEqual(booking.extras.get().quantity, 2)
+        self.assertEqual(booking.child_seat_details, [
+            {"age": "2", "height": "88", "type_number": "Seat 1"},
+            {"age": "6", "height": "122", "type_number": "Booster"},
+        ])
+        supplier_message = self.client.get(
+            reverse("quotes:supplier_message", args=[booking.pk])
+        )
+        self.assertContains(supplier_message, "Child seat 1: age 2, height 88 cm, type/number Seat 1")
+        self.assertContains(supplier_message, "Child seat 2: age 6, height 122 cm, type/number Booster")
         booking.save()
         self.assertEqual(booking.total_price_gross, Decimal("400"))
 
