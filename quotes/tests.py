@@ -655,6 +655,18 @@ class FirstInquiryTests(TestCase):
         for group in self.form_groups:
             self.assertNotContains(response, group.group_code)
 
+    def test_calculation_does_not_show_selected_groups_without_a_matching_rate(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        VehicleRate.objects.all().delete()
+
+        response = self.client.get(
+            reverse("quotes:calculate_quote", args=[quote.quote_number])
+        )
+
+        self.assertNotContains(response, "Варианты без цены")
+        self.assertNotContains(response, "Нельзя рассчитать")
+
     def test_selected_supplier_gets_matching_class_when_no_group_was_checked(self):
         from suppliers.models import PriceDayRange, PriceList, PriceSeason, VehicleRate
 

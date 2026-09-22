@@ -758,6 +758,9 @@ class CarFreePriceImportTests(TestCase):
         self.assertEqual(price_list.effective_from, date(2026, 9, 1))
         self.assertEqual(price_list.seasons.count(), 4)
         self.assertEqual(imported_count, 180)
+        longest_range = price_list.day_ranges.get(range_code="D15_29")
+        self.assertEqual(longest_range.label, "15+ days")
+        self.assertIsNone(longest_range.days_to)
         self.assertEqual(
             price_list.seasons.get(season_code="HOLIDAY_2026").rental_date_from,
             date(2026, 12, 14),

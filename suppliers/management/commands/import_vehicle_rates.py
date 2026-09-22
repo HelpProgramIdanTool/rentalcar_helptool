@@ -119,7 +119,7 @@ def import_car_free(path):
             ("D2", "2 days", 2, 2),
             ("D3_6", "3-6 days", 3, 6),
             ("D7_14", "7-14 days", 7, 14),
-            ("D15_29", "15-29 days", 15, 29),
+            ("D15_29", "15+ days", 15, None),
         ],
     )
     sheet_definitions = [
