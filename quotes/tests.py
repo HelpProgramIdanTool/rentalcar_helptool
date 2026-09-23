@@ -575,6 +575,10 @@ class FirstInquiryTests(TestCase):
         self.assertNotIn("Выслать оферту клиенту", quote.sent_html_snapshot)
         self.assertIn('dir="rtl"', quote.sent_html_snapshot)
         self.assertIn('max-width:760px', quote.sent_html_snapshot)
+        self.assertIn('table-layout:fixed', quote.sent_html_snapshot)
+        self.assertIn('-webkit-text-size-adjust:100%', quote.sent_html_snapshot)
+        self.assertIn('overflow-wrap:anywhere', quote.sent_html_snapshot)
+        self.assertIn('max-width:100%!important', quote.sent_html_snapshot)
         self.assertIn('text-align:right', quote.sent_html_snapshot)
         self.assertIn("ההצעה הזו הוכנה בעזרת בינה מלאכותית", quote.sent_html_snapshot)
         for benefit in STANDARD_INCLUDED_ITEMS:
