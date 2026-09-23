@@ -58,9 +58,9 @@ class Booking(models.Model):
 
     booking_number = models.CharField(max_length=20, unique=True, editable=False)
     supplier_booking_number = models.CharField(max_length=100, blank=True)
-    source_quote = models.OneToOneField(
+    source_quote = models.ForeignKey(
         "quotes.Quote", on_delete=models.PROTECT, null=True, blank=True,
-        related_name="created_booking", editable=False,
+        related_name="bookings", editable=False,
     )
     source_quote_snapshot = models.JSONField(default=dict, blank=True, editable=False)
     manual_entry_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)

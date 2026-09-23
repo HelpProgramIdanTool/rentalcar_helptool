@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+from uuid import uuid4
 
 from django import forms
 from django.contrib.auth.decorators import login_required
@@ -289,11 +290,8 @@ def create_draft(option, data, result, snapshot, user):
 @require_http_methods(["GET", "POST"])
 @transaction.atomic
 def from_offer(request, quote_number, option_id):
-    # Serialize conversion of the same offer, including repeated submission.
+    # Serialize conversion and protect each confirmed form from a double submit.
     quote = get_object_or_404(Quote.objects.select_for_update(), quote_number=quote_number)
-    existing = Booking.objects.filter(source_quote=quote).first()
-    if existing:
-        return redirect("quotes:booking_detail", pk=existing.pk)
     option = get_object_or_404(QuoteOption.objects.select_related("quote__customer"),
                              pk=option_id, quote=quote, is_included=True)
     initial = _quote_form_initial(quote)
@@ -335,12 +333,26 @@ def from_offer(request, quote_number, option_id):
                     previous = signing.loads(request.POST.get("review_token", ""), salt="booking-review", max_age=3600)
                 except signing.BadSignature:
                     previous = None
-                if previous == stamp and request.POST.get("confirm_price") == "yes":
+                valid_review = bool(
+                    previous
+                    and previous.get("fingerprint") == stamp["fingerprint"]
+                    and previous.get("user") == stamp["user"]
+                    and previous.get("nonce")
+                )
+                if valid_review and request.POST.get("confirm_price") == "yes":
+                    existing = Booking.objects.filter(
+                        source_quote=quote,
+                        source_quote_snapshot__conversion_nonce=previous["nonce"],
+                    ).first()
+                    if existing:
+                        return redirect("quotes:booking_detail", pk=existing.pk)
+                    snapshot["conversion_nonce"] = previous["nonce"]
                     booking = create_draft(option, form.cleaned_data, result, snapshot, request.user)
                     quote.status = Quote.Status.ACCEPTED
                     quote.save(update_fields=["status", "updated_at"])
                     return redirect("quotes:booking_detail", pk=booking.pk)
                 form.add_error(None, "Проверьте актуальный расчёт и подтвердите его. Данные или тариф могли измениться.")
+            stamp["nonce"] = uuid4().hex
             token = signing.dumps(stamp, salt="booking-review")
         except forms.ValidationError as error:
             form.add_error(None, error)

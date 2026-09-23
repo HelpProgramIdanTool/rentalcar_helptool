@@ -110,6 +110,48 @@ class QuoteConversionTests(TestCase):
         self.assertEqual(self.quote.status, Quote.Status.ACCEPTED)
         self.assertEqual(Booking.objects.get().source_quote, self.quote)
 
+    def test_one_offer_can_create_two_orders_for_different_drivers(self):
+        first_data, first_review = self.review(
+            driver_1_name="Anna Nowak", driver_2_name="Piotr Kowalski",
+        )
+        self.create(first_data, first_review)
+
+        second_data, second_review = self.review(
+            driver_1_name="David Cohen", driver_2_name="Sarah Cohen",
+        )
+        self.create(second_data, second_review)
+
+        orders = list(Booking.objects.filter(source_quote=self.quote).order_by("pk"))
+        self.assertEqual(len(orders), 2)
+        self.assertEqual(
+            [list(order.drivers.values_list("first_name", flat=True)) for order in orders],
+            [["Anna", "Piotr"], ["David", "Sarah"]],
+        )
+        offer_page = self.client.get(
+            reverse("quotes:inquiry_saved", args=[self.quote.quote_number])
+        )
+        self.assertContains(offer_page, orders[0].booking_number)
+        self.assertContains(offer_page, orders[1].booking_number)
+        self.assertContains(offer_page, "Создать ещё один заказ")
+        self.assertContains(offer_page, "Выбрать и создать заказ")
+
+    def test_repeated_submit_does_not_duplicate_the_same_order(self):
+        data, review = self.review(driver_1_name="Anna Nowak")
+
+        self.create(data, review)
+        self.create(data, review)
+
+        self.assertEqual(Booking.objects.filter(source_quote=self.quote).count(), 1)
+
+    def test_a_new_review_can_create_an_identical_second_order(self):
+        data, first_review = self.review(driver_1_name="Anna Nowak")
+        self.create(data, first_review)
+
+        same_data, second_review = self.review(driver_1_name="Anna Nowak")
+        self.create(same_data, second_review)
+
+        self.assertEqual(Booking.objects.filter(source_quote=self.quote).count(), 2)
+
     def test_subagent_from_offer_is_saved_in_booking_and_marks_supplier_number(self):
         agent = SubAgent.objects.create(name="Test partner", code_prefix="TP")
         self.quote.sub_agent = agent
