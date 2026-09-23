@@ -26,8 +26,10 @@ class SupplierAdmin(admin.ModelAdmin):
         "default_currency",
         "regular_service_from",
         "regular_service_to",
+        "subagent_pricing_method",
+        "subagent_markup_percent",
     )
-    list_filter = ("status", "default_currency")
+    list_filter = ("status", "default_currency", "subagent_pricing_method")
     search_fields = ("supplier_name", "supplier_code", "legal_name")
     list_editable = ("show_in_introduction",)
 
@@ -194,8 +196,9 @@ class PriceListAdmin(admin.ModelAdmin):
         "effective_to",
         "currency",
         "status",
+        "audience",
     )
-    list_filter = ("supplier", "status", "source_type", "currency")
+    list_filter = ("supplier", "status", "source_type", "currency", "audience")
     search_fields = ("name", "version", "supplier__supplier_name", "source_file")
     inlines = (PriceSeasonInline, PriceDayRangeInline)
 

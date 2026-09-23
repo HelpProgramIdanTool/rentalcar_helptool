@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from customers.models import Customer
+from employees.models import SubAgent
 from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup, PriceList, PriceSeason, PriceDayRange, VehicleRate
 
 from .models import Quote, QuoteOption, QuoteTemplate
@@ -274,6 +275,16 @@ class FirstInquiryTests(TestCase):
         self.assertContains(response, "Другой город / страна")
         choices = list(response.context["form"].fields["pickup_city"].choices)
         self.assertEqual(choices[:2], [("", "Выберите город"), ("OTHER", "Другой город / страна")])
+
+    def test_offer_saves_selected_subagent(self):
+        agent = SubAgent.objects.create(name="Test partner", code_prefix="TP")
+
+        response = self.client.post(
+            reverse("quotes:new_inquiry"), self.data(sub_agent=agent.pk)
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Quote.objects.get().sub_agent, agent)
 
     def test_other_pickup_and_return_city_are_saved_with_country(self):
         response = self.client.post(reverse("quotes:new_inquiry"), self.data(

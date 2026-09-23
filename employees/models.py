@@ -1,9 +1,15 @@
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
 
 
 class SubAgent(models.Model):
     name = models.CharField("Имя / компания", max_length=200)
+    code_prefix = models.CharField(
+        "Код из двух букв", max_length=2, unique=True, null=True,
+        validators=[RegexValidator(r"^[A-Z]{2}$", "Введите ровно две заглавные латинские буквы.")],
+        help_text="Две заглавные латинские буквы, например AB123456.",
+    )
     email = models.EmailField(blank=True)
     phone = models.CharField("Телефон", max_length=40, blank=True)
     is_active = models.BooleanField(default=True)
@@ -14,7 +20,7 @@ class SubAgent(models.Model):
         verbose_name_plural = "Субагенты"
 
     def __str__(self):
-        return self.name
+        return f"{self.code_prefix} — {self.name}" if self.code_prefix else self.name
 
 
 class Employee(models.Model):

@@ -98,10 +98,17 @@ def booking_list(request):
     )
     query = request.GET.get("q", "").strip()
     if query:
-        bookings = bookings.filter(Q(booking_number__icontains=query) |
+        marked_number = Q()
+        if len(query) > 2 and query[:2].isalpha():
+            marked_number = Q(
+                sub_agent__code_prefix__iexact=query[:2],
+                supplier_booking_number__icontains=query[2:],
+            )
+        bookings = bookings.filter(marked_number | Q(booking_number__icontains=query) |
             Q(supplier_booking_number__icontains=query) | Q(customer_name_snapshot__icontains=query) |
             Q(customer_email_snapshot__icontains=query) | Q(customer_phone_1_snapshot__icontains=query) |
-            Q(sub_agent__name__icontains=query) | Q(salesperson_employee__first_name__icontains=query) |
+            Q(sub_agent__name__icontains=query) | Q(sub_agent__code_prefix__icontains=query) |
+            Q(salesperson_employee__first_name__icontains=query) |
             Q(salesperson_employee__last_name__icontains=query))
     status = request.GET.get("status", "")
     if status:

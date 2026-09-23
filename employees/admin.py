@@ -5,8 +5,8 @@ from .models import Employee, SubAgent
 
 @admin.register(SubAgent)
 class SubAgentAdmin(admin.ModelAdmin):
-    list_display = ("name", "phone", "email", "is_active")
-    search_fields = ("name", "phone", "email")
+    list_display = ("code_prefix", "name", "phone", "email", "is_active")
+    search_fields = ("code_prefix", "name", "phone", "email")
     list_filter = ("is_active",)
 
 

@@ -2,6 +2,7 @@ from django import forms
 from django.db.models import Q
 from django.utils import timezone
 from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup
+from employees.models import SubAgent
 
 
 QUOTE_STATUS_LABELS = {
@@ -123,6 +124,10 @@ class FirstInquiryForm(forms.Form):
     preferred_language = forms.ChoiceField(
         label="Язык клиента", choices=LANGUAGE_CHOICES, initial="Hebrew", required=False
     )
+    sub_agent = forms.ModelChoiceField(
+        label="Субагент", queryset=SubAgent.objects.none(), required=False,
+        help_text="Оставьте пустым для прямого клиента.",
+    )
     address = forms.CharField(label="Адрес проживания", max_length=255, required=False)
     wants_invoice = forms.BooleanField(label="Клиент хочет инвойс", required=False)
     invoice_name = forms.CharField(label="Название / имя для инвойса", max_length=200, required=False)
@@ -192,6 +197,7 @@ class FirstInquiryForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["sub_agent"].queryset = SubAgent.objects.filter(is_active=True).order_by("name")
         self.fields["vehicle_classes"].queryset = VehicleComparisonClass.objects.filter(
             is_active=True
         ).order_by("display_order", "name")

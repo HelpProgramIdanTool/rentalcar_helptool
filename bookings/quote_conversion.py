@@ -118,6 +118,8 @@ class BookingFromOfferForm(FirstInquiryForm):
 
 def calculate(option, data):
     inquiry = copy.copy(option.quote)
+    inquiry.sub_agent = data.get("sub_agent")
+    inquiry.sub_agent_id = inquiry.sub_agent.pk if inquiry.sub_agent else None
     for field in ("pickup_datetime", "return_datetime", "pickup_city", "return_city",
                   "pickup_service", "return_service", "pickup_address", "return_address",
                   "driver_count", "cross_border_requested"):
@@ -210,7 +212,9 @@ def create_draft(option, data, result, snapshot, user):
     booking = Booking(customer=option.quote.customer, source_quote=option.quote if option.quote.pk else None,
                       source_quote_snapshot=snapshot, supplier=result["supplier"],
                       vehicle_group=result["group"], currency=result["currency"],
-                      pickup_datetime=data["pickup_datetime"], return_datetime=data["return_datetime"])
+                      pickup_datetime=data["pickup_datetime"], return_datetime=data["return_datetime"],
+                      sub_agent=data.get("sub_agent"),
+                      order_source="SUBAGENT" if data.get("sub_agent") else "SELF")
     labels = dict(FirstInquiryForm.SERVICE_CHOICES)
     for side in ("pickup", "return"):
         setattr(booking, f"{side}_location", result["locations"][side])
@@ -249,6 +253,7 @@ def create_draft(option, data, result, snapshot, user):
         "wants_invoice_snapshot": data["wants_invoice"],
         "flight_number": data.get("flight_number", ""),
         "child_seat_details": data.get("child_seat_details", []),
+        "subagent_price_adjustment_amount": result.get("subagent_adjustment", Decimal("0.00")),
     }
     for field in ("email", "phone_1", "phone_2", "phone_3", "country", "address"):
         updates[f"customer_{field}_snapshot"] = data[field]

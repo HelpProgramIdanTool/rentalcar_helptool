@@ -91,6 +91,7 @@ def _quote_form_initial(quote):
         "email": customer.email, "phone_1": customer.phone_1,
         "phone_2": customer.phone_2, "phone_3": customer.phone_3,
         "country": customer.country, "preferred_language": quote.language,
+        "sub_agent": quote.sub_agent_id,
         "address": customer.address, "wants_invoice": customer.wants_invoice,
         "invoice_name": customer.invoice_name, "invoice_tax_id": customer.invoice_tax_id,
         "invoice_address": customer.invoice_address, "invoice_email": customer.invoice_email,
@@ -130,6 +131,7 @@ def _update_quote_from_form(quote, data):
         setattr(quote, f"{prefix}_service", data[f"{prefix}_service"])
         setattr(quote, f"{prefix}_address", data[f"{prefix}_address"])
     quote.language = data["preferred_language"]
+    quote.sub_agent = data.get("sub_agent")
     quote.pickup_datetime = data["pickup_datetime"]
     quote.return_datetime = data["return_datetime"]
     quote.driver_count = data["driver_count"]
@@ -185,6 +187,7 @@ def new_inquiry(request, customer_id=None):
                 customer=customer,
                 created_by_user=request.user,
                 language=form.cleaned_data["preferred_language"],
+                sub_agent=form.cleaned_data.get("sub_agent"),
                 pickup_datetime=form.cleaned_data["pickup_datetime"],
                 return_datetime=form.cleaned_data["return_datetime"],
                 pickup_location_text=pickup_location,
@@ -254,6 +257,7 @@ def duplicate_quote(request, quote_number):
     duplicate = Quote.objects.create(
         customer=source.customer, created_by_user=request.user, status=Quote.Status.DRAFT,
         language=source.language, pickup_datetime=source.pickup_datetime,
+        sub_agent=source.sub_agent,
         return_datetime=source.return_datetime, pickup_location_text=source.pickup_location_text,
         return_location_text=source.return_location_text, pickup_city=source.pickup_city,
         pickup_service=source.pickup_service, pickup_address=source.pickup_address,
@@ -328,6 +332,9 @@ def calculate_quote(request, quote_number):
                         "calculation_snapshot": {
                             "daily_rate": str(option["daily_rate"]), "days": option["days"],
                             "base": str(option["base"]), "extras_total": str(option["extras_total"]),
+                            "subagent_adjustment": str(option["subagent_adjustment"]),
+                            "subagent_pricing_method": option["subagent_pricing_method"],
+                            "price_audience": option["price_audience"],
                             "season": option["season"], "day_range": option["day_range"], "lines": lines,
                             "manual_adjustment_label": option["manual_label"],
                             "manual_adjustment_amount": str(option["adjustment_amount"]),

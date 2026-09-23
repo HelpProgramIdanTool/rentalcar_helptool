@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from customers.models import Customer
+from employees.models import SubAgent
 from suppliers.models import Supplier, SupplierLocation, VehicleGroup, VehicleComparisonClass, PriceList, PriceSeason, PriceDayRange, VehicleRate, SupplierExtra, SupplierExtraRate
 from quotes.models import Quote, QuoteOption
 from .models import Booking
@@ -108,6 +109,21 @@ class QuoteConversionTests(TestCase):
         self.quote.refresh_from_db()
         self.assertEqual(self.quote.status, Quote.Status.ACCEPTED)
         self.assertEqual(Booking.objects.get().source_quote, self.quote)
+
+    def test_subagent_from_offer_is_saved_in_booking_and_marks_supplier_number(self):
+        agent = SubAgent.objects.create(name="Test partner", code_prefix="TP")
+        self.quote.sub_agent = agent
+        self.quote.save(update_fields=["sub_agent"])
+
+        data, response = self.review(sub_agent=agent.pk)
+        self.create(data, response)
+        booking = Booking.objects.get()
+        booking.supplier_booking_number = "123456"
+        booking.save(update_fields=["supplier_booking_number"])
+
+        self.assertEqual(booking.sub_agent, agent)
+        self.assertEqual(booking.order_source, "SUBAGENT")
+        self.assertEqual(booking.marked_supplier_booking_number, "TP123456")
 
     @override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}})
     def test_offer_to_supplier_confirmation_flow(self):

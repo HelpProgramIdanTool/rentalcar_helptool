@@ -10,6 +10,11 @@ class Supplier(models.Model):
         ACTIVE = "ACTIVE", "Active"
         INACTIVE = "INACTIVE", "Inactive"
 
+    class SubagentPricingMethod(models.TextChoices):
+        STANDARD = "STANDARD", "Обычный ценник"
+        DEDICATED = "DEDICATED", "Отдельный ценник субагента"
+        PERCENT_TOTAL = "PERCENT_TOTAL", "Процент к общей сумме"
+
     supplier_code = models.CharField(max_length=30, unique=True)
     supplier_name = models.CharField(max_length=120)
     show_in_introduction = models.BooleanField("Показывать в представлении агентства", default=False)
@@ -28,6 +33,14 @@ class Supplier(models.Model):
     internal_note = models.TextField(blank=True)
     regular_service_from = models.TimeField(default=time(8, 0))
     regular_service_to = models.TimeField(default=time(20, 0))
+    subagent_pricing_method = models.CharField(
+        "Расчёт для субагента", max_length=20,
+        choices=SubagentPricingMethod.choices, default=SubagentPricingMethod.STANDARD,
+    )
+    subagent_markup_percent = models.DecimalField(
+        "Процент к общей сумме", max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0)],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -357,6 +370,10 @@ class PriceList(models.Model):
         MANUAL = "MANUAL", "Manual"
         EXCEL = "EXCEL", "Excel"
 
+    class Audience(models.TextChoices):
+        STANDARD = "STANDARD", "Обычный клиент"
+        SUBAGENT = "SUBAGENT", "Клиент субагента"
+
     supplier = models.ForeignKey(
         Supplier,
         on_delete=models.PROTECT,
@@ -378,6 +395,10 @@ class PriceList(models.Model):
         default=SourceType.MANUAL,
     )
     source_file = models.CharField(max_length=255, blank=True)
+    audience = models.CharField(
+        "Для кого ценник", max_length=20,
+        choices=Audience.choices, default=Audience.STANDARD,
+    )
     note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

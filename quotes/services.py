@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from customers.models import Customer
 from suppliers.models import (
+    PriceList,
     SupplierExtraRate,
     VehicleComparisonClass,
     VehicleRate,
@@ -251,11 +252,21 @@ def calculate_quote_options(quote, *, vehicle_group=None):
         if requested_supplier_ids and group.supplier_id not in requested_supplier_ids:
             continue
         vehicle_title, body_type_label = vehicle_class_presentation(comparison, group)
+        use_subagent_prices = bool(
+            getattr(quote, "sub_agent_id", None)
+            and group.supplier.subagent_pricing_method
+            == group.supplier.SubagentPricingMethod.DEDICATED
+        )
+        price_audience = (
+            PriceList.Audience.SUBAGENT if use_subagent_prices
+            else PriceList.Audience.STANDARD
+        )
         rate = VehicleRate.objects.filter(
             is_active=True,
             vehicle_group=group.effective_rate_group,
             season__is_active=True,
             season__price_list__status="ACTIVE",
+            season__price_list__audience=price_audience,
             season__price_list__effective_from__lte=pickup_date,
             season__rental_date_from__lte=pickup_date,
             day_range__is_active=True,
@@ -388,6 +399,16 @@ def calculate_quote_options(quote, *, vehicle_group=None):
                 excluded_items.append(
                     f"{optional_labels[canonical_code]} — {_rate_description(optional_rate)}"
                 )
+        subtotal = base + extras_total
+        subagent_adjustment = Decimal("0.00")
+        if (
+            getattr(quote, "sub_agent_id", None)
+            and group.supplier.subagent_pricing_method
+            == group.supplier.SubagentPricingMethod.PERCENT_TOTAL
+        ):
+            subagent_adjustment = (
+                subtotal * group.supplier.subagent_markup_percent / Decimal("100")
+            ).quantize(Decimal("0.01"))
         results.append({
             "comparison": comparison,
             "supplier": group.supplier,
@@ -400,7 +421,13 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             "extra_lines": lines,
             "unavailable_requests": unavailable_requests,
             "extras_total": extras_total,
-            "total": base + extras_total,
+            "total": subtotal + subagent_adjustment,
+            "subagent_adjustment": subagent_adjustment,
+            "subagent_pricing_method": (
+                group.supplier.subagent_pricing_method
+                if getattr(quote, "sub_agent_id", None) else ""
+            ),
+            "price_audience": price_audience,
             "season": rate.season.season_name,
             "day_range": rate.day_range.label,
             "currency": rate.currency,

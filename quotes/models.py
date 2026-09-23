@@ -31,6 +31,10 @@ class Quote(models.Model):
     customer = models.ForeignKey(
         "customers.Customer", on_delete=models.PROTECT, related_name="quotes"
     )
+    sub_agent = models.ForeignKey(
+        "employees.SubAgent", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="quotes",
+    )
     created_by_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

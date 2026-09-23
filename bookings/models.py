@@ -124,6 +124,9 @@ class Booking(models.Model):
     return_hotel_name = models.CharField(max_length=200, blank=True)
     manual_adjustment_label = models.CharField(max_length=200, blank=True)
     manual_adjustment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    subagent_price_adjustment_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, editable=False,
+    )
     flight_number = models.CharField(max_length=50, blank=True)
     child_seat_details = models.JSONField(default=list, blank=True)
     vehicle_group = models.ForeignKey(
@@ -213,6 +216,12 @@ class Booking(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+    @property
+    def marked_supplier_booking_number(self):
+        if self.sub_agent_id and self.supplier_booking_number:
+            return f"{self.sub_agent.code_prefix}{self.supplier_booking_number}"
+        return self.supplier_booking_number
 
     def clean(self):
         super().clean()
@@ -577,7 +586,10 @@ class Booking(models.Model):
             ),
             Decimal("0.00"),
         )
-        total = self.vehicle_price_gross + extras_total + self.manual_adjustment_amount
+        total = (
+            self.vehicle_price_gross + extras_total
+            + self.manual_adjustment_amount + self.subagent_price_adjustment_amount
+        )
         type(self).objects.filter(pk=self.pk).update(
             extras_total_gross=extras_total,
             total_price_gross=total,

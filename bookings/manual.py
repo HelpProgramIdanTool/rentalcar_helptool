@@ -88,6 +88,8 @@ def new_booking(request):
         if entry and form.is_valid():
             data = form.cleaned_data
             option = SimpleNamespace(pk=None, quote=Quote(quote_number="Ручной заказ"), total_price_gross=Decimal("0"), currency="PLN")
+            option.quote.sub_agent = data.get("sub_agent")
+            option.quote.sub_agent_id = data["sub_agent"].pk if data.get("sub_agent") else None
             try:
                 result = calculate(option, data)
                 if result["deposit_amount"] is None:

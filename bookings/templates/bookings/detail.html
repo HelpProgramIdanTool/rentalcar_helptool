@@ -5,7 +5,7 @@
 <p><a href="{% url 'quotes:booking_list' %}">← Все заказы</a></p>
 <p><a href="{% url 'quotes:supplier_message' booking.pk %}">Подготовить письмо поставщику</a></p>
 {% if booking.supplier_booking_number %}
-<p>Номер заказа у поставщика: <strong>{{ booking.supplier_booking_number }}</strong></p>
+<p>Номер заказа у поставщика: <strong>{{ booking.marked_supplier_booking_number }}</strong>{% if booking.sub_agent %} <small>(номер поставщика: {{ booking.supplier_booking_number }})</small>{% endif %}</p>
 <p><a href="{% url 'admin:bookings_booking_change' booking.pk %}">Изменить данные заказа</a> · <a href="{% url 'quotes:supplier_message' booking.pk %}?change=1">Подготовить письмо об изменении</a></p>
 {% if booking.status == 'UPDATE_PENDING' %}<p role="status">Изменения отправлены поставщику. Ожидаем новое подтверждение по тому же номеру заказа.</p>{% endif %}
 {% endif %}
@@ -45,6 +45,7 @@
 <ul>{% for extra in booking.extras.all %}<li>{{ extra.customer_visible_name }} × {{ extra.quantity }} — {{ extra.calculated_price_gross }} {{ extra.currency_snapshot }}</li>{% endfor %}</ul>
 {% if booking.child_seat_details %}<h3>Детские кресла</h3><ul>{% for seat in booking.child_seat_details %}<li>Кресло {{ forloop.counter }}: возраст {{ seat.age|default:'не указан' }}, рост {{ seat.height|default:'не указан' }}{% if seat.height %} см{% endif %}, тип/номер {{ seat.type_number|default:'не указан' }}</li>{% endfor %}</ul>{% endif %}
 {% if booking.manual_adjustment_amount %}<p>{{ booking.manual_adjustment_label }} — {{ booking.manual_adjustment_amount }} {{ booking.currency }}</p>{% endif %}
+{% if booking.subagent_price_adjustment_amount %}<p>Надбавка для субагента — {{ booking.subagent_price_adjustment_amount }} {{ booking.currency }}</p>{% endif %}
 <p><strong>Итого: {{ booking.total_price_gross }} {{ booking.currency }}</strong></p>
 <p>Депозит: {{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% if booking.source_quote_snapshot.deposit_usage == 'once' %} (только для этого заказа){% endif %}</p>
 <p>Заметка клиента: {{ booking.source_quote_snapshot.request.customer_notes }}</p>
