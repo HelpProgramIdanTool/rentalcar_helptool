@@ -17,8 +17,6 @@ def supplier_introduction():
 def load_email_template(quote, *, replace=False):
     template = QuoteTemplate.objects.filter(language=quote.language, is_active=True).first()
     if not template:
-        template = QuoteTemplate.objects.filter(language="Hebrew", is_active=True).first()
-    if not template:
         return
     if replace:
         quote.document_blocks.all().delete()
@@ -26,14 +24,16 @@ def load_email_template(quote, *, replace=False):
     for block in template.blocks.filter(is_active=True):
         QuoteDocumentBlock.objects.get_or_create(quote=quote, block_key=block.block_key, defaults={
             "source_block": block, "title": block.title,
-            "content": block.content.replace("{suppliers}", names or "חברות ההשכרה השותפות שלנו"),
+            "content": block.content.replace(
+                "{suppliers}", names or ("our partner rental companies" if quote.language == "English" else "חברות ההשכרה השותפות שלנו")
+            ),
             "display_order": block.display_order,
             "is_enabled": bool(block.content) or block.block_key in REQUIRED_BLOCKS,
         })
 
 
 def ensure_required_blocks(quote):
-    template = QuoteTemplate.objects.filter(language="Hebrew", is_active=True).first()
+    template = QuoteTemplate.objects.filter(language=quote.language, is_active=True).first()
     if not template:
         return
     for source in template.blocks.filter(block_key__in=REQUIRED_BLOCKS | {"SIGNATURE", "AI_NOTE"}):
@@ -70,6 +70,13 @@ def child_seat_text(quote, guides):
         needed = False
     if not needed:
         return ""
+    if quote.language == "English":
+        text = "If you requested a child seat or booster, please provide the age, height and weight of each child."
+        if guides:
+            text += " Please read the attached instructions from the relevant rental companies."
+        if any(guide["code"] == "02" for guide in guides):
+            text += " For One Rent, also provide the requested seat type number (1–5) shown in the attachment."
+        return text
     text = "אם ביקשתם כיסא בטיחות או בוסטר, חשוב להתייחס לבחירה באחריות ולמסור את הגיל, הגובה והמשקל של כל ילד."
     if guides:
         text += " אנא קראו בעיון את ההסברים בקבצים המצורפים של חברות ההשכרה הרלוונטיות."

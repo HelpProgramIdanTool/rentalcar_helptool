@@ -436,19 +436,64 @@ def _quote_preview_context(quote, *, is_email=False):
     ensure_quote_document_blocks(quote)
     ensure_quote_option_presentation(quote)
     options = list(quote.options.filter(is_included=True).select_related("comparison_class"))
-    pickup_messages = airport_pickup_messages(quote, {option.supplier_id for option in options})
+    is_english = quote.language == "English"
+    pickup_messages = airport_pickup_messages(
+        quote, {option.supplier_id for option in options}, quote.language
+    )
+    english_items = {
+        "מחיר השכרת הרכב": "Vehicle rental price",
+        "מע״מ (VAT)": "VAT",
+        "ביטוח מלא עם ביטול השתתפות עצמית": "Full insurance with zero excess",
+        "קילומטראז׳ ללא הגבלה": "Unlimited mileage",
+        "נהג שני ללא תשלום": "Second driver free of charge",
+        "נהג נוסף": "Additional driver",
+        "תוספת שירות בשדה התעופה": "Airport service fee",
+        "כיסא תינוק / בוסטר": "Child seat / booster",
+        "מסירה או החזרה בכתובת בעיר": "Delivery or return at a city address",
+        "מסירה והחזרה בעיר או בשדה התעופה": "Delivery and return in the city or at the airport",
+        "אישור והרחבת כיסוי ליציאה מפולין": "Approval and extended coverage for travel outside Poland",
+        "GPS / מערכת ניווט": "GPS / navigation",
+        "שרשראות שלג": "Snow chains",
+        "נתב Wi-Fi": "Wi-Fi router",
+    }
+    def translate_item(value):
+        if value in english_items:
+            return english_items[value]
+        for source, translated in english_items.items():
+            if value.startswith(source + " — "):
+                details = value[len(source) + 3:]
+                details = (details.replace(" ליום", " per day")
+                                  .replace(" להשכרה", " per rental")
+                                  .replace(" ליחידה", " per unit")
+                                  .replace("מקסימום", "maximum"))
+                return f"{translated} — {details}"
+        return value
     for option in options:
         option.airport_pickup_message = pickup_messages.get(option.supplier_id, "")
+        option.display_vehicle_class = (
+            option.vehicle_group_name_snapshot
+            if is_english else option.calculation_snapshot.get("hebrew_vehicle_class", option.vehicle_group_name_snapshot)
+        )
+        option.display_included_items = [
+            translate_item(item) if is_english else item
+            for item in option.calculation_snapshot.get("included_items", [])
+        ]
+        option.display_excluded_items = [
+            translate_item(item) if is_english else item
+            for item in option.calculation_snapshot.get("excluded_items", [])
+        ]
     blocks = quote.document_blocks.filter(Q(is_enabled=True) | Q(block_key__in=REQUIRED_BLOCKS)).exclude(content="")
     introduction_keys = {"GREETING", "IMPORTANT", "CROSS_BORDER"}
     introduction_blocks = [block for block in blocks if block.block_key in introduction_keys]
     blocks = [block for block in blocks if block.block_key not in introduction_keys]
     guides = seat_guides(quote)
-    service_labels = {
+    service_labels = ({
+        "AIRPORT": "Airport", "ADDRESS": "Delivery to a city address", "CITY_BRANCH": "City branch",
+    } if is_english else {
         "AIRPORT": "שדה התעופה",
         "ADDRESS": "מסירה לכתובת בעיר",
         "CITY_BRANCH": "סניף בעיר",
-    }
+    })
     pickup_location = f"{quote.pickup_city} — {service_labels.get(quote.pickup_service, quote.pickup_service)}"
     return_location = f"{quote.return_city} — {service_labels.get(quote.return_service, quote.return_service)}"
     if quote.pickup_address:
@@ -459,6 +504,7 @@ def _quote_preview_context(quote, *, is_email=False):
         "quote": quote, "options": options, "blocks": blocks,
         "pickup_location": pickup_location, "return_location": return_location,
         "is_email": is_email,
+        "is_english": is_english,
         "introduction_blocks": introduction_blocks,
         "guides": guides, "child_seat_text": child_seat_text(quote, guides),
     }

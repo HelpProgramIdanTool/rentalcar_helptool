@@ -58,6 +58,27 @@ class EmailEditorTests(TestCase):
         self.assertContains(preview, "הערה ללקוח")
         self.assertContains(preview, "&lt;script&gt;")
 
+    def test_english_quote_uses_english_template_and_labels(self):
+        self.quote.language = "English"
+        self.quote.save(update_fields=["language"])
+        load_email_template(self.quote, replace=True)
+
+        preview = self.client.get(
+            reverse("quotes:quote_preview", args=[self.quote.quote_number])
+        )
+        customer_html = self.client.get(
+            reverse("quotes:copy_quote", args=[self.quote.quote_number])
+        ).json()["html"]
+
+        self.assertEqual(
+            set(self.quote.document_blocks.values_list("source_block__template__language", flat=True)),
+            {"English"},
+        )
+        self.assertContains(preview, "Rental details")
+        self.assertContains(preview, "Vehicle options")
+        self.assertContains(preview, "Total price")
+        self.assertNotIn("פרטי ההשכרה", customer_html)
+
     def test_mandatory_not_disabled_and_options_independent_of_deposit_block(self):
         self.quote.document_blocks.filter(block_key__in=["CROSS_BORDER", "PAYMENT_DEPOSIT"]).update(is_enabled=False)
         response = self.client.get(reverse("quotes:quote_preview", args=[self.quote.quote_number]))

@@ -26,7 +26,7 @@ def airport_code_for_city(city):
     return next(iter(codes)) if len(codes) == 1 else None
 
 
-def airport_pickup_messages(quote, supplier_ids):
+def airport_pickup_messages(quote, supplier_ids, language="Hebrew"):
     if quote.pickup_service != "AIRPORT":
         return {}
     code = airport_code_for_city(quote.pickup_city)
@@ -38,6 +38,12 @@ def airport_pickup_messages(quote, supplier_ids):
         )
     } if code else {}
     wording = dict(AirportPickupWording.objects.values_list("method_code", "text_he"))
+    if language == "English":
+        wording = {
+            "DESK": "Vehicle collection is at the rental company's airport desk.",
+            "MEET": "A rental company representative will meet you at the airport.",
+            "UNKNOWN": "The exact airport collection procedure will be confirmed with the booking.",
+        }
     messages = {}
     for supplier_id in supplier_ids:
         location = locations.get(supplier_id)
