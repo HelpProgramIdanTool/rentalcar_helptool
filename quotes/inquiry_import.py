@@ -88,7 +88,7 @@ def parse_inquiry(raw):
                 sections[(section, key.strip())] = value.strip()
     warnings = []
     data = {"customer_notes": raw, "preferred_language": "Hebrew", "driver_count": 1,
-            "first_name": fields.get("שם", ""), "last_name": "",
+            "full_name": fields.get("שם", ""), "first_name": fields.get("שם", ""), "last_name": "",
             "email": fields.get("דוא״ל", fields.get('דוא"ל', "")),
             "phone_1": fields.get("טלפון / וואטסאפ", ""), "extra_choices": []}
     cities = {"קרקוב": "Kraków", "קראקוב": "Kraków", "ורשה": "Warszawa", "וורשה": "Warszawa",

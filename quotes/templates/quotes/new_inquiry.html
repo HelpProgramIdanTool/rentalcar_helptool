@@ -17,6 +17,7 @@
     input, textarea, select { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid #c9d2df; border-radius: 8px; font: inherit; background:white; }
     input[type=checkbox] { width: auto; } .check { display: flex; align-items: center; gap: 8px; }
     .full { grid-column: 1 / -1; } .errors, .errorlist { color: #b42318; }
+    .phone-stack{grid-column:1/-1;display:grid;gap:10px}.phone-line{display:flex;align-items:end;gap:8px}.phone-line label{width:min(240px,100%)}.phone-add{width:42px;height:38px;padding:0;font-size:24px;line-height:1}.optional-phone[hidden]{display:none}
     button { border: 0; border-radius: 9px; background: #155eef; color: white; font-size: 17px; font-weight: 700; padding: 13px 22px; cursor: pointer; }
     #invoice-fields[hidden] { display: none; }
     .date-control{display:grid;grid-template-columns:1fr 52px;gap:8px}.native-date-picker{position:static;width:52px;height:42px;opacity:1;pointer-events:auto;cursor:pointer;padding:7px;color:transparent;background:#e8efff}.native-date-picker::-webkit-datetime-edit{display:none}.native-date-picker::-webkit-calendar-picker-indicator{width:100%;height:100%;margin:0;cursor:pointer}.optional-phone[hidden],.address-field[hidden],#child-seat-count[hidden],#customer-history[hidden]{display:none}.small-button{font-size:14px;padding:8px 12px;background:#e8efff;color:#155eef}.customer-message textarea{direction:rtl;text-align:right;font-size:18px}.next-note{background:#eef5ff;padding:13px;border-radius:8px;color:#344054}.vehicle-classes,.extras-choice,.supplier-choice{grid-column:1/-1}.extras-choice>div,.supplier-choice>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.vehicle-classes>div{display:grid;gap:14px}.vehicle-classes>div>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;background:#f7f9fc;border:1px solid #d8e0eb;border-radius:10px;padding:12px}.vehicle-classes>div>div>label:first-child{grid-column:1/-1;border:0;padding:2px 0 7px;font-size:17px;font-weight:700;color:#173b72}.vehicle-classes>div>div>div{display:contents}.vehicle-classes label,.extras-choice label,.supplier-choice label{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #d8e0eb;border-radius:7px;font-weight:normal;background:#fff}.vehicle-classes input,.extras-choice input,.supplier-choice input{width:auto;margin:0}.customer-history{grid-column:1/-1;padding:14px;border-radius:9px;background:#eef5ff;border:1px solid #bdd2fa}.customer-history.warning{background:#fff4e5;border-color:#f4c77d}.customer-history.serious{background:#fde8e7;border-color:#f2aaa6}.customer-history h3{margin:0 0 8px}.customer-history ul{margin-bottom:5px}
@@ -77,10 +78,14 @@
     </fieldset>
     <div class="form-scroll">
     <fieldset><legend>1. Клиент</legend><div class="grid">
-      {% for field in form %}{% if field.name in "first_name last_name email phone_1 country preferred_language sub_agent address" %}<label class="{% if field.name == 'address' %}full{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endif %}{% endfor %}
-      <label class="optional-phone" id="phone-2-box" hidden>{{ form.phone_2.label }}{{ form.phone_2 }}{{ form.phone_2.errors }}</label>
-      <label class="optional-phone" id="phone-3-box" hidden>{{ form.phone_3.label }}{{ form.phone_3 }}{{ form.phone_3.errors }}</label>
-      <div class="full"><button class="small-button" id="add-phone" type="button">+ Добавить номер телефона</button></div>
+      <label>{{ form.full_name.label }}{{ form.full_name }}{{ form.full_name.errors }}</label>
+      <label>{{ form.email.label }}{{ form.email }}{{ form.email.errors }}</label>
+      <div class="phone-stack">
+        <div class="phone-line"><label>{{ form.phone_1.label }}{{ form.phone_1 }}{{ form.phone_1.errors }}</label><button class="small-button phone-add" id="add-phone" type="button" title="Добавить ещё один телефон" aria-label="Добавить ещё один телефон">+</button></div>
+        <div class="phone-line optional-phone" id="phone-2-box" hidden><label>{{ form.phone_2.label }}{{ form.phone_2 }}{{ form.phone_2.errors }}</label></div>
+        <div class="phone-line optional-phone" id="phone-3-box" hidden><label>{{ form.phone_3.label }}{{ form.phone_3 }}{{ form.phone_3.errors }}</label></div>
+      </div>
+      {% for field in form %}{% if field.name in "country preferred_language sub_agent address" %}<label class="{% if field.name == 'address' %}full{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endif %}{% endfor %}
       <div class="customer-history" id="customer-history" hidden></div>
     </div></fieldset>
     <fieldset><legend>2. Инвойс</legend>

@@ -68,7 +68,7 @@ class FirstInquiryTests(TestCase):
 
     def data(self, **changes):
         values = {
-            "first_name": "Anna", "last_name": "Nowak", "email": "anna@example.com",
+            "full_name": "Anna Nowak", "first_name": "", "last_name": "", "email": "anna@example.com",
             "phone_1": "+48123123123", "preferred_language": "Hebrew",
             "suppliers": [str(self.supplier.id)],
             "pickup_date": self.pickup.strftime("%d-%m-%Y"),
@@ -113,6 +113,17 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(quote.pickup_service, "AIRPORT")
         self.assertEqual(quote.requested_suppliers.count(), 1)
         self.assertEqual(quote.requested_vehicle_groups.count(), 2)
+        self.assertEqual(quote.customer.first_name, "Anna")
+        self.assertEqual(quote.customer.last_name, "Nowak")
+
+    def test_customer_section_uses_one_name_field_and_compact_phone_button(self):
+        response = self.client.get(reverse("quotes:new_inquiry"))
+
+        self.assertContains(response, 'name="full_name"')
+        self.assertContains(response, 'id="add-phone"')
+        self.assertContains(response, 'aria-label="Добавить ещё один телефон"')
+        self.assertNotContains(response, '>Имя<')
+        self.assertNotContains(response, '>Фамилия<')
 
     def test_date_calendars_do_not_share_labels_with_manual_inputs(self):
         from html.parser import HTMLParser
@@ -146,7 +157,7 @@ class FirstInquiryTests(TestCase):
     def test_offer_can_be_created_without_last_name_using_only_phone(self):
         response = self.client.post(
             reverse("quotes:new_inquiry"),
-            self.data(last_name="", email="", phone_1="+48111222333"),
+            self.data(full_name="Anna", last_name="", email="", phone_1="+48111222333"),
         )
 
         self.assertEqual(response.status_code, 302)
@@ -214,13 +225,13 @@ class FirstInquiryTests(TestCase):
 
         for field, value in (("email", "only@example.com"), ("phone_1", "111"), ("phone_2", "222"), ("phone_3", "333")):
             with self.subTest(field=field):
-                data = self.data(first_name="", last_name="", email="", phone_1="", phone_2="", phone_3="", preferred_language="", wants_invoice=True)
+                data = self.data(full_name="", first_name="", last_name="", email="", phone_1="", phone_2="", phone_3="", preferred_language="", wants_invoice=True)
                 data[field] = value
                 form = FirstInquiryForm(data)
                 self.assertTrue(form.is_valid(), form.errors)
 
     def test_nameless_customer_can_save_offer_and_has_contact_label(self):
-        response = self.client.post(reverse("quotes:new_inquiry"), self.data(first_name="", last_name="", phone_1=""))
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(full_name="", first_name="", last_name="", phone_1=""))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(str(Quote.objects.get().customer), "anna@example.com")
 
@@ -231,7 +242,7 @@ class FirstInquiryTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.context["form"].initial["phone_2"], "222")
         self.assertNotContains(response, 'id="restore-draft"')
-        self.client.post(url, self.data(first_name="", last_name="", email="shared@example.com", phone_1="", phone_2="222"))
+        self.client.post(url, self.data(full_name="", first_name="", last_name="", email="shared@example.com", phone_1="", phone_2="222"))
         self.assertEqual(Quote.objects.get().customer_id, selected.pk)
         self.assertEqual(Customer.objects.count(), 2)
 

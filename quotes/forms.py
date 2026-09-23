@@ -114,10 +114,13 @@ class FirstInquiryForm(forms.Form):
         (f"{hour:02d}:{minute:02d}", f"{hour:02d}:{minute:02d}")
         for hour in range(24) for minute in range(0, 60, 5)
     ]
-    first_name = forms.CharField(label="Имя", max_length=100, required=False)
-    last_name = forms.CharField(label="Фамилия", max_length=100, required=False)
+    full_name = forms.CharField(label="Имя и фамилия", max_length=200, required=False)
+    # Keep the old fields accepted for saved drafts and older integrations. They are
+    # no longer shown on the form; clean() fills them from the single full-name field.
+    first_name = forms.CharField(required=False, widget=forms.HiddenInput)
+    last_name = forms.CharField(required=False, widget=forms.HiddenInput)
     email = forms.EmailField(label="E-mail", required=False)
-    phone_1 = forms.CharField(label="Телефон 1", max_length=30, required=False)
+    phone_1 = forms.CharField(label="Телефон", max_length=30, required=False)
     phone_2 = forms.CharField(label="Телефон 2", max_length=30, required=False)
     phone_3 = forms.CharField(label="Телефон 3", max_length=30, required=False)
     country = forms.CharField(label="Страна", max_length=100, required=False)
@@ -247,6 +250,14 @@ class FirstInquiryForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
+        full_name = (cleaned.get("full_name") or "").strip()
+        if full_name:
+            name_parts = full_name.split(maxsplit=1)
+            cleaned["first_name"] = name_parts[0]
+            cleaned["last_name"] = name_parts[1] if len(name_parts) > 1 else ""
+        else:
+            cleaned["first_name"] = (cleaned.get("first_name") or "").strip()
+            cleaned["last_name"] = (cleaned.get("last_name") or "").strip()
         for side, label in (("pickup", "получения"), ("return", "возврата")):
             if cleaned.get(f"{side}_city") == "OTHER":
                 country = cleaned.get(f"{side}_other_country", "").strip()

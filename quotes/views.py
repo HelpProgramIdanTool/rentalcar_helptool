@@ -87,6 +87,7 @@ def _quote_form_initial(quote):
             group_id for group_id in groups if group_id is not None
         )
     return {
+        "full_name": " ".join(part for part in (customer.first_name, customer.last_name) if part),
         "first_name": customer.first_name, "last_name": customer.last_name,
         "email": customer.email, "phone_1": customer.phone_1,
         "phone_2": customer.phone_2, "phone_3": customer.phone_3,
@@ -164,6 +165,9 @@ def new_inquiry(request, customer_id=None):
             "country", "preferred_language", "address", "wants_invoice", "invoice_name",
             "invoice_tax_id", "invoice_address", "invoice_email",
         )}
+        initial["full_name"] = " ".join(
+            part for part in (selected_customer.first_name, selected_customer.last_name) if part
+        )
     form = FirstInquiryForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
