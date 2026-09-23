@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from customers.models import Customer
 from employees.models import SubAgent
-from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup, PriceList, PriceSeason, PriceDayRange, VehicleRate
+from suppliers.models import Supplier, SupplierExtra, SupplierExtraRate, VehicleComparisonClass, VehicleGroup, PriceList, PriceSeason, PriceDayRange, VehicleRate
 
 from .models import Quote, QuoteOption, QuoteTemplate
 from .services import (
@@ -208,6 +208,39 @@ class FirstInquiryTests(TestCase):
             _service_extra_requests(quote, "02"),
             {"AIRPORT_FEE": 1},
         )
+
+    def test_offer_includes_out_of_hours_fee_before_order_creation(self):
+        extra = SupplierExtra.objects.create(
+            supplier=self.supplier,
+            extra_code="OUT_OF_HOURS",
+            name="Out-of-hours pickup or return",
+        )
+        SupplierExtraRate.objects.create(
+            extra=extra,
+            valid_from=self.pickup.date() - timedelta(days=1),
+            calculation_type="PER_UNIT",
+            amount_gross=60,
+        )
+        quote = Quote.objects.create(
+            customer=Customer.objects.create(email="night@example.com"),
+            pickup_datetime=self.pickup.replace(hour=10, minute=0),
+            return_datetime=(self.pickup + timedelta(days=1)).replace(hour=22, minute=0),
+            pickup_city="Kraków",
+            return_city="Kraków",
+            pickup_service="ADDRESS",
+            return_service="AIRPORT",
+            rental_days=2,
+        )
+        quote.requested_vehicle_classes.add(self.form_groups[0].comparison_classes.first())
+        quote.requested_vehicle_groups.add(self.form_groups[0])
+        quote.requested_suppliers.add(self.supplier)
+
+        result = calculate_quote_options(quote, vehicle_group=self.form_groups[0])[0]
+
+        self.assertEqual(result["base"], Decimal("200"))
+        self.assertEqual(result["extras_total"], Decimal("60"))
+        self.assertEqual(result["total"], Decimal("260"))
+        self.assertEqual(result["extra_lines"][0]["name"], "Out-of-hours pickup or return")
 
     def test_same_email_reuses_existing_customer(self):
         Customer.objects.create(first_name="Anna", last_name="Old", email="anna@example.com", phone_1="111")

@@ -33,6 +33,9 @@ class Supplier(models.Model):
     internal_note = models.TextField(blank=True)
     regular_service_from = models.TimeField(default=time(8, 0))
     regular_service_to = models.TimeField(default=time(20, 0))
+    charge_after_hours_at_airports = models.BooleanField(
+        "Брать доплату вне рабочих часов в аэропортах", default=True
+    )
     subagent_pricing_method = models.CharField(
         "Расчёт для субагента", max_length=20,
         choices=SubagentPricingMethod.choices, default=SubagentPricingMethod.STANDARD,

@@ -673,7 +673,10 @@ class BookingTests(TestCase):
 
     def test_kaizen_selected_airports_do_not_charge_night_service(self):
         self.supplier.supplier_name = "Kaizen Rent"
-        self.supplier.save(update_fields=["supplier_name"])
+        self.supplier.charge_after_hours_at_airports = False
+        self.supplier.save(update_fields=[
+            "supplier_name", "charge_after_hours_at_airports",
+        ])
         airport = SupplierLocation.objects.create(
             supplier=self.supplier,
             location_code="KRK-AIRPORT",

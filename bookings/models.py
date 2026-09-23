@@ -10,6 +10,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from config.rental_duration import calculate_rental_days
+from config.after_hours import is_after_hours, needs_after_hours_charge
 
 
 class SupplierEmailDelivery(models.Model):
@@ -545,23 +546,10 @@ class Booking(models.Model):
                     booking_extra.save()
 
     def _is_after_hours(self, value):
-        local_time = timezone.localtime(value).time().replace(tzinfo=None)
-        return not (
-            self.supplier.regular_service_from
-            <= local_time
-            <= self.supplier.regular_service_to
-        )
+        return is_after_hours(self.supplier, value)
 
     def _needs_after_hours_charge(self, value, location):
-        if not self._is_after_hours(value):
-            return False
-        if (
-            self.supplier.supplier_name == "Kaizen Rent"
-            and location
-            and location.airport_code.upper() in {"GDN", "KTW", "KRK", "WAW"}
-        ):
-            return False
-        return True
+        return needs_after_hours_charge(self.supplier, value, location)
 
     def recalculate_extra_prices(self):
         for item in self.extras.all():

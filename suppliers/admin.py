@@ -26,10 +26,14 @@ class SupplierAdmin(admin.ModelAdmin):
         "default_currency",
         "regular_service_from",
         "regular_service_to",
+        "charge_after_hours_at_airports",
         "subagent_pricing_method",
         "subagent_markup_percent",
     )
-    list_filter = ("status", "default_currency", "subagent_pricing_method")
+    list_filter = (
+        "status", "default_currency", "subagent_pricing_method",
+        "charge_after_hours_at_airports",
+    )
     search_fields = ("supplier_name", "supplier_code", "legal_name")
     list_editable = ("show_in_introduction",)
 

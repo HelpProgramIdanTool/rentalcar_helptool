@@ -3,13 +3,16 @@ from decimal import Decimal
 from django.db.models import Q
 from django.utils import timezone
 
+from config.after_hours import needs_after_hours_charge
 from customers.models import Customer
 from suppliers.models import (
     PriceList,
+    SupplierLocation,
     SupplierExtraRate,
     VehicleComparisonClass,
     VehicleRate,
 )
+from .airport_pickup import airport_code_for_city
 from .models import QuoteDocumentBlock, QuoteTemplate
 
 
@@ -205,6 +208,38 @@ def _service_extra_requests(quote, supplier_code):
     return requests
 
 
+def _after_hours_extra_requests(quote, supplier):
+    after_hours_extras = supplier.extras.filter(
+        is_active=True, extra_code__in=("NIGHT_SERVICE", "OUT_OF_HOURS")
+    )
+    if not after_hours_extras.exists():
+        return {}
+    event_count = 0
+    for side in ("pickup", "return"):
+        location = None
+        if getattr(quote, f"{side}_service") == "AIRPORT":
+            city = getattr(quote, f"{side}_city")
+            airport_code = airport_code_for_city(city)
+            location_query = SupplierLocation.objects.filter(
+                supplier=supplier,
+                is_active=True,
+                location_type="AIRPORT",
+                **{f"supports_{side}": True},
+            )
+            location = location_query.filter(
+                Q(airport_code=airport_code) if airport_code else Q(city__iexact=city)
+            ).first()
+        if needs_after_hours_charge(
+            supplier, getattr(quote, f"{side}_datetime"), location
+        ):
+            event_count += 1
+    return {
+        extra.extra_code: Decimal(event_count)
+        for extra in after_hours_extras
+        if event_count
+    }
+
+
 def _missing_rate_reason(group, pickup_date, days):
     rates = VehicleRate.objects.filter(
         is_active=True, vehicle_group=group.effective_rate_group,
@@ -320,6 +355,9 @@ def calculate_quote_options(quote, *, vehicle_group=None):
         })
         requested_supplier_codes.update(
             _service_extra_requests(quote, supplier_code)
+        )
+        requested_supplier_codes.update(
+            _after_hours_extra_requests(quote, group.supplier)
         )
         extras = group.supplier.extras.filter(is_active=True).filter(
             Q(is_mandatory=True)
