@@ -614,6 +614,8 @@ class FirstInquiryTests(TestCase):
         self.assertIn('max-width:100%!important', quote.sent_html_snapshot)
         self.assertIn('font-size:14px!important', quote.sent_html_snapshot)
         self.assertIn('font-size:21px!important', quote.sent_html_snapshot)
+        self.assertIn('font:13px Arial,sans-serif', quote.sent_html_snapshot)
+        self.assertIn('font-size:20px;font-weight:800', quote.sent_html_snapshot)
         self.assertIn('text-align:right', quote.sent_html_snapshot)
         self.assertIn("ההצעה הזו הוכנה בעזרת בינה מלאכותית", quote.sent_html_snapshot)
         for benefit in STANDARD_INCLUDED_ITEMS:
