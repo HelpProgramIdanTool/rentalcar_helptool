@@ -61,6 +61,7 @@
     <a class="edit-link" href="{% url 'quotes:edit_quote' quote.quote_number %}">שינוי פרטי ההשכרה</a>
     <a class="edit-link" href="{% url 'quotes:calculate_quote' quote.quote_number %}">חזרה לחישוב ושינוי האפשרויות</a>
     <form method="post" action="{% url 'quotes:duplicate_quote' quote.quote_number %}" style="margin:0">{% csrf_token %}<button type="submit" style="border:0;background:none;color:#174ea6;font-weight:700;font-size:17px;cursor:pointer;padding:0">הצעה חדשה לאותו לקוח</button></form>
+    <a href="{% url 'quotes:home' %}" style="display:inline-block;background:#e8efff;color:#155eef;border-radius:8px;padding:12px 18px;font-weight:700;text-decoration:none">← На главную</a>
   </section>{% endif %}
 </div></td></tr></table>
 {% if not is_email %}

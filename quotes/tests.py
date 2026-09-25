@@ -606,6 +606,7 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(quote.sent_subject, mail.outbox[0].subject)
         self.assertEqual(quote.sent_html_snapshot, mail.outbox[0].alternatives[0].content)
         self.assertNotIn("Выслать оферту клиенту", quote.sent_html_snapshot)
+        self.assertNotIn("← На главную", quote.sent_html_snapshot)
         self.assertIn('dir="rtl"', quote.sent_html_snapshot)
         self.assertIn('max-width:760px', quote.sent_html_snapshot)
         self.assertIn('table-layout:fixed', quote.sent_html_snapshot)
@@ -692,6 +693,8 @@ class FirstInquiryTests(TestCase):
         self.assertContains(
             response, reverse("quotes:send_quote", args=[quote.quote_number])
         )
+        self.assertContains(response, "← На главную")
+        self.assertContains(response, f'href="{reverse("quotes:home")}"')
 
     def test_calculation_steps_are_real_navigation_links(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())
