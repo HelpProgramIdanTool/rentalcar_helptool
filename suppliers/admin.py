@@ -72,7 +72,7 @@ class SupplierLocationAdmin(admin.ModelAdmin):
 
 @admin.register(AirportPickupWording)
 class AirportPickupWordingAdmin(admin.ModelAdmin):
-    list_display = ("method_code", "text_he")
+    list_display = ("method_code", "text_he", "text_en")
 
 
 class VehicleModelInline(admin.TabularInline):

@@ -27,7 +27,7 @@ from .models import Quote, QuoteOption, QuoteEmailDelivery
 from .email_tools import load_email_template, seat_guides, child_seat_text
 from .email_forms import EmailSubjectForm, BlockFormSet, OptionFormSet
 from .email_content import REQUIRED_BLOCKS
-from .airport_pickup import airport_pickup_messages
+from .airport_pickup import airport_service_messages
 from .services import find_or_create_customer
 from .services import (
     calculate_quote_options,
@@ -448,7 +448,7 @@ def _quote_preview_context(quote, *, is_email=False):
     ensure_quote_option_presentation(quote)
     options = list(quote.options.filter(is_included=True).select_related("comparison_class"))
     is_english = quote.language == "English"
-    pickup_messages = airport_pickup_messages(
+    service_messages = airport_service_messages(
         quote, {option.supplier_id for option in options}, quote.language
     )
     english_items = {
@@ -480,7 +480,7 @@ def _quote_preview_context(quote, *, is_email=False):
                 return f"{translated} — {details}"
         return value
     for option in options:
-        option.airport_pickup_message = pickup_messages.get(option.supplier_id, "")
+        option.airport_service_message = service_messages.get(option.supplier_id, "")
         option.display_vehicle_class = (
             option.vehicle_group_name_snapshot
             if is_english else option.calculation_snapshot.get("hebrew_vehicle_class", option.vehicle_group_name_snapshot)

@@ -26,31 +26,49 @@ def airport_code_for_city(city):
     return next(iter(codes)) if len(codes) == 1 else None
 
 
-def airport_pickup_messages(quote, supplier_ids, language="Hebrew"):
-    if quote.pickup_service != "AIRPORT":
+def _airport_event_messages(quote, supplier_ids, side, language):
+    if getattr(quote, f"{side}_service", "") != "AIRPORT":
         return {}
-    code = airport_code_for_city(quote.pickup_city)
+    code = airport_code_for_city(getattr(quote, f"{side}_city", ""))
     locations = {
         location.supplier_id: location
         for location in SupplierLocation.objects.filter(
-            airport_code=code, is_active=True, supports_pickup=True,
+            airport_code=code, is_active=True,
             supplier_id__in=supplier_ids,
-        )
+        ).order_by("supplier_id", "id")
     } if code else {}
-    wording = dict(AirportPickupWording.objects.values_list("method_code", "text_he"))
-    if language == "English":
-        wording = {
-            "DESK": "Vehicle collection is at the rental company's airport desk.",
-            "MEET": "A rental company representative will meet you at the airport.",
-            "UNKNOWN": "The exact airport collection procedure will be confirmed with the booking.",
-        }
+    text_field = "text_en" if language == "English" else "text_he"
+    wording = dict(AirportPickupWording.objects.values_list("method_code", text_field))
     messages = {}
     for supplier_id in supplier_ids:
         location = locations.get(supplier_id)
-        method = (
+        base_method = (
             "DESK" if location and location.has_rental_desk else
             "MEET" if location and location.supports_terminal_delivery else
             "UNKNOWN"
         )
+        method = base_method if side == "pickup" else (
+            "RETURN_DESK" if base_method == "DESK" else
+            "RETURN_MEET" if base_method == "MEET" else
+            "RETURN_UNKNOWN"
+        )
         messages[supplier_id] = wording.get(method, "")
     return messages
+
+
+def airport_pickup_messages(quote, supplier_ids, language="Hebrew"):
+    return _airport_event_messages(quote, supplier_ids, "pickup", language)
+
+
+def airport_service_messages(quote, supplier_ids, language="Hebrew"):
+    pickup = _airport_event_messages(quote, supplier_ids, "pickup", language)
+    returned = _airport_event_messages(quote, supplier_ids, "return", language)
+    return {
+        supplier_id: "\n".join(
+            message for message in (
+                pickup.get(supplier_id, ""), returned.get(supplier_id, "")
+            ) if message
+        )
+        for supplier_id in supplier_ids
+        if pickup.get(supplier_id) or returned.get(supplier_id)
+    }

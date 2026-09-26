@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from suppliers.models import AirportPickupWording, Supplier, SupplierLocation
 
-from .airport_pickup import airport_code_for_city, airport_pickup_messages
+from .airport_pickup import airport_code_for_city, airport_pickup_messages, airport_service_messages
 
 
 class AirportPickupTests(TestCase):
@@ -19,6 +19,7 @@ class AirportPickupTests(TestCase):
                 supplier=supplier, location_code="KRK", location_name="Airport",
                 city="Kraków", location_type="AIRPORT", airport_code="KRK",
                 has_rental_desk=desk, supports_terminal_delivery=meet,
+                supports_return=supplier == self.desk_supplier,
             )
 
     def test_airport_offer_uses_each_suppliers_confirmed_method(self):
@@ -42,3 +43,35 @@ class AirportPickupTests(TestCase):
             city="Kraków North", location_type="AIRPORT", airport_code="KRN",
         )
         self.assertIsNone(airport_code_for_city("Kraków"))
+
+    def test_airport_return_method_appears_when_pickup_is_at_an_address(self):
+        quote = SimpleNamespace(
+            pickup_service="ADDRESS", pickup_city="Kraków",
+            return_service="AIRPORT", return_city="Kraków",
+        )
+
+        messages = airport_service_messages(
+            quote, {self.desk_supplier.pk, self.meet_supplier.pk}
+        )
+
+        self.assertEqual(
+            messages[self.desk_supplier.pk],
+            AirportPickupWording.objects.get(method_code="RETURN_DESK").text_he,
+        )
+        self.assertEqual(
+            messages[self.meet_supplier.pk],
+            AirportPickupWording.objects.get(method_code="RETURN_MEET").text_he,
+        )
+
+    def test_collection_and_return_methods_are_both_in_the_offer(self):
+        quote = SimpleNamespace(
+            pickup_service="AIRPORT", pickup_city="Kraków",
+            return_service="AIRPORT", return_city="Kraków",
+        )
+
+        message = airport_service_messages(quote, {self.desk_supplier.pk})[
+            self.desk_supplier.pk
+        ]
+
+        self.assertIn(AirportPickupWording.objects.get(method_code="DESK").text_he, message)
+        self.assertIn(AirportPickupWording.objects.get(method_code="RETURN_DESK").text_he, message)

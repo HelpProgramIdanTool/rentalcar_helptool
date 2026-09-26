@@ -10,7 +10,7 @@
 {% for option in options %}--------------------
 {{ forloop.counter }}. {{ option.supplier_name_snapshot }} — {{ option.display_vehicle_class }}
 {{ option.vehicle_models_snapshot }}
-{% if option.airport_pickup_message %}{{ option.airport_pickup_message }}
+{% if option.airport_service_message %}{{ option.airport_service_message }}
 {% endif %}
 {% if option.calculation_snapshot.body_type_label or option.calculation_snapshot.transmission_label %}{{ option.calculation_snapshot.body_type_label }}{% if option.calculation_snapshot.body_type_label and option.calculation_snapshot.transmission_label %} · {% endif %}{{ option.calculation_snapshot.transmission_label }}
 {% endif %}

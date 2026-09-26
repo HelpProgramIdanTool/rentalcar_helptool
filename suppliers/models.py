@@ -112,6 +112,7 @@ class SupplierLocation(models.Model):
 class AirportPickupWording(models.Model):
     method_code = models.CharField(max_length=20, unique=True)
     text_he = models.CharField(max_length=250)
+    text_en = models.CharField(max_length=250, blank=True)
 
     def __str__(self):
         return self.method_code
