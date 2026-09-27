@@ -482,7 +482,7 @@ def _quote_preview_context(quote, *, is_email=False):
     for option in options:
         option.airport_service_message = service_messages.get(option.supplier_id, "")
         option.display_vehicle_class = (
-            option.vehicle_group_name_snapshot
+            option.vehicle_group.customer_name_en or option.vehicle_group_name_snapshot
             if is_english else option.calculation_snapshot.get("hebrew_vehicle_class", option.vehicle_group_name_snapshot)
         )
         option.display_included_items = [

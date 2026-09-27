@@ -151,6 +151,8 @@ class VehicleGroup(models.Model):
     )
     group_code = models.CharField(max_length=40)
     group_name = models.CharField(max_length=120)
+    customer_name_he = models.CharField(max_length=150, blank=True)
+    customer_name_en = models.CharField(max_length=150, blank=True)
     category = models.CharField(max_length=80, blank=True)
     body_type = models.CharField(max_length=20, choices=BodyType.choices, blank=True)
     transmission = models.CharField(

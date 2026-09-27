@@ -38,7 +38,9 @@ HEBREW_VEHICLE_CLASS_NAMES = {
 
 def vehicle_class_presentation(comparison, group):
     """Avoid promising one body type when a supplier group covers several."""
-    title = HEBREW_VEHICLE_CLASS_NAMES.get(comparison.code, comparison.name)
+    title = group.customer_name_he or HEBREW_VEHICLE_CLASS_NAMES.get(
+        comparison.code, comparison.name
+    )
     comparison_codes = {item.code for item in group.comparison_classes.all()}
     mixed_bodies = (
         any("HATCH" in code for code in comparison_codes)

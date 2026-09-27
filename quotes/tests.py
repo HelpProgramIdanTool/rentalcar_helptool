@@ -830,6 +830,19 @@ class FirstInquiryTests(TestCase):
         group = self.form_groups[0]
         self.assertEqual(vehicle_class_presentation(comparison, group)[0], "TEST-NAME-HE")
 
+    def test_vehicle_group_customer_name_overrides_mismatched_comparison_name(self):
+        comparison = VehicleComparisonClass.objects.create(
+            code="TEST-SUV-7", name="Wrong SUV label"
+        )
+        group = self.form_groups[0]
+        group.customer_name_he = "TEST-SEVEN-SEAT-VEHICLE-HE"
+        group.save(update_fields=["customer_name_he"])
+
+        self.assertEqual(
+            vehicle_class_presentation(comparison, group)[0],
+            "TEST-SEVEN-SEAT-VEHICLE-HE",
+        )
+
     def test_standard_benefits_replace_legacy_wording_and_keep_selected_extras(self):
         items = normalize_included_items([
             "עד שני נהגים", "חבילת With Comfort Package",
