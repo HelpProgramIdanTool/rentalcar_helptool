@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator
 from datetime import time
 
 from django.db import models
+from config.email_addresses import validate_email_addresses
 
 
 class Supplier(models.Model):
@@ -11,6 +12,7 @@ class Supplier(models.Model):
         INACTIVE = "INACTIVE", "Inactive"
 
     class SubagentPricingMethod(models.TextChoices):
+        UNAVAILABLE = "UNAVAILABLE", "Не работает с сабагентами"
         STANDARD = "STANDARD", "Обычный ценник"
         DEDICATED = "DEDICATED", "Отдельный ценник субагента"
         PERCENT_TOTAL = "PERCENT_TOTAL", "Процент к общей сумме"
@@ -25,9 +27,21 @@ class Supplier(models.Model):
         default=Status.ACTIVE,
     )
     default_currency = models.CharField(max_length=3, default="PLN")
-    booking_email = models.EmailField(blank=True)
-    changes_email = models.EmailField(blank=True)
-    settlement_email = models.EmailField(blank=True)
+    included_driver_count = models.PositiveSmallIntegerField(default=2)
+    included_benefits = models.JSONField(default=None, null=True, blank=True,
+        help_text="Included customer benefits. Null uses the existing standard package; [] adds none.")
+    calculation_note = models.TextField(blank=True)
+    minimum_driver_age = models.PositiveSmallIntegerField(null=True, blank=True)
+    minimum_license_months = models.PositiveSmallIntegerField(null=True, blank=True)
+    customer_conditions = models.JSONField(default=dict, blank=True)
+    offer_badges = models.JSONField(default=dict, blank=True,
+        help_text="Короткие отметки в оферте по языкам: Hebrew, Russian, English.")
+    booking_email = models.CharField(max_length=1000, blank=True, validators=[validate_email_addresses],
+        help_text="Один или несколько email через ; — письмо получат все адресаты.")
+    changes_email = models.CharField(max_length=1000, blank=True, validators=[validate_email_addresses],
+        help_text="Email для изменений через ;. Если пусто, используются адреса для заказов.")
+    settlement_email = models.CharField(max_length=1000, blank=True, validators=[validate_email_addresses],
+        help_text="Один или несколько email для расчётов через точку с запятой (;).")
     phone = models.CharField(max_length=40, blank=True)
     website = models.URLField(blank=True)
     internal_note = models.TextField(blank=True)
@@ -55,6 +69,7 @@ class Supplier(models.Model):
 
 
 class SupplierLocation(models.Model):
+    localized_service_instructions = models.JSONField(default=dict, blank=True)
     class LocationType(models.TextChoices):
         BRANCH = "BRANCH", "Branch"
         AIRPORT = "AIRPORT", "Airport"
@@ -109,6 +124,41 @@ class SupplierLocation(models.Model):
         return f"{self.supplier.supplier_name} — {self.location_name}"
 
 
+class OfferCity(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    label = models.CharField(max_length=100)
+    country = models.CharField(max_length=100)
+    cross_border_required = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["display_order", "name"]
+
+    def __str__(self):
+        return self.label
+
+
+class CityServiceRule(models.Model):
+    supports_pickup = models.BooleanField(default=True)
+    supports_return = models.BooleanField(default=True)
+    city = models.ForeignKey(OfferCity, on_delete=models.PROTECT, related_name="service_rules")
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="city_service_rules")
+    extra = models.ForeignKey("SupplierExtra", on_delete=models.PROTECT, null=True, blank=True,
+                              help_text="Пусто: обслуживание по обычным тарифам поставщика без отдельной городской доплаты.")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["city", "supplier"], name="unique_city_service_supplier")]
+
+    def clean(self):
+        super().clean()
+        if self.extra_id and self.extra.supplier_id != self.supplier_id:
+            raise ValidationError({"extra": "Доплата должна принадлежать выбранному поставщику."})
+
+    def __str__(self):
+        return f"{self.supplier} — {self.city}"
+
+
 class AirportPickupWording(models.Model):
     method_code = models.CharField(max_length=20, unique=True)
     text_he = models.CharField(max_length=250)
@@ -119,6 +169,7 @@ class AirportPickupWording(models.Model):
 
 
 class VehicleGroup(models.Model):
+    show_in_offers = models.BooleanField(default=True, verbose_name="Предлагать в новых офертах")
     class Transmission(models.TextChoices):
         MANUAL = "MANUAL", "Manual"
         AUTOMATIC = "AUTOMATIC", "Automatic"
@@ -177,6 +228,8 @@ class VehicleGroup(models.Model):
         help_text="Card authorization amount for this vehicle group.",
     )
     deposit_currency = models.CharField(max_length=3, default="PLN")
+    excess_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(0)])
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveSmallIntegerField(default=0)
     internal_note = models.TextField(blank=True)
@@ -429,6 +482,18 @@ class PriceList(models.Model):
 
 
 class PriceSeason(models.Model):
+    recurring_months = models.JSONField(
+        default=list, blank=True,
+        help_text="Months 1–12, repeated every year. Empty: use the date interval.",
+    )
+
+    def applies_on(self, day):
+        if self.recurring_months:
+            return day.month in self.recurring_months
+        return self.rental_date_from <= day and (
+            self.rental_date_to is None or day <= self.rental_date_to
+        )
+
     price_list = models.ForeignKey(
         PriceList,
         on_delete=models.CASCADE,
@@ -457,6 +522,10 @@ class PriceSeason(models.Model):
             raise ValidationError(
                 {"rental_date_to": "The end date cannot be before the start date."}
             )
+        if not isinstance(self.recurring_months, list) or any(
+            type(month) is not int or not 1 <= month <= 12 for month in self.recurring_months
+        ):
+            raise ValidationError({"recurring_months": "Use a list of month numbers from 1 to 12."})
 
     def __str__(self):
         return f"{self.price_list} - {self.season_name}"

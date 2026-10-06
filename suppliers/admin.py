@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    OfferCity, CityServiceRule,
     Supplier,
     SupplierExtra,
     SupplierExtraRate,
@@ -14,6 +15,16 @@ from .models import (
     VehicleModel,
     VehicleComparisonClass,
 )
+
+
+@admin.register(OfferCity)
+class OfferCityAdmin(admin.ModelAdmin):
+    list_display = ("label", "name", "country", "cross_border_required", "is_active")
+
+
+@admin.register(CityServiceRule)
+class CityServiceRuleAdmin(admin.ModelAdmin):
+    list_display = ("city", "supplier", "extra", "supports_pickup", "supports_return")
 
 
 @admin.register(Supplier)
@@ -98,7 +109,7 @@ class VehicleGroupAdmin(admin.ModelAdmin):
         ("Основные данные", {"fields": (
             "supplier", "group_code", "group_name", "customer_name_he",
             "customer_name_en", "category", "body_type",
-            "transmission", "seats", "doors", "is_active", "display_order",
+            "transmission", "seats", "doors", "is_active", "show_in_offers", "display_order",
         )}),
         ("Багажник", {"fields": (
             "luggage_volume_liters", "luggage_large", "luggage_small",

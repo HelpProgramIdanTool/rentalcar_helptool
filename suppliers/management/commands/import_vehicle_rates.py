@@ -35,7 +35,7 @@ def get_group(supplier, code):
         ) from error
 
 
-def upsert_price_list(supplier, name, version, source_file, effective_from, effective_to=None, note=""):
+def upsert_price_list(supplier, name, version, source_file, effective_from, effective_to=None, note="", audience=PriceList.Audience.STANDARD):
     price_list, _ = PriceList.objects.update_or_create(
         supplier=supplier,
         version=version,
@@ -48,6 +48,7 @@ def upsert_price_list(supplier, name, version, source_file, effective_from, effe
             "source_type": PriceList.SourceType.EXCEL,
             "source_file": source_file,
             "note": note,
+            "audience": audience,
         },
     )
     return price_list
@@ -162,21 +163,39 @@ def import_car_free(path):
     return price_list, len(touched)
 
 
-def import_kaizen(path):
+@transaction.atomic
+def import_kaizen(path, *, audience=PriceList.Audience.STANDARD):
     supplier = get_supplier("Kaizen Rent")
+    is_subagent = audience == PriceList.Audience.SUBAGENT
+    version = "2026-COMFORT-SUBAGENT" if is_subagent else "2026-COMFORT"
+    sheet_name = "Subagents" if is_subagent else "Idan"
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        if sheet_name not in workbook.sheetnames:
+            raise CommandError(f"Missing worksheet: {sheet_name}")
+        sheet = workbook[sheet_name]
+        # Validate the two Comfort sections before writing any rates.
+        for row_number, season_label in ((2, "HIGH SEASON"), (64, "LOW SEASON")):
+            title = str(sheet.cell(row_number, 1).value or "").upper()
+            if season_label not in title or "WITH COMFORT PACKAGE" not in title:
+                raise CommandError(f"Unexpected Comfort section in {sheet_name}, row {row_number}")
+        rows = list(sheet.iter_rows(values_only=True))
+    finally:
+        workbook.close()
     # Keep validity periods approved by the operator on subsequent imports.
-    existing = PriceList.objects.filter(supplier=supplier, version="2026-COMFORT").first()
+    existing = PriceList.objects.filter(supplier=supplier, version=version).first()
     existing_low = existing.seasons.filter(season_code="LOW_AFTER").first() if existing else None
     list_end = existing.effective_to if existing else date(2026, 12, 31)
     low_end = existing_low.rental_date_to if existing_low else date(2026, 12, 31)
     price_list = upsert_price_list(
         supplier,
-        "Kaizen With Comfort Package 2026",
-        "2026-COMFORT",
+        f"Kaizen With Comfort Package 2026 — {sheet_name}",
+        version,
         path.name,
         date(2026, 1, 1),
         list_end,
-        "Only With Comfort Package is active for Idan customers.",
+        f"Source worksheet: {sheet_name}. With Comfort Package only.",
+        audience=audience,
     )
     ranges = upsert_ranges(
         price_list,
@@ -188,8 +207,6 @@ def import_kaizen(path):
             ("D15_PLUS", "15+ days", 15, None),
         ],
     )
-    workbook = load_workbook(path, read_only=True, data_only=True)
-    sheet = workbook["Idan"]
     season_definitions = [
         ("LOW_BEFORE", "Low season", date(2026, 1, 1), date(2026, 6, 23), 67, 92),
         ("HIGH", "High season", date(2026, 6, 24), date(2026, 8, 21), 5, 30),
@@ -205,10 +222,14 @@ def import_kaizen(path):
             end,
             "With Comfort Package",
         )
-        for row in sheet.iter_rows(min_row=row_from, max_row=row_to, values_only=True):
+        for row in rows[row_from - 1:row_to]:
             acriss_value = row[1]
             if not acriss_value or not isinstance(row[4], (int, float)):
                 continue
+            if len(row[4:9]) != 5 or any(
+                not isinstance(value, (int, float)) or value < 0 for value in row[4:9]
+            ):
+                raise CommandError(f"Invalid daily rates for {acriss_value} in {sheet_name}")
             codes = [code.strip() for code in str(acriss_value).split(";")]
             for code in codes:
                 vehicle_group = get_group(supplier, code)
@@ -222,6 +243,8 @@ def import_kaizen(path):
                             "With Comfort Package",
                         ).id
                     )
+    if not touched:
+        raise CommandError(f"No Comfort rates found in {sheet_name}")
     VehicleRate.objects.filter(season__price_list=price_list).exclude(
         id__in=touched
     ).update(is_active=False)
@@ -273,8 +296,19 @@ def import_one_rent(path):
 class Command(BaseCommand):
     help = "Import versioned gross vehicle rates from supplier Excel price lists."
 
+    def add_arguments(self, parser):
+        parser.add_argument("--kaizen-subagents-only", action="store_true",
+                            help="Import only Kaizen's Subagents worksheet.")
+
     @transaction.atomic
     def handle(self, *args, **options):
+        if options.get("kaizen_subagents_only"):
+            path = PRICE_LIST_DIR / "Kaizen Rent.xlsx"
+            if not path.exists():
+                raise CommandError(f"Price list not found: {path}")
+            price_list, count = import_kaizen(path, audience=PriceList.Audience.SUBAGENT)
+            self.stdout.write(self.style.SUCCESS(f"Kaizen Subagents: {count} rates imported"))
+            return
         sources = [
             (PRICE_LIST_DIR / "Idan x CarFree 03.09.2026.xlsx", import_car_free),
             (PRICE_LIST_DIR / "Kaizen Rent.xlsx", import_kaizen),
@@ -287,4 +321,7 @@ class Command(BaseCommand):
             price_list, count = importer(path)
             total += count
             self.stdout.write(f"{price_list.supplier.supplier_name}: {count} rates")
+        _, count = import_kaizen(PRICE_LIST_DIR / "Kaizen Rent.xlsx", audience=PriceList.Audience.SUBAGENT)
+        total += count
+        self.stdout.write(f"Kaizen Subagents: {count} rates")
         self.stdout.write(self.style.SUCCESS(f"Import complete: {total} active rates"))

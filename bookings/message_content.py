@@ -28,7 +28,9 @@ def supplier_location(booking, side):
     service = request.get(f"{side}_service", "")
     address = getattr(booking, f"{side}_address")
     if city and service == "AIRPORT":
-        return f"{city} Airport"
+        location = getattr(booking, f"{side}_location", None)
+        instructions = getattr(location, f"default_{side}_instructions", "") if location else ""
+        return f"{city} Airport" + (f" — {instructions}" if instructions else "")
     if city and service == "CITY_BRANCH":
         return f"{city} city branch"
     if city and service == "ADDRESS":

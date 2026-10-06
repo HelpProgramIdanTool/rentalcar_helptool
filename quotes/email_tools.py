@@ -3,6 +3,7 @@ from django.conf import settings
 from .email_content import REQUIRED_BLOCKS
 from .models import QuoteDocumentBlock, QuoteTemplate
 from suppliers.models import Supplier
+from .localization import presentation_for
 
 GUIDES = {
     "01": ("Kaizen", "ריכוז חוקים אודות כיסאות בטיחות ובוסטרים.pdf", "Kaizen-child-seats.pdf"),
@@ -21,15 +22,30 @@ def load_email_template(quote, *, replace=False):
     if replace:
         quote.document_blocks.all().delete()
     names = supplier_introduction()
+    fallback = template.presentation.get("partner_fallback") or (
+        "our partner rental companies" if quote.language == "English" else "חברות ההשכרה השותפות שלנו"
+    )
     for block in template.blocks.filter(is_active=True):
-        QuoteDocumentBlock.objects.get_or_create(quote=quote, block_key=block.block_key, defaults={
+        content = block.content.replace("{suppliers}", names or fallback)
+        saved, created = QuoteDocumentBlock.objects.get_or_create(quote=quote, block_key=block.block_key, defaults={
             "source_block": block, "title": block.title,
-            "content": block.content.replace(
-                "{suppliers}", names or ("our partner rental companies" if quote.language == "English" else "חברות ההשכרה השותפות שלנו")
-            ),
+            "content": content,
             "display_order": block.display_order,
             "is_enabled": bool(block.content) or block.block_key in REQUIRED_BLOCKS,
         })
+        if (not created and saved.source_block_id
+                and saved.source_block.template.language != quote.language):
+            old = saved.source_block
+            old_fallback = old.template.presentation.get("partner_fallback") or (
+                "our partner rental companies" if old.template.language == "English" else "חברות ההשכרה השותפות שלנו"
+            )
+            expected = old.content.replace("{suppliers}", names or old_fallback)
+            if (saved.content.replace("\r\n", "\n").strip() == expected.replace("\r\n", "\n").strip()
+                    and saved.title == old.title):
+                saved.source_block = block
+                saved.title = block.title
+                saved.content = content
+                saved.save(update_fields=["source_block", "title", "content"])
 
 
 def ensure_required_blocks(quote):
@@ -70,6 +86,13 @@ def child_seat_text(quote, guides):
         needed = False
     if not needed:
         return ""
+    presentation = presentation_for(quote.language)
+    if presentation.get("child_seat"):
+        return " ".join(part for part in (
+            presentation["child_seat"],
+            presentation.get("child_seat_guides", "") if guides else "",
+            presentation.get("child_seat_one_rent", "") if any(guide["code"] == "02" for guide in guides) else "",
+        ) if part)
     if quote.language == "English":
         text = "If you requested a child seat or booster, please provide the age, height and weight of each child."
         if guides:

@@ -18,12 +18,14 @@ from django.views.decorators.cache import never_cache
 from django.template.loader import render_to_string
 
 from employees.models import Employee
+from config.email_addresses import parse_email_addresses
 from .models import Booking, BookingHistoryEvent, BookingVoucher, SupplierEmailDelivery
 from .message_content import price_breakdown, supplier_location
 
 
 class ReservationForm(forms.Form):
-    supplier_booking_number = forms.CharField(label="Номер резервации поставщика", max_length=100, required=False)
+    supplier_booking_number = forms.CharField(label="Номер резервации поставщика", max_length=100, required=False,
+        help_text="При добавлении или изменении номера в черновике или ожидающем заказе статус автоматически станет «Подтверждён».")
     status = forms.ChoiceField(label="Статус заказа", choices=Booking.Status.choices)
     flight_number = forms.CharField(label="Номер рейса", max_length=50, required=False)
 
@@ -34,6 +36,10 @@ class ReservationForm(forms.Form):
     def clean(self):
         data = super().clean()
         number = data.get("supplier_booking_number", "")
+        pending = {Booking.Status.DRAFT, Booking.Status.WAITING_CONFIRMATION, Booking.Status.UPDATE_PENDING}
+        if (number and number != self.booking.supplier_booking_number.strip()
+                and self.booking.status in pending and data.get("status") in pending):
+            data["status"] = Booking.Status.CONFIRMED
         if data.get("status") == Booking.Status.CONFIRMED and not number:
             self.add_error("supplier_booking_number", "Для подтверждённого заказа укажите номер резервации.")
         if number and Booking.objects.filter(supplier=self.booking.supplier,
@@ -189,9 +195,12 @@ def booking_detail(request, pk):
 
 
 class SupplierMessageForm(forms.Form):
-    recipient = forms.EmailField(required=False)
+    recipient = forms.CharField(required=False, max_length=1000)
     subject = forms.CharField(max_length=250)
     body = forms.CharField()
+
+    def clean_recipient(self):
+        return "; ".join(parse_email_addresses(self.cleaned_data["recipient"]))
 
 
 @login_required
@@ -205,7 +214,7 @@ def supplier_message(request, pk):
     names = " // ".join(f"{driver.first_name} {driver.last_name}".strip() for driver in booking.drivers.all())
     draft = booking.history_events.filter(description=draft_description).order_by("-pk").first()
     initial = draft.changes["message"] if draft else {
-        "recipient": booking.supplier.booking_email,
+        "recipient": (booking.supplier.changes_email or booking.supplier.booking_email) if change_mode else booking.supplier.booking_email,
         "subject": (f"Change request {booking.supplier_booking_number} / {booking.booking_number}" if change_mode else f"Car rental booking request {booking.booking_number}"),
         "body": ((f"Please update existing reservation {booking.supplier_booking_number}.\nPlease confirm the changes and send an updated voucher.\n\n" if change_mode else "") + render_to_string("bookings/supplier_message.txt", {
             "booking": booking, "driver_names": names or booking.customer_name_snapshot or "[driver names]",
@@ -239,7 +248,7 @@ def supplier_message(request, pk):
                         created_by=Employee.objects.filter(login_user=request.user).first())
                     try:
                         count = (1 if request.POST.get("action") == "mark_manual" else
-                            EmailMultiAlternatives(subject=delivery.subject, body=delivery.body, to=[delivery.recipient]).send())
+                            EmailMultiAlternatives(subject=delivery.subject, body=delivery.body, to=parse_email_addresses(delivery.recipient)).send())
                         if count != 1:
                             raise SMTPException("Message not accepted")
                     except (SMTPException, OSError, ValueError):

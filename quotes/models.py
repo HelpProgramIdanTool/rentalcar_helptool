@@ -143,6 +143,7 @@ class QuoteTemplate(models.Model):
     name = models.CharField(max_length=120)
     language = models.CharField(max_length=30)
     is_active = models.BooleanField(default=True)
+    presentation = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Нужно пересчитать оферту</title></head>
+<body style="font:16px Arial;background:#eef2f7;color:#172033;margin:0"><main style="max-width:760px;margin:48px auto;padding:24px;background:white;border-radius:12px">
+<h1>Оферту {{ quote.quote_number }} нужно пересчитать</h1>
+<p>В сохранённой сумме обнаружено расхождение. Просмотр для клиента, копирование и отправка остановлены, чтобы не выдать неверную цену.</p>
+<ul>{% for issue in price_issues %}<li>{{ issue }}</li>{% endfor %}</ul>
+<p><a href="{% url 'quotes:calculate_quote' quote.quote_number %}" style="display:inline-block;padding:12px 18px;background:#155eef;color:white;border-radius:8px;text-decoration:none">Пересчитать оферту</a></p>
+<p>Выбранные машины и ручные доплаты сохранены на экране расчёта. Проверьте суммы и нажмите «Собрать оферту».</p>
+</main></body></html>

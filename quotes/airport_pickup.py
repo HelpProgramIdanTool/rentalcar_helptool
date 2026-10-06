@@ -1,6 +1,7 @@
 import unicodedata
 
 from suppliers.models import AirportPickupWording, SupplierLocation
+from .localization import presentation_for
 
 
 def _plain(value):
@@ -39,9 +40,17 @@ def _airport_event_messages(quote, supplier_ids, side, language):
     } if code else {}
     text_field = "text_en" if language == "English" else "text_he"
     wording = dict(AirportPickupWording.objects.values_list("method_code", text_field))
+    localized = presentation_for(language).get("airport")
+    if localized:
+        wording = localized
     messages = {}
     for supplier_id in supplier_ids:
         location = locations.get(supplier_id)
+        instructions = (location.localized_service_instructions.get(side, {}).get(language)
+                        if location else None)
+        if instructions:
+            messages[supplier_id] = instructions
+            continue
         base_method = (
             "DESK" if location and location.has_rental_desk else
             "MEET" if location and location.supports_terminal_delivery else

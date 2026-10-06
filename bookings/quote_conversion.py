@@ -34,6 +34,17 @@ class BookingFromOfferForm(FirstInquiryForm):
     manual_adjustment_amount = forms.DecimalField(label="Ручная доплата", min_value=0, max_digits=10, decimal_places=2, required=False)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        young_count = (self.initial.get("young_driver_quantity", 0)
+                       if "YOUNG_DRIVER" in self.initial.get("extra_choices", []) else 0)
+        # Booking records identify each driver individually, instead of asking
+        # for the aggregate count used while preparing an offer.
+        self.fields["extra_choices"].choices = [
+            choice for choice in self.fields["extra_choices"].choices
+            if choice[0] != "YOUNG_DRIVER"
+        ]
+        self.initial["extra_choices"] = [
+            code for code in self.initial.get("extra_choices", []) if code != "YOUNG_DRIVER"
+        ]
         field_order = list(self.fields)
         field_order.remove("flight_number")
         field_order.insert(field_order.index("pickup_address") + 1, "flight_number")
@@ -52,8 +63,9 @@ class BookingFromOfferForm(FirstInquiryForm):
                 required=False,
             )
             self.fields[f"driver_{index}_young"] = forms.BooleanField(
-                label="Молодой водитель",
+                label="Новый или молодой водитель — права менее 6 месяцев или возраст младше 24 лет",
                 required=False,
+                initial=index <= young_count,
             )
         self.driver_name_fields = [self[f"driver_{index}_name"] for index in range(1, driver_count + 1)]
         self.driver_fields = [

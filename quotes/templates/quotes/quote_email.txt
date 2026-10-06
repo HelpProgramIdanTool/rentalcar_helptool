@@ -1,30 +1,32 @@
 {% autoescape off %}{% for block in introduction_blocks %}{{ block.title }}
 {{ block.content }}
 
-{% endfor %}{% if is_english %}Offer{% else %}הצעה{% endif %} {{ quote.quote_number }}
+{% endfor %}{% if is_english %}Offer{% elif is_russian %}{{ offer_labels.offer }}{% else %}הצעה{% endif %} {{ quote.quote_number }}
 {{ quote.customer }}
-{% if is_english %}Vehicle collection{% else %}קבלת הרכב{% endif %}: {{ pickup_location }} — {{ quote.pickup_datetime|date:"d.m.Y H:i" }}
-{% if is_english %}Vehicle return{% else %}החזרת הרכב{% endif %}: {{ return_location }} — {{ quote.return_datetime|date:"d.m.Y H:i" }}
-{% if is_english %}Rental days{% else %}מספר ימי שכירות{% endif %}: {{ quote.rental_days }}
+{% if is_english %}Vehicle collection{% elif is_russian %}{{ offer_labels.pickup }}{% else %}קבלת הרכב{% endif %}: {{ pickup_location }} — {{ quote.pickup_datetime|date:"d.m.Y H:i" }}
+{% if is_english %}Vehicle return{% elif is_russian %}{{ offer_labels.return }}{% else %}החזרת הרכב{% endif %}: {{ return_location }} — {{ quote.return_datetime|date:"d.m.Y H:i" }}
+{% if is_english %}Rental days{% elif is_russian %}{{ offer_labels.days }}{% else %}מספר ימי שכירות{% endif %}: {{ quote.rental_days }}
 
 {% for option in options %}--------------------
 {{ forloop.counter }}. {{ option.supplier_name_snapshot }} — {{ option.display_vehicle_class }}
-{{ option.vehicle_models_snapshot }}
+{% for badge in option.supplier_badges %}{{ badge }}
+{% endfor %}{{ option.vehicle_models_snapshot }}
+{% if option.supplier_conditions %}{{ option.supplier_conditions }}{% endif %}
 {% if option.airport_service_message %}{{ option.airport_service_message }}
 {% endif %}
 {% if option.calculation_snapshot.body_type_label or option.calculation_snapshot.transmission_label %}{{ option.calculation_snapshot.body_type_label }}{% if option.calculation_snapshot.body_type_label and option.calculation_snapshot.transmission_label %} · {% endif %}{{ option.calculation_snapshot.transmission_label }}
 {% endif %}
 {% if option.calculation_snapshot.fuel_type_label %}{{ option.calculation_snapshot.fuel_type_label }}
 {% endif %}
-{% if is_english %}Total price{% else %}מחיר כולל{% endif %}: {{ option.total_price_gross }} {{ option.currency }}
+{% if is_english %}Total price{% elif is_russian %}{{ offer_labels.total }}{% else %}מחיר כולל{% endif %}: {{ option.total_price_gross }} {{ option.currency }}
 {% if option.manual_adjustment_amount %}{{ option.manual_adjustment_label }}: {{ option.manual_adjustment_amount }} {{ option.currency }}
 {% endif %}
-{% if is_english %}Deposit{% else %}פיקדון{% endif %}: {% if option.deposit_amount is not None %}{{ option.deposit_amount }} {{ option.deposit_currency }}{% else %}{% if is_english %}not entered yet{% else %}טרם הוזן{% endif %}{% endif %}
-{% if is_english %}Price includes{% else %}המחיר כולל{% endif %}:
+{% if is_english %}Deposit{% elif is_russian %}{{ offer_labels.deposit }}{% else %}פיקדון{% endif %}: {% if option.deposit_amount is not None %}{{ option.deposit_amount }} {{ option.deposit_currency }}{% else %}{% if is_english %}not entered yet{% elif is_russian %}{{ offer_labels.missing }}{% else %}טרם הוזן{% endif %}{% endif %}
+{% if is_english %}Price includes{% elif is_russian %}{{ offer_labels.included }}{% else %}המחיר כולל{% endif %}:
 {% for item in option.display_included_items %}• {{ item }}
-{% endfor %}{% if is_english %}Extras not included in the price{% else %}תוספות לא כלולות במחיר{% endif %}:
+{% endfor %}{% if is_english %}Extras not included in the price{% elif is_russian %}{{ offer_labels.excluded }}{% else %}תוספות לא כלולות במחיר{% endif %}:
 {% for item in option.display_excluded_items %}• {{ item }}
-{% empty %}{% if is_english %}No additional extras are available.{% else %}אין תוספות נוספות זמינות.{% endif %}
+{% empty %}{% if is_english %}No additional extras are available.{% elif is_russian %}{{ offer_labels.no_extras }}{% else %}אין תוספות נוספות זמינות.{% endif %}
 {% endfor %}{{ option.customer_comment }}
 
 {% endfor %}{{ child_seat_text }}

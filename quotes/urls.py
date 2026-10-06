@@ -5,11 +5,13 @@ from bookings import quote_conversion
 from bookings import workspace
 from bookings import manual
 from .inquiry_import import import_inquiry
+from .price_preview import preview_prices
 from bookings.paste_entry import paste_booking
 
 app_name = "quotes"
 
 urlpatterns = [
+    path("offer-price-preview/", preview_prices, name="preview_prices"),
     path("bookings/paste/", paste_booking, name="paste_booking"),
     path("inquiry-import/", import_inquiry, name="import_inquiry"),
     path("offers/<str:quote_number>/copy/", views.copy_quote, name="copy_quote"),

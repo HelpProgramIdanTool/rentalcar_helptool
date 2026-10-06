@@ -55,6 +55,17 @@ class QuoteConversionTests(TestCase):
         self.assertNotContains(response, 'name="driver_2_first_name"')
         self.assertFalse(Booking.objects.exists())
 
+    def test_young_driver_offer_prefills_individual_driver_flags(self):
+        self.quote.extra_requests = {"YOUNG_DRIVER": 1}
+        self.quote.driver_count = 2
+        self.quote.save()
+        response = self.client.get(self.url)
+        form = response.context["form"]
+        self.assertTrue(form["driver_1_young"].value())
+        self.assertFalse(form["driver_2_young"].value())
+        self.assertNotIn("YOUNG_DRIVER", dict(form.fields["extra_choices"].choices))
+        self.review(driver_1_young="on")
+
     def test_two_driver_names_are_saved_in_the_order(self):
         data, response = self.review(
             driver_1_name="Anna Nowak", driver_2_name="Piotr Kowalski",
@@ -69,8 +80,13 @@ class QuoteConversionTests(TestCase):
         self.assertContains(detail, "Piotr Kowalski")
 
     def test_car_free_prague_airport_is_a_regular_supplier_location(self):
+        from suppliers.models import CityServiceRule, OfferCity, SupplierExtra, SupplierExtraRate
         self.supplier.supplier_code = "01"
         self.supplier.save(update_fields=["supplier_code"])
+        CityServiceRule.objects.create(city=OfferCity.objects.get(name="Prague"), supplier=self.supplier)
+        cross_border = SupplierExtra.objects.create(supplier=self.supplier, extra_code="CROSS_BORDER", name="Test border fee")
+        SupplierExtraRate.objects.create(extra=cross_border, calculation_type="PER_RENTAL", amount_gross=100,
+                                        valid_from=date(2026, 1, 1))
         airport = SupplierLocation.objects.create(
             supplier=self.supplier, location_code="PRG", location_name="Prague Airport",
             city="Prague Airport", country="Czech Republic", location_type="AIRPORT",
@@ -85,6 +101,7 @@ class QuoteConversionTests(TestCase):
         self.assertEqual(booking.pickup_location, airport)
         self.assertEqual(booking.return_location, airport)
         self.assertFalse(booking.extras.filter(extra__extra_code="FOREIGN_CITY_DELIVERY").exists())
+        self.assertTrue(booking.extras.filter(extra__extra_code="CROSS_BORDER").exists())
 
     def test_manual_adjustment_from_offer_is_saved_in_booking_total(self):
         self.option.manual_adjustment_label = "Special route"

@@ -44,20 +44,21 @@
   .app main{height:auto;min-height:100vh;overflow:visible;min-width:0}
   .app form{display:block;min-width:0}
   .app .work-area{height:auto;min-height:0;align-items:start}
-  .app .message-panel{position:static;height:auto;max-height:none;min-width:0;gap:12px}
+  .app .message-panel{position:sticky;top:12px;align-self:start;height:auto;max-height:calc(100dvh - 24px);min-width:0;gap:8px;overflow:auto;z-index:2}
   .app .message-panel .customer-message{flex:none;min-height:0}
-  .app .message-panel textarea{height:260px;min-height:160px;resize:vertical;overscroll-behavior:auto}
+  .app .message-panel textarea{height:180px;min-height:100px;max-height:35dvh;resize:vertical;overscroll-behavior:contain}
   .app .form-scroll{height:auto;overflow:visible;display:flex;flex-direction:column;padding:0;min-width:0;overscroll-behavior:auto}
-  .app #import-result{flex:none;max-height:none;overflow:visible}
+  .app #import-result{flex:none;max-height:100px;overflow:auto}
   .app fieldset{min-width:0}
   .rental-locations{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start;background:#f8fafc}
   .location-zone h2{margin:0;font-size:18px;color:#173b72}
   .location-zone .address-field{grid-column:auto}
-  @media(max-width:1000px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%}}
+  .app .work-area{grid-template-columns:minmax(220px,26%) minmax(0,1fr)}
+  @media(max-width:800px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%;max-height:35dvh;top:0}.app .message-panel textarea{height:100px}.app .message-panel small{display:none}}
   @media(max-width:700px){.rental-locations{grid-template-columns:1fr}}
 </style>
-</head>
+<style>.vehicle-price{font-weight:700;color:#155eef;white-space:nowrap}.vehicle-supplier label{flex-wrap:wrap}.vehicle-supplier label input{flex-shrink:0}#price-preview-status{margin:4px 0;font-size:12px;color:#475467}</style></head>
 <body><div class="app">{% include 'quotes/sidebar.html' %}<main>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><h1>Новое обращение клиента</h1><a href="{% url 'quotes:home' %}" style="display:inline-block;padding:9px 13px;border-radius:8px;background:#e8efff;color:#155eef;font-weight:700;text-decoration:none">← На главную</a></div>
   {% if selected_customer %}<p>Оферта для: <strong>{{ selected_customer }}</strong></p>{% endif %}
@@ -77,6 +78,10 @@
       <small class="hint">Вставь сюда исходный текст письма клиента. Для иврита текст выравнивается справа.</small>
     </fieldset>
     <div class="form-scroll">
+    {% if form.errors %}<section id="form-errors" role="alert" tabindex="-1" style="padding:14px;margin-bottom:14px;background:#fff1f0;border:2px solid #b42318;border-radius:8px">
+      <strong>Не удалось перейти к расчёту. Исправьте поля:</strong>
+      <ul>{% for field in form %}{% for error in field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}</a>: {{ error }}</li>{% endfor %}{% endfor %}{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+    </section>{% endif %}
     <fieldset><legend>1. Клиент</legend><div class="grid">
       <label>{{ form.full_name.label }}{{ form.full_name }}{{ form.full_name.errors }}</label>
       <label>{{ form.email.label }}{{ form.email }}{{ form.email.errors }}</label>
@@ -98,7 +103,6 @@
       </div>
     </fieldset>
     <fieldset><legend>3. Запрос на аренду</legend><div class="grid">
-      <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
       <div class="rental-locations">
         <section class="location-zone" data-location-zone="pickup">
           <h2>Получение</h2>
@@ -122,17 +126,36 @@
         </section>
       </div>
       <label>{{ form.driver_count.label }}{{ form.driver_count }}{{ form.driver_count.errors }}</label>
-      <div class="vehicle-choice" role="group" aria-labelledby="vehicle-choice-title"><h2 id="vehicle-choice-title">{{ form.vehicle_groups.label }}</h2>{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>При ручном заполнении показаны все категории. После разбора текста заявки останутся подходящие группы.</small></div>
       <label class="extras-choice">{{ form.extra_choices.label }}{{ form.extra_choices }}{{ form.extra_choices.errors }}</label>
+      <label>{{ form.young_driver_quantity.label }}{{ form.young_driver_quantity }}{{ form.young_driver_quantity.errors }}<small>{{ form.young_driver_quantity.help_text }}</small></label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
       <label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
+      <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
+      <p id="price-preview-status" class="full" role="status" aria-live="polite" data-url="{% url 'quotes:preview_prices' %}">Заполните параметры аренды, чтобы увидеть цены.</p>
+      <div class="vehicle-choice" role="group" aria-labelledby="vehicle-choice-title"><h2 id="vehicle-choice-title">{{ form.vehicle_groups.label }}</h2>{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>При ручном заполнении показаны все категории. После разбора текста заявки останутся подходящие группы.</small></div>
       <label class="full">{{ form.internal_notes.label }}{{ form.internal_notes }}{{ form.internal_notes.errors }}</label>
     </div></fieldset>
     <p class="next-note">После сохранения сразу перейдём к расчёту вариантов поставщиков.</p><div><button type="submit">Сохранить и перейти к расчёту →</button></div>
     </div></div>
   </form>
 </main></div>
+{{ form.foreign_city_names|json_script:"foreign-city-names" }}
+{{ form.subagent_unavailable_supplier_ids|json_script:"subagent-unavailable-suppliers" }}
 <script>
+  const unavailableSuppliers = new Set(JSON.parse(document.getElementById('subagent-unavailable-suppliers').textContent).map(String));
+  function updateSubagentSuppliers() {
+    const isSubagent = Boolean(document.getElementById('id_sub_agent').value);
+    document.querySelectorAll('input[name="suppliers"], .vehicle-picker input[type="checkbox"]').forEach(input => {
+      const supplierId = input.name === 'suppliers' ? input.value : input.dataset.supplierId;
+      if (!unavailableSuppliers.has(supplierId)) return;
+      input.disabled = isSubagent;
+      if (isSubagent) input.checked = false;
+      input.closest('label').style.opacity = isSubagent ? '0.45' : '';
+      input.closest('label').title = isSubagent ? 'Поставщик не работает с сабагентами' : '';
+    });
+  }
+  document.getElementById('id_sub_agent').addEventListener('change', updateSubagentSuppliers);
+  updateSubagentSuppliers();
   const checkbox = document.querySelector('#id_wants_invoice');
   const invoice = document.querySelector('#invoice-fields');
   function toggleInvoice() { invoice.hidden = !checkbox.checked; }
@@ -155,6 +178,7 @@
       el.hidden = !Array.from(el.querySelectorAll('input[type="checkbox"]')).some(input => !input.closest('label').hidden);
     });
     document.querySelector('#show-all-groups').hidden = ids === null;
+    form.dispatchEvent(new Event('pricingchange'));
   }
   document.querySelector('#show-all-groups').addEventListener('click', () => filterGroups(null));
   document.querySelector('#import-inquiry').addEventListener('click', async function () {
@@ -170,6 +194,11 @@
       if (!response.ok) throw new Error(data.error || 'Не удалось разобрать заявку.');
       document.querySelector('#imported-inquiry').value = '1';
       Object.entries(data.fields).forEach(([name, value]) => {
+        if(name==='suppliers')return;
+        if((name==='pickup_time'||name==='return_time')&&value){
+          const select=form.elements[name];
+          if(!Array.from(select.options).some(option=>option.value===value))select.add(new Option(value,value));
+        }
         form.querySelectorAll('[name="'+name+'"]').forEach(el => {
           if (el.type === 'checkbox') el.checked = Array.isArray(value) ? value.map(String).includes(el.value) : Boolean(value);
           else el.value = value ?? '';
@@ -180,7 +209,7 @@
       returnCalendar.value = isoDate(returnText.value);
       returnCalendar.min = pickupCalendar.value;
       returnServiceChanged = returnService.value !== pickupService.value;
-      toggleAddresses(); toggleChildSeats(); updatePhones(); saveDraft(); scheduleLookup();
+      toggleAddresses(); toggleChildSeats(); updatePhones(); syncCrossBorder(); saveDraft(); scheduleLookup();
       const groupText=Array.isArray(data.fields.vehicle_groups)?' Подобрано групп: '+data.fields.vehicle_groups.length+'.':'';
       result.textContent = 'Данные заполнены.' + groupText +
         ' Проверьте и нажмите «Сохранить и перейти к расчёту».\n' + data.warnings.join('\n');
@@ -190,6 +219,13 @@
   const draftKey = 'rentacar-first-inquiry-draft-v2';
   const pickupPlace = document.querySelector('#id_pickup_city');
   const returnPlace = document.querySelector('#id_return_city');
+  const foreignCities=JSON.parse(document.querySelector('#foreign-city-names').textContent);
+  const crossBorder=document.querySelector('#id_cross_border_requested');
+  function syncCrossBorder(){if(foreignCities.includes(pickupPlace.value)||foreignCities.includes(returnPlace.value))crossBorder.checked=true;}
+  pickupPlace.addEventListener('change',syncCrossBorder);
+  returnPlace.addEventListener('change',syncCrossBorder);
+  crossBorder.addEventListener('change',syncCrossBorder);
+  form.addEventListener('submit',syncCrossBorder);
   const pickupService = document.querySelector('#id_pickup_service');
   const returnService = document.querySelector('#id_return_service');
   let returnPlaceChanged = false;
@@ -200,7 +236,7 @@
   returnService.addEventListener('change', () => { returnServiceChanged = true; toggleAddresses(); });
   function toggleAddresses(){document.querySelector('#pickup-address-box').hidden=pickupService.value!=='ADDRESS';document.querySelector('#return-address-box').hidden=returnService.value!=='ADDRESS';document.querySelectorAll('[data-other-side="pickup"]').forEach(el=>el.hidden=pickupPlace.value!=='OTHER');document.querySelectorAll('[data-other-side="return"]').forEach(el=>el.hidden=returnPlace.value!=='OTHER');}
   const childSeat=document.querySelector('input[name="extra_choices"][value="CHILD_SEAT"]');
-  function toggleChildSeats(){document.querySelector('#child-seat-count').hidden=!childSeat.checked;}
+  function toggleChildSeats(){document.querySelector('#child-seat-count').hidden=!childSeat.checked;document.querySelector('#id_child_seat_quantity').disabled=!childSeat.checked;}
   childSeat.addEventListener('change',toggleChildSeats);
 
   function displayDate(iso) { const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}`; }
@@ -267,6 +303,7 @@
       const data = JSON.parse(localStorage.getItem(draftKey) || '{}');
       Object.entries(data).forEach(([name, value]) => {
         const el = form.elements[name]; if (!el) return;
+        if((name==='pickup_time'||name==='return_time')&&value&&!Array.from(el.options).some(option=>option.value===value))el.add(new Option(value,value));
         if (el.type === 'checkbox') el.checked = value; else el.value = value;
       });
       pickupCalendar.value = isoDate(pickupText.value);
@@ -275,7 +312,7 @@
       returnServiceChanged = returnService.value !== pickupService.value;
       const selectedGroups = Array.from(document.querySelectorAll('.vehicle-picker input[type="checkbox"]:checked'), input => input.value);
       filterGroups(document.querySelector('#imported-inquiry').value === '1' ? selectedGroups : null);
-      toggleInvoice(); toggleAddresses(); updatePhones(); toggleChildSeats();
+      toggleInvoice(); toggleAddresses(); updatePhones(); toggleChildSeats(); syncCrossBorder();
       lookupCustomer();
     } catch (error) {}
   }
@@ -297,4 +334,7 @@
   {% if not is_editing and not selected_customer %}form.addEventListener('input', saveDraft);
   form.addEventListener('change', saveDraft);{% endif %}
   toggleInvoice();
-</script></body></html>
+  const errorSummary=document.querySelector('#form-errors');
+  syncCrossBorder();
+  if(errorSummary)errorSummary.focus();
+</script><script src="{% static 'quotes/price_preview.js' %}?v=20261003-1"></script></body></html>

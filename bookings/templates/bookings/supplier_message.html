@@ -10,7 +10,7 @@
 <form method="post">{% csrf_token %}{{ form.errors }}
 <input type="hidden" name="change_mode" value="{% if change_mode %}1{% else %}0{% endif %}">
 <input type="hidden" name="send_token" value="{{ send_token }}">
-<p><label>Кому <input name="recipient" id="supplier-recipient" type="email" value="{{ recipient }}" style="width:350px"></label></p>
+<p><label>Кому <input name="recipient" id="supplier-recipient" type="text" maxlength="1000" value="{{ recipient }}" style="width:min(100%,600px)" placeholder="email1@example.com; email2@example.com"></label><br><small>Несколько адресов разделяйте точкой с запятой (;). Письмо получат все указанные адресаты.</small></p>
 <p><label>Тема <input name="subject" id="supplier-subject" value="{{ subject }}" style="width:80%" required></label></p>
 <textarea name="body" id="supplier-body" rows="20" style="width:100%;font:15px Arial" required>{{ body }}</textarea>
 <p style="display:flex;gap:12px;flex-wrap:wrap"><button id="supplier-copy" type="button">Скопировать</button><button type="submit" name="action" value="send">Выслать из системы</button><button type="submit" name="action" value="mark_manual">Отметить отправку вручную</button><button type="submit" name="action" value="save">Сохранить черновик</button></p></form>

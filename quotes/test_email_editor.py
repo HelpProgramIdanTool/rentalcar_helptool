@@ -79,6 +79,27 @@ class EmailEditorTests(TestCase):
         self.assertContains(preview, "Total price")
         self.assertNotIn("פרטי ההשכרה", customer_html)
 
+    def test_extra_translation_uses_offer_language_and_preserves_saved_price(self):
+        source = "Получение или возврат в зарубежном городе"
+        self.option.calculation_snapshot = {"included_items": [source + " × 2"]}
+        self.option.save()
+        for language in ("Hebrew", "Russian", "English"):
+            with self.subTest(language=language):
+                self.quote.language = language
+                self.quote.save(update_fields=["language"])
+                template = QuoteTemplate.objects.get(language=language, is_active=True)
+                marker = "TEST-DELIVERY-" + language
+                template.presentation.setdefault("translations", {})[source] = marker
+                template.save()
+                payload = self.client.get(reverse("quotes:copy_quote", args=[self.quote.quote_number])).json()
+                for text in (payload["html"], payload["text"]):
+                    self.assertIn(marker + " × 2", text)
+                    self.assertNotIn(source, text)
+        self.option.refresh_from_db()
+        self.assertEqual(self.option.total_price_gross, 100)
+        self.assertIn(source + " × 2", self.option.calculation_snapshot["included_items"])
+        self.assertFalse(any("TEST-DELIVERY-" in item for item in self.option.calculation_snapshot["included_items"]))
+
     def test_mandatory_not_disabled_and_options_independent_of_deposit_block(self):
         self.quote.document_blocks.filter(block_key__in=["CROSS_BORDER", "PAYMENT_DEPOSIT"]).update(is_enabled=False)
         response = self.client.get(reverse("quotes:quote_preview", args=[self.quote.quote_number]))

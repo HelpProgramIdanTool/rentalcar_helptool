@@ -1,9 +1,10 @@
 from datetime import timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -28,6 +29,17 @@ from .services import (
     ensure_quote_option_presentation,
     vehicle_class_presentation,
 )
+
+
+class YoungDriverPriceTests(SimpleTestCase):
+    def test_fee_multiplies_daily_rate_by_days_and_people(self):
+        rate = SimpleNamespace(
+            calculation_type="PER_DRIVER_DAY", amount_gross=Decimal("10"),
+            formula_config={}, minimum_amount_gross=None, maximum_amount_gross=None,
+        )
+        self.assertEqual(_extra_price(rate, Decimal(3), Decimal(2)), Decimal("60"))
+        rate.maximum_amount_gross = Decimal("20")
+        self.assertEqual(_extra_price(rate, Decimal(3), Decimal(2)), Decimal("40"))
 
 
 class FirstInquiryTests(TestCase):
@@ -100,6 +112,192 @@ class FirstInquiryTests(TestCase):
         self.assertNotContains(response, "data-picker=")
         self.assertContains(response, 'autocomplete="off"')
         self.assertNotContains(response, "restoreDraft();")
+
+    def test_unused_extra_counts_do_not_block_imported_inquiry(self):
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(
+            extra_choices=[], child_seat_quantity=0, young_driver_quantity=0, imported_inquiry="1",
+        ))
+        quote = Quote.objects.get()
+        self.assertRedirects(response, reverse("quotes:calculate_quote", args=[quote.quote_number]))
+        self.assertEqual(quote.extra_requests, {})
+
+    def test_half_hour_times_preserve_existing_precise_time(self):
+        from .forms import FirstInquiryForm
+        form = FirstInquiryForm()
+        self.assertEqual(len(form.fields["pickup_time"].choices), 48)
+        self.assertIn(("10:30", "10:30"), form.fields["pickup_time"].choices)
+        self.assertNotIn(("10:05", "10:05"), form.fields["pickup_time"].choices)
+        form = FirstInquiryForm(initial={"pickup_time": "10:05"})
+        self.assertIn(("10:05", "10:05"), form.fields["pickup_time"].choices)
+        bound = FirstInquiryForm(self.data(pickup_time="10:05"))
+        self.assertTrue(bound.is_valid(), bound.errors)
+        self.assertEqual(bound.cleaned_data["pickup_datetime"].minute, 5)
+
+    def test_all_active_suppliers_default_only_for_new_unbound_form(self):
+        from .forms import FirstInquiryForm
+        other = Supplier.objects.create(supplier_code="OTHER", supplier_name="Other test")
+        form = FirstInquiryForm()
+        self.assertIn(self.supplier.pk, form.initial["suppliers"])
+        self.assertIn(other.pk, form.initial["suppliers"])
+        edited = FirstInquiryForm(initial={"suppliers": [self.supplier.pk]})
+        self.assertEqual(edited.initial["suppliers"], [self.supplier.pk])
+        bound = FirstInquiryForm(self.data(suppliers=[self.supplier.pk]))
+        self.assertEqual(list(bound["suppliers"].value()), [self.supplier.pk])
+
+    def test_foreign_city_forces_cross_border_on_pickup_or_return(self):
+        from .forms import FirstInquiryForm
+        for side in ("pickup", "return"):
+            form = FirstInquiryForm(self.data(**{f"{side}_city": "Berlin"}))
+            self.assertTrue(form.is_valid(), form.errors)
+            self.assertTrue(form.cleaned_data["cross_border_requested"])
+        choices = list(FirstInquiryForm().fields["pickup_city"].choices)
+        self.assertEqual([value for value, label in choices[-6:]],
+                         ["Budapest", "Vienna", "Bratislava", "Prague", "Berlin", "Vilnius"])
+
+    def test_city_delivery_uses_configured_fee_per_event_and_reports_missing_rule(self):
+        from suppliers.models import OfferCity, CityServiceRule
+        self.client.post(reverse("quotes:new_inquiry"), self.data(
+            pickup_city="Berlin", return_city="Berlin", extra_choices=[],
+        ))
+        quote = Quote.objects.get()
+        self.assertTrue(quote.cross_border_requested)
+        options = calculate_quote_options(quote)
+        self.assertTrue(options)
+        self.assertTrue(all(not option["available"] for option in options))
+        self.assertIn("не настроена стоимость", options[0]["reason"])
+        extra = SupplierExtra.objects.create(supplier=self.supplier, extra_code="TEST-FOREIGN", name="TEST-DELIVERY")
+        rate = SupplierExtraRate.objects.create(extra=extra, calculation_type="PER_UNIT", amount_gross=100,
+                                               valid_from=self.pickup.date() - timedelta(days=1))
+        CityServiceRule.objects.create(city=OfferCity.objects.get(name="Berlin"), supplier=self.supplier, extra=extra)
+        options = calculate_quote_options(quote)
+        for option in options:
+            self.assertTrue(option["available"])
+            self.assertEqual(option["extras_total"], Decimal(200))
+            self.assertEqual(option["extra_lines"][0]["quantity"], Decimal(2))
+        quote.return_city = "Kraków"
+        self.assertEqual(calculate_quote_options(quote)[0]["extras_total"], Decimal(100))
+        rate.is_active = False
+        rate.save()
+        self.assertFalse(calculate_quote_options(quote)[0]["available"])
+
+    def test_normal_city_rule_does_not_add_foreign_delivery(self):
+        from suppliers.models import OfferCity, CityServiceRule
+        CityServiceRule.objects.create(city=OfferCity.objects.get(name="Prague"), supplier=self.supplier)
+        self.client.post(reverse("quotes:new_inquiry"), self.data(
+            pickup_city="Prague", return_city="Prague", extra_choices=[],
+        ))
+        quote = Quote.objects.get()
+        for option in calculate_quote_options(quote):
+            self.assertTrue(option["available"])
+            self.assertEqual(option["extras_total"], Decimal(0))
+
+    def test_hidden_catalog_group_is_not_offered_even_with_active_rates(self):
+        from .forms import FirstInquiryForm
+        group = self.form_groups[0]
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        group.show_in_offers = False
+        group.save()
+        self.assertTrue(group.rates.exists())
+        self.assertNotIn(group, FirstInquiryForm().fields["vehicle_groups"].queryset)
+        self.assertNotIn(group.pk, [option["group"].pk for option in calculate_quote_options(quote)])
+
+    def test_selected_seats_with_zero_count_show_visible_error_summary(self):
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(
+            extra_choices=["CHILD_SEAT"], child_seat_quantity=0, imported_inquiry="1",
+        ))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("child_seat_quantity", response.context["form"].errors)
+        self.assertContains(response, 'id="form-errors"')
+        self.assertContains(response, 'href="#id_child_seat_quantity"')
+        self.assertContains(response, "Не удалось перейти к расчёту")
+        self.assertFalse(Quote.objects.exists())
+
+    def test_young_driver_selection_is_visible_saved_restored_and_removed(self):
+        page = self.client.get(reverse("quotes:new_inquiry"))
+        self.assertContains(page, "права менее 6 месяцев или возраст младше 24 лет")
+        response = self.client.post(reverse("quotes:new_inquiry"), self.data(
+            extra_choices=["YOUNG_DRIVER"], young_driver_quantity=2,
+        ))
+        self.assertEqual(response.status_code, 302)
+        quote = Quote.objects.get()
+        self.assertEqual(quote.extra_requests, {"YOUNG_DRIVER": 2})
+        edit_url = reverse("quotes:edit_quote", args=[quote.quote_number])
+        form = self.client.get(edit_url).context["form"]
+        self.assertEqual(form["young_driver_quantity"].value(), 2)
+        self.assertIn("YOUNG_DRIVER", form["extra_choices"].value())
+        self.client.post(edit_url, self.data(extra_choices=[], young_driver_quantity=2))
+        quote.refresh_from_db()
+        self.assertEqual(quote.extra_requests, {})
+
+    def test_russian_calculation_translates_vehicle_details_and_extras_without_changing_prices(self):
+        template = QuoteTemplate.objects.get(language="Russian", is_active=True)
+        template.presentation["translations"].update({
+            "TEST-SOURCE-CAR": "TEST-RU-CAR", "TEST-SOURCE-FUEL": "TEST-RU-FUEL",
+            "TEST-SOURCE-EXTRA": "TEST-RU-EXTRA",
+        })
+        template.save()
+        group = self.form_groups[0]
+        group.group_name = "TEST-SOURCE-CAR"
+        group.fuel_type_note = "TEST-SOURCE-FUEL"
+        group.luggage_volume_liters = 400
+        group.save()
+        extra = SupplierExtra.objects.create(
+            supplier=self.supplier, extra_code="TEST-EXTRA", name="TEST-SOURCE-EXTRA", is_mandatory=True,
+        )
+        SupplierExtraRate.objects.create(
+            extra=extra, calculation_type="PER_RENTAL", amount_gross=10,
+            valid_from=self.pickup.date() - timedelta(days=1),
+        )
+        self.client.post(reverse("quotes:new_inquiry"), self.data(
+            preferred_language="Russian", vehicle_groups=[str(group.pk)], extra_choices=[],
+        ))
+        quote = Quote.objects.get()
+        url = reverse("quotes:calculate_quote", args=[quote.quote_number])
+        page = self.client.get(url)
+        for marker in ("TEST-RU-CAR", "TEST-RU-FUEL", "TEST-RU-EXTRA", "Примерный объём багажника"):
+            self.assertContains(page, marker)
+        for marker in ("TEST-SOURCE-CAR", "TEST-SOURCE-FUEL", "TEST-SOURCE-EXTRA"):
+            self.assertNotContains(page, marker)
+        self.client.post(url, {"selected_options": [str(group.pk)]})
+        option = quote.options.get()
+        self.assertEqual(option.total_price_gross, Decimal(100 * quote.rental_days + 10))
+        self.assertEqual(option.calculation_snapshot["lines"][0]["name"], "TEST-SOURCE-EXTRA")
+
+    def test_young_driver_quantity_must_be_present_and_within_driver_count(self):
+        for quantity in ("", 0, 3):
+            with self.subTest(quantity=quantity):
+                response = self.client.post(reverse("quotes:new_inquiry"), self.data(
+                    extra_choices=["YOUNG_DRIVER"], young_driver_quantity=quantity,
+                ))
+                self.assertIn("young_driver_quantity", response.context["form"].errors)
+        self.assertFalse(Quote.objects.exists())
+
+    def test_young_driver_fee_uses_configured_supplier_rate_and_both_codes(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data(
+            extra_choices=["YOUNG_DRIVER"], young_driver_quantity=2,
+        ))
+        quote = Quote.objects.get()
+        extra = SupplierExtra.objects.create(
+            supplier=self.supplier, extra_code="YOUNG_DRIVER", name="TEST-DRIVER-FEE",
+        )
+        SupplierExtraRate.objects.create(
+            extra=extra, calculation_type="PER_DRIVER_DAY", amount_gross=10,
+            valid_from=self.pickup.date() - timedelta(days=1),
+        )
+        for code in ("YOUNG_DRIVER", "YOUNG_DRIVER_21_24"):
+            extra.extra_code = code
+            extra.save()
+            with self.subTest(code=code):
+                options = calculate_quote_options(quote)
+                self.assertTrue(options)
+                for option in options:
+                    self.assertEqual(option["extras_total"], Decimal(20 * quote.rental_days))
+                    self.assertEqual(option["unavailable_requests"], [])
+        extra.is_active = False
+        extra.save()
+        for option in calculate_quote_options(quote):
+            self.assertIn("YOUNG_DRIVER", option["unavailable_requests"])
 
     def test_first_email_creates_customer_and_draft_quote(self):
         response = self.client.post(reverse("quotes:new_inquiry"), self.data())
@@ -719,7 +917,7 @@ class FirstInquiryTests(TestCase):
         for group in self.form_groups:
             self.assertNotContains(response, group.group_code)
 
-    def test_calculation_does_not_show_selected_groups_without_a_matching_rate(self):
+    def test_calculation_explains_selected_groups_without_a_matching_rate(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())
         quote = Quote.objects.get()
         VehicleRate.objects.all().delete()
@@ -728,10 +926,24 @@ class FirstInquiryTests(TestCase):
             reverse("quotes:calculate_quote", args=[quote.quote_number])
         )
 
-        self.assertNotContains(response, "Варианты без цены")
-        self.assertNotContains(response, "Нельзя рассчитать")
+        self.assertContains(response, "Варианты без цены")
+        self.assertContains(response, self.form_groups[0].group_code)
+        self.assertNotContains(response, 'name="selected_options"')
 
-    def test_selected_supplier_gets_matching_class_when_no_group_was_checked(self):
+    def test_subagent_missing_tariff_is_explained_without_using_standard_prices(self):
+        agent = SubAgent.objects.create(name="Test agent", code_prefix="TA")
+        self.supplier.subagent_pricing_method = "DEDICATED"
+        self.supplier.save()
+        self.client.post(reverse("quotes:new_inquiry"), self.data(sub_agent=agent.pk))
+        quote = Quote.objects.get()
+        options = calculate_quote_options(quote)
+        self.assertTrue(options)
+        self.assertTrue(all(not option["available"] for option in options))
+        page = self.client.get(reverse("quotes:calculate_quote", args=[quote.quote_number]))
+        self.assertContains(page, "Не загружен подходящий тариф для субагентов")
+        self.assertNotContains(page, 'name="selected_options"')
+
+    def test_selected_supplier_cannot_add_an_unchecked_matching_group(self):
         from suppliers.models import PriceDayRange, PriceList, PriceSeason, VehicleRate
 
         other = Supplier.objects.create(supplier_code="03", supplier_name="Test third supplier")
@@ -765,7 +977,8 @@ class FirstInquiryTests(TestCase):
             vehicle_groups=[str(self.form_groups[0].pk)],
         ))
         options = calculate_quote_options(Quote.objects.get())
-        self.assertTrue(any(item["group"] == matching and item["available"] for item in options))
+        self.assertTrue(any(item["group"] == self.form_groups[0] and item["available"] for item in options))
+        self.assertFalse(any(item["group"] == matching for item in options))
         self.assertFalse(any(item["group"] == unrelated for item in options))
 
     def test_supplier_without_matching_class_is_skipped_with_visible_warning(self):

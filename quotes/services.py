@@ -6,6 +6,7 @@ from django.utils import timezone
 from config.after_hours import needs_after_hours_charge
 from customers.models import Customer
 from suppliers.models import (
+    OfferCity, CityServiceRule, Supplier,
     PriceList,
     SupplierLocation,
     SupplierExtraRate,
@@ -57,14 +58,14 @@ STANDARD_INCLUDED_ITEMS = [
 ]
 
 
-def normalize_included_items(items):
+def normalize_included_items(items, benefits=None):
     """Use the same standard benefits, retaining other selected extras."""
     legacy_standard_items = {
         "עד שני נהגים", "חבילת With Comfort Package",
         "ביטוח מלא עם ביטול השתתפות - SCDW", "ללא הגבלת ק״מ",
     }
     return list(dict.fromkeys([
-        "מחיר השכרת הרכב", "מע״מ (VAT)", *STANDARD_INCLUDED_ITEMS,
+        "מחיר השכרת הרכב", "מע״מ (VAT)", *(STANDARD_INCLUDED_ITEMS if benefits is None else benefits),
         *(item for item in items if item not in legacy_standard_items),
     ]))
 
@@ -197,17 +198,44 @@ def _active_extra_rate(extra, pickup_date, days):
     ).order_by("-priority", "-valid_from").first()
 
 
-def _service_extra_requests(quote, supplier_code):
+def _service_extra_requests(quote, supplier_code, excluded_sides=()):
     requests = {}
     address_sides = sum(
-        service == "ADDRESS"
-        for service in (quote.pickup_service, quote.return_service)
+        getattr(quote, f"{side}_service") == "ADDRESS"
+        for side in ("pickup", "return") if side not in excluded_sides
     )
     if supplier_code in {"01", "03"} and address_sides:
         requests["CITY_ADDRESS_DELIVERY"] = Decimal(address_sides)
-    if supplier_code == "02" and quote.pickup_service == "AIRPORT":
+    if supplier_code == "02" and quote.pickup_service == "AIRPORT" and "pickup" not in excluded_sides:
         requests["AIRPORT_FEE"] = Decimal("1")
     return requests
+
+
+def _city_service_requests(quote, supplier):
+    requests, excluded_sides, missing = {}, set(), []
+    for side in ("pickup", "return"):
+        city = OfferCity.objects.filter(name=getattr(quote, f"{side}_city"), is_active=True).first()
+        if not city or not city.cross_border_required:
+            continue
+        rule = CityServiceRule.objects.filter(city=city, supplier=supplier).select_related("extra").first()
+        if not rule:
+            missing.append(f"{city.label}: не настроена стоимость выдачи/возврата у поставщика.")
+        elif not getattr(rule, f"supports_{side}"):
+            operation = "Получение" if side == "pickup" else "Возврат"
+            missing.append(f"{city.label}: {operation} у поставщика не подтверждено.")
+        elif rule.extra_id:
+            event_date = timezone.localtime(getattr(quote, f"{side}_datetime")).date()
+            rate = _active_extra_rate(rule.extra, event_date, quote.rental_days)
+            if not rule.extra.is_active or not rate:
+                missing.append(f"{city.label}: нет действующего тарифа выдачи/возврата.")
+            else:
+                # Keep pickup and return rates separate: validity may differ.
+                key = (rule.extra.pk, rate.pk)
+                if key not in requests:
+                    requests[key] = {"extra": rule.extra, "rate": rate, "quantity": Decimal(0)}
+                requests[key]["quantity"] += Decimal(1)
+                excluded_sides.add(side)
+    return list(requests.values()), excluded_sides, missing
 
 
 def _after_hours_extra_requests(quote, supplier):
@@ -242,15 +270,18 @@ def _after_hours_extra_requests(quote, supplier):
     }
 
 
-def _missing_rate_reason(group, pickup_date, days):
+def _missing_rate_reason(group, pickup_date, days, audience=PriceList.Audience.STANDARD):
     rates = VehicleRate.objects.filter(
         is_active=True, vehicle_group=group.effective_rate_group,
         season__is_active=True, season__price_list__status="ACTIVE",
+        season__price_list__audience=audience,
         day_range__is_active=True, day_range__days_from__lte=days,
     ).filter(Q(day_range__days_to__isnull=True) | Q(day_range__days_to__gte=days)).select_related(
         "season__price_list"
     )
     coverage_ends = []
+    if audience == PriceList.Audience.SUBAGENT and not rates.exists():
+        return "Не загружен подходящий тариф для субагентов. Загрузите ценник субагентов для этой группы и срока аренды."
     for rate in rates:
         ends = [end for end in (
             rate.season.price_list.effective_to, rate.season.rental_date_to
@@ -276,16 +307,17 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             "vehicle_groups__supplier", "vehicle_groups__models", "vehicle_groups__comparison_classes"
         ).filter(code=quote.vehicle_request)
     requested_supplier_ids = {vehicle_group.supplier_id} if vehicle_group else set(quote.requested_suppliers.values_list("id", flat=True))
-    selected_supplier_ids = {vehicle_group.supplier_id} if vehicle_group else set(
-        quote.requested_vehicle_groups.values_list("supplier_id", flat=True)
-    )
-    suppliers_missing_groups = requested_supplier_ids - selected_supplier_ids if requested_group_ids else set()
     results = []
     for comparison in comparisons:
       groups = comparison.vehicle_groups.filter(is_active=True)
+      if not vehicle_group:
+        groups = groups.filter(show_in_offers=True)
       if requested_group_ids:
-        groups = groups.filter(Q(id__in=requested_group_ids) | Q(supplier_id__in=suppliers_missing_groups))
+        groups = groups.filter(id__in=requested_group_ids)
       for group in groups:
+        if (getattr(quote, "sub_agent_id", None) and
+                group.supplier.subagent_pricing_method == Supplier.SubagentPricingMethod.UNAVAILABLE):
+            continue
         if requested_supplier_ids and group.supplier_id not in requested_supplier_ids:
             continue
         vehicle_title, body_type_label = vehicle_class_presentation(comparison, group)
@@ -298,23 +330,23 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             PriceList.Audience.SUBAGENT if use_subagent_prices
             else PriceList.Audience.STANDARD
         )
-        rate = VehicleRate.objects.filter(
+        candidate_rates = VehicleRate.objects.filter(
             is_active=True,
             vehicle_group=group.effective_rate_group,
             season__is_active=True,
             season__price_list__status="ACTIVE",
             season__price_list__audience=price_audience,
             season__price_list__effective_from__lte=pickup_date,
-            season__rental_date_from__lte=pickup_date,
             day_range__is_active=True,
             day_range__days_from__lte=quote.rental_days,
         ).filter(
             Q(season__price_list__effective_to__isnull=True) | Q(season__price_list__effective_to__gte=pickup_date),
-            Q(season__rental_date_to__isnull=True) | Q(season__rental_date_to__gte=pickup_date),
             Q(day_range__days_to__isnull=True) | Q(day_range__days_to__gte=quote.rental_days),
         ).select_related("season__price_list", "day_range").order_by(
             "-season__price_list__effective_from", "-season__priority"
-        ).first()
+        )
+        rate = next((candidate for candidate in candidate_rates
+                     if candidate.season.applies_on(pickup_date)), None)
         if not rate:
             results.append({
                 "comparison": comparison,
@@ -328,13 +360,20 @@ def calculate_quote_options(quote, *, vehicle_group=None):
                     if group.transmission != group.Transmission.UNKNOWN else ""
                 ),
                 "available": False,
-                "reason": _missing_rate_reason(group, pickup_date, quote.rental_days),
+                "reason": _missing_rate_reason(group, pickup_date, quote.rental_days, price_audience),
                 "total": None,
             })
             continue
         base = rate.daily_rate_gross * quote.rental_days
         lines = []
         extras_total = Decimal("0.00")
+        city_requests, city_sides, missing_city_prices = _city_service_requests(quote, group.supplier)
+        for request in city_requests:
+            extra, city_rate, quantity = request["extra"], request["rate"], request["quantity"]
+            price = _quoted_extra_price(extra, city_rate, Decimal(quote.rental_days), quantity)
+            extras_total += price
+            lines.append({"name": _extra_line_name(extra, quantity), "price": price,
+                          "extra": extra, "rate": city_rate, "quantity": quantity})
         requested_code_map = {
             "CHILD_SEAT": {"01": "CHILD_SEAT", "02": "CHILD_SEAT", "03": "BABY_SEAT_BOOSTER"},
             "SNOW_CHAINS": {"01": "SNOW_CHAINS", "02": "SNOW_CHAINS", "03": "SNOW_CHAINS"},
@@ -342,6 +381,11 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             "WIFI_ROUTER": {"01": "WIFI_ROUTER"},
         }
         supplier_code = group.supplier.supplier_code
+        young_driver_code = group.supplier.extras.filter(
+            is_active=True, extra_code__in=("YOUNG_DRIVER", "YOUNG_DRIVER_21_24"),
+        ).order_by("extra_code").values_list("extra_code", flat=True).first()
+        if young_driver_code:
+            requested_code_map["YOUNG_DRIVER"] = {supplier_code: young_driver_code}
         requested_supplier_codes = {
             mapping[supplier_code]: Decimal(str(quote.extra_requests[canonical_code]))
             for canonical_code, mapping in requested_code_map.items()
@@ -356,7 +400,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             code: Decimal(str(quote.extra_requests[code])) for code in direct_codes
         })
         requested_supplier_codes.update(
-            _service_extra_requests(quote, supplier_code)
+            _service_extra_requests(quote, supplier_code, city_sides)
         )
         requested_supplier_codes.update(
             _after_hours_extra_requests(quote, group.supplier)
@@ -367,10 +411,11 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             | Q(extra_code="CROSS_BORDER")
             | Q(extra_code__in=requested_supplier_codes)
         )
+        extras = extras.exclude(pk__in=[request["extra"].pk for request in city_requests])
         for extra in extras:
             quantity = Decimal("1")
             if extra.extra_code == "ADDITIONAL_DRIVER":
-                quantity = Decimal(max(quote.driver_count - 2, 0))
+                quantity = Decimal(max(quote.driver_count - group.supplier.included_driver_count, 0))
                 if not quantity:
                     continue
             elif extra.extra_code == "CROSS_BORDER" and not quote.cross_border_requested:
@@ -406,7 +451,8 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             elif not extras.filter(extra_code=supplier_extra_code).exists():
                 unavailable_requests.append(canonical_code)
         included_items = normalize_included_items(
-            line["name"] for line in lines if line.get("price") is not None
+            (line["name"] for line in lines if line.get("price") is not None),
+            group.supplier.included_benefits,
         )
 
         optional_labels = {
@@ -425,7 +471,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
                 continue
             supplier_extra_code = (
                 "CROSS_BORDER" if canonical_code == "CROSS_BORDER"
-                else requested_code_map.get(canonical_code, {}).get(supplier_code)
+                else requested_code_map.get(canonical_code, {}).get(supplier_code, canonical_code)
             )
             if not supplier_extra_code:
                 continue
@@ -483,7 +529,8 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             "luggage_info": _luggage_info(group),
             "included_items": included_items,
             "excluded_items": excluded_items,
-            "available": True,
+            "available": not missing_city_prices,
+            "reason": " ".join(missing_city_prices),
         })
     return sorted(results, key=lambda item: (
         item["comparison"].display_order,
@@ -519,7 +566,7 @@ def ensure_quote_option_presentation(quote):
         if not calculated:
             if group.body_type and not fallback_body:
                 snapshot["hebrew_vehicle_class"] = fallback_title
-            snapshot["included_items"] = normalize_included_items(snapshot.get("included_items", []))
+            snapshot["included_items"] = normalize_included_items(snapshot.get("included_items", []), group.supplier.included_benefits)
             saved_option.calculation_snapshot = snapshot
             saved_option.save(update_fields=["calculation_snapshot"])
             continue
@@ -541,7 +588,5 @@ def ensure_quote_option_presentation(quote):
 
 def ensure_quote_document_blocks(quote):
     from .email_tools import load_email_template, ensure_required_blocks
-    if quote.document_blocks.exists():
-        ensure_required_blocks(quote)
-        return
     load_email_template(quote)
+    ensure_required_blocks(quote)

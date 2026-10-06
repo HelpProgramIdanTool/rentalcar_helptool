@@ -11,12 +11,13 @@ from django.utils import timezone
 
 from config.rental_duration import calculate_rental_days
 from config.after_hours import is_after_hours, needs_after_hours_charge
+from config.email_addresses import validate_email_addresses
 
 
 class SupplierEmailDelivery(models.Model):
     token = models.UUIDField(unique=True)
     booking = models.ForeignKey("Booking", on_delete=models.PROTECT, related_name="supplier_deliveries")
-    recipient = models.EmailField()
+    recipient = models.CharField(max_length=1000, validators=[validate_email_addresses])
     subject = models.CharField(max_length=250)
     body = models.TextField()
     status = models.CharField(max_length=20, default="SENDING")
@@ -261,6 +262,21 @@ class Booking(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        if self.source_quote_snapshot.get("historical_import"):
+            # Imported totals already include the original services. Current
+            # supplier rates must never be applied to these historical orders.
+            is_new = self._state.adding
+            old_values = self._history_values() if not is_new else {}
+            if is_new:
+                self._copy_customer_snapshot()
+            if not self.booking_number:
+                year = self.pickup_datetime.year if self.pickup_datetime else timezone.now().year
+                self.booking_number = BookingNumberSequence.next_number(year)
+            if self.pickup_datetime and self.return_datetime and self.return_datetime > self.pickup_datetime:
+                self.rental_days = calculate_rental_days(self.pickup_datetime, self.return_datetime)
+            super().save(*args, **kwargs)
+            self._record_history(is_new, old_values)
+            return
         is_new = self._state.adding
         old_values = self._history_values() if not is_new else {}
         if is_new:
@@ -562,6 +578,8 @@ class Booking(models.Model):
         self.recalculate_totals()
 
     def recalculate_totals(self):
+        if self.source_quote_snapshot.get("historical_import"):
+            return
         if not self.pk:
             return
         extras_total = sum(

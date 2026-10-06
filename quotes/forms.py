@@ -1,7 +1,7 @@
 from django import forms
 from django.db.models import Q
 from django.utils import timezone
-from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup
+from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup, OfferCity
 from employees.models import SubAgent
 
 
@@ -43,6 +43,8 @@ VEHICLE_GROUP_SECTIONS = (
 
 
 def vehicle_group_section(group):
+    if group.category in dict(VEHICLE_GROUP_SECTIONS):
+        return group.category
     class_codes = {item.code for item in group.comparison_classes.all()}
     text = f"{group.group_code} {group.group_name}".upper()
     if "PREMIUM_SUV_AUTO" in class_codes or "SUV PREMIUM" in text or "SUV LUX" in text or group.group_code in {"RGAR", "PFBD", "LFBD", "PFAH", "LFAR"}:
@@ -105,6 +107,7 @@ class FirstInquiryForm(forms.Form):
         ("CITY_BRANCH", "Отдел в городе"),
     ]
     EXTRA_CHOICES = [
+        ("YOUNG_DRIVER", "Новый или молодой водитель — права менее 6 месяцев или возраст младше 24 лет"),
         ("CHILD_SEAT", "Детское кресло / бустер"),
         ("SNOW_CHAINS", "Цепи для снега"),
         ("NAVIGATION", "GPS / навигация"),
@@ -112,7 +115,7 @@ class FirstInquiryForm(forms.Form):
     ]
     TIME_CHOICES = [
         (f"{hour:02d}:{minute:02d}", f"{hour:02d}:{minute:02d}")
-        for hour in range(24) for minute in range(0, 60, 5)
+        for hour in range(24) for minute in (0, 30)
     ]
     full_name = forms.CharField(label="Имя и фамилия", max_length=200, required=False)
     # Keep the old fields accepted for saved drafts and older integrations. They are
@@ -191,6 +194,11 @@ class FirstInquiryForm(forms.Form):
         initial=1,
         required=False,
     )
+    young_driver_quantity = forms.IntegerField(
+        label="Количество новых или молодых водителей", min_value=1,
+        initial=1, required=False,
+        help_text="Заполните, если отмечен новый или молодой водитель. Каждый человек считается один раз.",
+    )
     customer_notes = forms.CharField(
         label="Что написал клиент", required=False, widget=forms.Textarea(attrs={"rows": 4})
     )
@@ -199,7 +207,35 @@ class FirstInquiryForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        self.pricing_only = kwargs.pop("pricing_only", False)
         super().__init__(*args, **kwargs)
+        cities = list(OfferCity.objects.filter(is_active=True))
+        configured_names = {city.name for city in cities}
+        city_choices = [item for item in self.CITY_CHOICES if item[0] not in configured_names]
+        city_choices += [(city.name, city.label) for city in cities]
+        for name in ("pickup_city", "return_city"):
+            self.fields[name].choices = city_choices
+        self.foreign_city_names = [city.name for city in cities if city.cross_border_required]
+        # Keep exact times from existing offers and imported enquiries, without
+        # offering hundreds of minute choices for normal manual entry.
+        for name in ("pickup_time", "return_time"):
+            value = self.data.get(name) if self.is_bound else self.initial.get(name)
+            if value and value not in dict(self.TIME_CHOICES):
+                try:
+                    from datetime import time
+                    parsed = time.fromisoformat(value)
+                except (ValueError, TypeError):
+                    continue
+                if parsed.strftime("%H:%M") == value:
+                    self.fields[name].choices = sorted([*self.TIME_CHOICES, (value, value)])
+        if self.is_bound:
+            self.data = self.data.copy()
+            selected = (self.data.getlist("extra_choices") if hasattr(self.data, "getlist")
+                        else self.data.get("extra_choices", []))
+            for code, field in (("CHILD_SEAT", "child_seat_quantity"),
+                                ("YOUNG_DRIVER", "young_driver_quantity")):
+                if code not in selected:
+                    self.data.pop(field, None)
         self.fields["sub_agent"].queryset = SubAgent.objects.filter(is_active=True).order_by("name")
         self.fields["vehicle_classes"].queryset = VehicleComparisonClass.objects.filter(
             is_active=True
@@ -211,7 +247,7 @@ class FirstInquiryForm(forms.Form):
                                  rate_source_group__rates__season__price_list__status="ACTIVE",
                                  rate_source_group__rates__day_range__is_active=True)
         self.fields["vehicle_groups"].queryset = VehicleGroup.objects.filter(
-            Q(is_active=True, supplier__status=Supplier.Status.ACTIVE) & (priced_groups | shared_priced_groups)
+            Q(is_active=True, show_in_offers=True, supplier__status=Supplier.Status.ACTIVE) & (priced_groups | shared_priced_groups)
         ).select_related("supplier").prefetch_related("comparison_classes").order_by(
             "supplier__supplier_name", "display_order", "group_name"
         ).distinct()
@@ -234,11 +270,16 @@ class FirstInquiryForm(forms.Form):
             "supplier_name"
         )
         self.fields["suppliers"].queryset = supplier_queryset
+        self.subagent_unavailable_supplier_ids = list(supplier_queryset.filter(
+            subagent_pricing_method=Supplier.SubagentPricingMethod.UNAVAILABLE,
+        ).values_list("pk", flat=True))
+        if not self.is_bound and "suppliers" not in self.initial:
+            self.initial["suppliers"] = list(supplier_queryset.values_list("pk", flat=True))
         for field_name in ("email", "phone_1", "phone_2", "phone_3"):
             self.fields[field_name].widget.attrs["autocomplete"] = (
                 "email" if field_name == "email" else "tel"
             )
-        known_cities = {value for value, _label in self.CITY_CHOICES}
+        known_cities = {value for value, _label in city_choices}
         for side in ("pickup", "return"):
             city = self.initial.get(f"{side}_city", "")
             if city and city not in known_cities:
@@ -247,6 +288,11 @@ class FirstInquiryForm(forms.Form):
                 self.initial[f"{side}_other_city"] = parts[0]
                 if len(parts) == 2:
                     self.initial[f"{side}_other_country"] = parts[1]
+        if self.pricing_only:
+            keep = {"suppliers", "sub_agent", "driver_count", "extra_choices",
+                    "child_seat_quantity", "young_driver_quantity", "cross_border_requested"}
+            self.fields = {name: field for name, field in self.fields.items()
+                           if name.startswith(("pickup_", "return_")) or name in keep}
 
     def clean(self):
         cleaned = super().clean()
@@ -270,6 +316,14 @@ class FirstInquiryForm(forms.Form):
                     cleaned[f"{side}_city"] = f"{city}, {country}"
         groups = cleaned.get("vehicle_groups")
         suppliers = cleaned.get("suppliers")
+        if cleaned.get("sub_agent"):
+            if groups is not None and groups.filter(
+                supplier__subagent_pricing_method=Supplier.SubagentPricingMethod.UNAVAILABLE,
+            ).exists():
+                self.add_error("vehicle_groups", "Выбранный поставщик не работает с сабагентами. Выберите другую группу.")
+            if suppliers is not None:
+                suppliers = suppliers.exclude(subagent_pricing_method=Supplier.SubagentPricingMethod.UNAVAILABLE)
+                cleaned["suppliers"] = suppliers
         if groups is not None and suppliers is not None:
             selected_supplier_ids = set(groups.values_list("supplier_id", flat=True))
             missing_ids = {supplier.pk for supplier in suppliers} - selected_supplier_ids
@@ -277,7 +331,7 @@ class FirstInquiryForm(forms.Form):
             unmatched = [
                 supplier for supplier in suppliers
                 if supplier.pk in missing_ids and not VehicleGroup.objects.filter(
-                    is_active=True, supplier=supplier,
+                    is_active=True, show_in_offers=True, supplier=supplier,
                     comparison_classes__id__in=comparison_ids,
                 ).exists()
             ]
@@ -286,9 +340,11 @@ class FirstInquiryForm(forms.Form):
                 cleaned["suppliers"] = suppliers.exclude(
                     pk__in=[supplier.pk for supplier in unmatched]
                 )
-        if not any(cleaned.get(field) for field in ("email", "phone_1", "phone_2", "phone_3")):
+        if not self.pricing_only and not any(cleaned.get(field) for field in ("email", "phone_1", "phone_2", "phone_3")):
             raise forms.ValidationError("Укажите хотя бы e-mail или номер телефона.")
         cleaned["preferred_language"] = cleaned.get("preferred_language") or "Hebrew"
+        if any(cleaned.get(f"{side}_city") in self.foreign_city_names for side in ("pickup", "return")):
+            cleaned["cross_border_requested"] = True
         pickup_date = cleaned.get("pickup_date")
         pickup_time = cleaned.get("pickup_time")
         return_date = cleaned.get("return_date")
@@ -309,4 +365,10 @@ class FirstInquiryForm(forms.Form):
         if "CHILD_SEAT" in cleaned.get("extra_choices", []):
             if not cleaned.get("child_seat_quantity"):
                 self.add_error("child_seat_quantity", "Укажите количество детских кресел.")
+        if "YOUNG_DRIVER" in cleaned.get("extra_choices", []):
+            quantity = cleaned.get("young_driver_quantity")
+            if not quantity:
+                self.add_error("young_driver_quantity", "Укажите количество новых или молодых водителей.")
+            elif quantity > cleaned.get("driver_count", 0):
+                self.add_error("young_driver_quantity", "Количество не может превышать общее число водителей.")
         return cleaned

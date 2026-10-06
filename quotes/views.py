@@ -27,8 +27,10 @@ from .models import Quote, QuoteOption, QuoteEmailDelivery
 from .email_tools import load_email_template, seat_guides, child_seat_text
 from .email_forms import EmailSubjectForm, BlockFormSet, OptionFormSet
 from .email_content import REQUIRED_BLOCKS
+from .localization import presentation_for, translate_text, offer_subject, prepare_calculation_display
 from .airport_pickup import airport_service_messages
 from .services import find_or_create_customer
+from .price_validation import quote_price_issues
 from .services import (
     calculate_quote_options,
     ensure_quote_document_blocks,
@@ -108,6 +110,7 @@ def _quote_form_initial(quote):
         "cross_border_requested": quote.cross_border_requested,
         "extra_choices": list(quote.extra_requests),
         "child_seat_quantity": quote.extra_requests.get("CHILD_SEAT", 1),
+        "young_driver_quantity": quote.extra_requests.get("YOUNG_DRIVER", 1),
         "customer_notes": quote.customer_notes, "internal_notes": quote.internal_notes,
     }
 
@@ -138,7 +141,8 @@ def _update_quote_from_form(quote, data):
     quote.driver_count = data["driver_count"]
     quote.cross_border_requested = data["cross_border_requested"]
     quote.extra_requests = {
-        code: data["child_seat_quantity"] if code == "CHILD_SEAT" else 1
+        code: (data["child_seat_quantity"] if code == "CHILD_SEAT" else
+               data["young_driver_quantity"] if code == "YOUNG_DRIVER" else 1)
         for code in data["extra_choices"]
     }
     quote.customer_notes = data["customer_notes"]
@@ -209,6 +213,7 @@ def new_inquiry(request, customer_id=None):
                     code: (
                         form.cleaned_data["child_seat_quantity"]
                         if code == "CHILD_SEAT"
+                        else form.cleaned_data["young_driver_quantity"] if code == "YOUNG_DRIVER"
                         else 1
                     )
                     for code in form.cleaned_data["extra_choices"]
@@ -281,6 +286,14 @@ def duplicate_quote(request, quote_number):
 def calculate_quote(request, quote_number):
     quote = Quote.objects.select_related("customer").get(quote_number=quote_number)
     options = calculate_quote_options(quote)
+    saved_options = {item.vehicle_group_id: item for item in quote.options.filter(is_included=True)}
+    for option in options:
+        saved = saved_options.get(option["group"].pk)
+        option["was_selected"] = saved is not None
+        if saved:
+            option["manual_label"] = saved.manual_adjustment_label
+            option["manual_amount"] = saved.manual_adjustment_amount
+    prepare_calculation_display(options, quote.language)
     display_options = [option for option in options if option["available"]]
     missing_options = [option for option in options if not option["available"]]
     if request.method == "POST":
@@ -315,6 +328,9 @@ def calculate_quote(request, quote_number):
             quote.options.update(is_included=False)
             for order, option in enumerate(selected, start=1):
                 lines = [{
+                    "extra_id": line["extra"].pk if line.get("extra") else None,
+                    "rate_id": line["rate"].pk if line.get("rate") else None,
+                    "quantity": str(line.get("quantity", "1")),
                     "name": line["name"],
                     "price": str(line.get("price", "")),
                     "warning": line.get("warning", ""),
@@ -367,6 +383,9 @@ def quote_preview(request, quote_number):
     quote = get_object_or_404(
         Quote.objects.select_related("customer"), quote_number=quote_number
     )
+    issues = quote_price_issues(quote)
+    if issues:
+        return render(request, "quotes/price_review_required.html", {"quote": quote, "price_issues": issues}, status=409)
     return render(request, "quotes/quote_preview.html", _quote_preview_context(quote))
 
 
@@ -376,11 +395,15 @@ def copy_quote(request, quote_number):
     quote = get_object_or_404(Quote, quote_number=quote_number)
     if not quote.options.filter(is_included=True).exists():
         return JsonResponse({"error": "Сначала сохраните варианты оферты."}, status=400)
+    issues = quote_price_issues(quote)
+    if issues:
+        return JsonResponse({"error": "Оферту нужно пересчитать. " + " ".join(issues),
+                             "recalculate_url": reverse("quotes:calculate_quote", args=[quote.quote_number])}, status=409)
     context = _quote_preview_context(quote, is_email=True)
     return JsonResponse({
         "html": render_to_string("quotes/quote_preview.html", context),
         "text": render_to_string("quotes/quote_email.txt", context),
-        "subject": quote.email_subject or f"Car rental offer {quote.quote_number}",
+        "subject": offer_subject(quote),
     })
 
 
@@ -388,6 +411,9 @@ def copy_quote(request, quote_number):
 @never_cache
 def email_editor(request, quote_number):
     quote = get_object_or_404(Quote.objects.select_related("customer"), quote_number=quote_number)
+    issues = quote_price_issues(quote)
+    if issues:
+        return render(request, "quotes/price_review_required.html", {"quote": quote, "price_issues": issues}, status=409)
     ensure_quote_document_blocks(quote)
     if request.method == "POST" and request.POST.get("action") == "reset":
         with transaction.atomic():
@@ -398,6 +424,17 @@ def email_editor(request, quote_number):
     subject_form = EmailSubjectForm(data, instance=quote)
     blocks = BlockFormSet(data, queryset=quote.document_blocks.all(), prefix="blocks")
     options = OptionFormSet(data, queryset=quote.options.filter(is_included=True), prefix="options")
+    presentation = presentation_for(quote.language)
+    for form in options.forms:
+        form.instance.display_vehicle_class = translate_text(
+            (form.instance.calculation_snapshot.get("hebrew_vehicle_class") or form.instance.vehicle_group_name_snapshot)
+            if quote.language == "Russian" else form.instance.vehicle_group_name_snapshot,
+            presentation,
+        )
+    direction = "rtl" if quote.language == "Hebrew" else "ltr"
+    for form in [*blocks.forms, *options.forms]:
+        for field in form.fields.values():
+            field.widget.attrs["dir"] = direction
     if request.method == "POST":
         valid = [subject_form.is_valid(), blocks.is_valid(), options.is_valid()]
         if all(valid):
@@ -448,6 +485,8 @@ def _quote_preview_context(quote, *, is_email=False):
     ensure_quote_option_presentation(quote)
     options = list(quote.options.filter(is_included=True).select_related("comparison_class"))
     is_english = quote.language == "English"
+    is_russian = quote.language == "Russian"
+    presentation = presentation_for(quote.language)
     service_messages = airport_service_messages(
         quote, {option.supplier_id for option in options}, quote.language
     )
@@ -481,6 +520,8 @@ def _quote_preview_context(quote, *, is_email=False):
         return value
     for option in options:
         option.airport_service_message = service_messages.get(option.supplier_id, "")
+        option.supplier_conditions = option.supplier.customer_conditions.get(quote.language, "")
+        option.supplier_badges = option.supplier.offer_badges.get(quote.language, [])
         option.display_vehicle_class = (
             option.vehicle_group.customer_name_en or option.vehicle_group_name_snapshot
             if is_english else option.calculation_snapshot.get("hebrew_vehicle_class", option.vehicle_group_name_snapshot)
@@ -493,6 +534,13 @@ def _quote_preview_context(quote, *, is_email=False):
             translate_item(item) if is_english else item
             for item in option.calculation_snapshot.get("excluded_items", [])
         ]
+        option.display_included_items = [translate_text(item, presentation) for item in option.display_included_items]
+        option.display_excluded_items = [translate_text(item, presentation) for item in option.display_excluded_items]
+        if is_russian:
+            option.display_vehicle_class = translate_text(option.display_vehicle_class, presentation)
+            option.calculation_snapshot = dict(option.calculation_snapshot)
+            for key in ("body_type_label", "transmission_label", "fuel_type_label", "luggage_info"):
+                option.calculation_snapshot[key] = translate_text(option.calculation_snapshot.get(key, ""), presentation)
     blocks = quote.document_blocks.filter(Q(is_enabled=True) | Q(block_key__in=REQUIRED_BLOCKS)).exclude(content="")
     introduction_keys = {"GREETING", "IMPORTANT", "CROSS_BORDER"}
     introduction_blocks = [block for block in blocks if block.block_key in introduction_keys]
@@ -505,6 +553,7 @@ def _quote_preview_context(quote, *, is_email=False):
         "ADDRESS": "מסירה לכתובת בעיר",
         "CITY_BRANCH": "סניף בעיר",
     })
+    service_labels = presentation.get("services", service_labels)
     pickup_location = f"{quote.pickup_city} — {service_labels.get(quote.pickup_service, quote.pickup_service)}"
     return_location = f"{quote.return_city} — {service_labels.get(quote.return_service, quote.return_service)}"
     if quote.pickup_address:
@@ -516,6 +565,8 @@ def _quote_preview_context(quote, *, is_email=False):
         "pickup_location": pickup_location, "return_location": return_location,
         "is_email": is_email,
         "is_english": is_english,
+        "is_russian": is_russian, "is_ltr": is_english or is_russian,
+        "offer_labels": presentation.get("labels", {}),
         "introduction_blocks": introduction_blocks,
         "guides": guides, "child_seat_text": child_seat_text(quote, guides),
     }
@@ -527,6 +578,9 @@ def send_quote(request, quote_number):
     quote = get_object_or_404(
         Quote.objects.select_related("customer"), quote_number=quote_number
     )
+    issues = quote_price_issues(quote)
+    if issues:
+        return render(request, "quotes/price_review_required.html", {"quote": quote, "price_issues": issues}, status=409)
     email = quote.customer.email.strip()
     try:
         validate_email(email)
@@ -545,7 +599,7 @@ def send_quote(request, quote_number):
     # Separate deliveries into new conversations so Gmail does not trim the
     # repeated offer sections as quoted text from a previous delivery.
     delivery_version = uuid4().hex[:12]
-    subject = f"{quote.email_subject or ('Car rental offer ' + quote.quote_number)} | Version {delivery_version}"
+    subject = f"{offer_subject(quote)} | Version {delivery_version}"
     context = _quote_preview_context(quote, is_email=True)
     html = render_to_string("quotes/quote_preview.html", context)
     plain_text = render_to_string("quotes/quote_email.txt", context)

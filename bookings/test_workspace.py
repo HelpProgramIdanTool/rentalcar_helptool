@@ -164,6 +164,32 @@ class BookingWorkspaceTests(TestCase):
         response = self.client.post(self.url, {"supplier_booking_number": "", "status": "CONFIRMED"})
         self.assertContains(response, "укажите номер резервации")
 
+    def test_adding_supplier_number_automatically_confirms_without_repricing(self):
+        for status in ('DRAFT', 'WAITING_CONFIRMATION', 'UPDATE_PENDING'):
+            with self.subTest(status=status):
+                Booking.objects.filter(pk=self.booking.pk).update(status=status,supplier_booking_number='')
+                response=self.client.post(self.url, {'supplier_booking_number':'AUTO-123','status':status})
+                self.assertEqual(response.status_code,302)
+                self.booking.refresh_from_db()
+                self.assertEqual(self.booking.status,'CONFIRMED')
+                self.assertEqual(self.booking.confirmed_by_user,self.user)
+                self.assertEqual(self.booking.total_price_gross,Decimal(300))
+                self.assertTrue(self.booking.history_events.filter(old_status=status,new_status='CONFIRMED').exists())
+        self.assertEqual(len(mail.outbox),0)
+
+    def test_unchanged_number_does_not_confirm_pending_changes(self):
+        Booking.objects.filter(pk=self.booking.pk).update(status='UPDATE_PENDING',supplier_booking_number='SAME')
+        self.client.post(self.url, {'supplier_booking_number':'SAME','status':'UPDATE_PENDING','flight_number':'TEST'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status,'UPDATE_PENDING')
+
+    def test_entering_number_does_not_reopen_cancelled_booking_or_override_cancellation(self):
+        for old_status in ('CANCELLED','DRAFT'):
+            Booking.objects.filter(pk=self.booking.pk).update(status=old_status,supplier_booking_number='')
+            self.client.post(self.url, {'supplier_booking_number':'CANCELLED-123','status':'CANCELLED'})
+            self.booking.refresh_from_db()
+            self.assertEqual(self.booking.status,'CANCELLED')
+
     def test_list_filters_by_reservation_and_status(self):
         self.client.post(self.url, {"supplier_booking_number": "ABC-123", "status": "CONFIRMED"})
         url = reverse("quotes:booking_list")
@@ -253,6 +279,41 @@ class BookingWorkspaceTests(TestCase):
             event_type=BookingHistoryEvent.EventType.STATUS_CHANGED,
         ).exists())
         self.assertEqual(self.client.get(url).context["body"], data["body"])
+
+    def test_two_recipients_receive_one_message_and_are_saved_in_history(self):
+        url, data = self.send_data()
+        data['recipient'] = 'first@example.com; second@example.com; first@example.com'
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['first@example.com', 'second@example.com'])
+        self.assertEqual(self.booking.supplier_deliveries.get().recipient, 'first@example.com; second@example.com')
+
+    def test_bad_second_recipient_sends_nothing(self):
+        url, data = self.send_data()
+        data['recipient'] = 'first@example.com; not-an-email'
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertFalse(self.booking.supplier_deliveries.exists())
+
+    def test_change_message_uses_separate_addresses_and_falls_back_to_booking_addresses(self):
+        self.supplier.booking_email = 'book1@example.com; book2@example.com'
+        self.supplier.changes_email = 'change1@example.com; change2@example.com'
+        self.supplier.save()
+        url = reverse('quotes:supplier_message', args=[self.booking.pk])
+        self.assertEqual(self.client.get(url).context['recipient'], self.supplier.booking_email)
+        response = self.client.get(url + '?change=1')
+        self.assertEqual(response.context['recipient'], self.supplier.changes_email)
+        self.booking.supplier_booking_number = 'TEST-CHANGE'
+        self.booking.status = Booking.Status.CONFIRMED
+        self.booking.save()
+        self.client.post(url, {'recipient':self.supplier.changes_email, 'subject':'Test change','body':'Test body',
+                              'change_mode':'1','action':'send','send_token':response.context['send_token']})
+        self.assertEqual(mail.outbox[0].to, ['change1@example.com', 'change2@example.com'])
+        self.supplier.changes_email = ''
+        self.supplier.save()
+        self.booking.history_events.filter(description='Supplier change draft saved').delete()
+        self.assertEqual(self.client.get(url + '?change=1').context['recipient'], self.supplier.booking_email)
 
     def test_send_requires_recipient_and_valid_token(self):
         url, data = self.send_data()
