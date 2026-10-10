@@ -19,6 +19,18 @@ class LocationInstructionTests(TestCase):
 
 
 class SupplierMessageLocationTests(SimpleTestCase):
-    def test_return_instructions_are_in_supplier_order_message(self):
-        booking=SimpleNamespace(source_quote_snapshot={'request':{'return_city':'Test City','return_service':'AIRPORT'}},return_address='',return_location=SimpleNamespace(default_return_instructions='TEST-PARKING-ADDRESS'))
-        self.assertEqual(supplier_location(booking,'return'),'Test City Airport — TEST-PARKING-ADDRESS')
+    def test_airport_instructions_are_not_in_supplier_order_message(self):
+        for side in ('pickup', 'return'):
+            with self.subTest(side=side):
+                booking = SimpleNamespace(
+                    source_quote_snapshot={'request': {
+                        f'{side}_city': 'Test City', f'{side}_service': 'AIRPORT',
+                    }},
+                    **{
+                        f'{side}_address': '',
+                        f'{side}_location': SimpleNamespace(**{
+                            f'default_{side}_instructions': 'TEST-CUSTOMER-INSTRUCTIONS',
+                        }),
+                    },
+                )
+                self.assertEqual(supplier_location(booking, side), 'Test City Airport')

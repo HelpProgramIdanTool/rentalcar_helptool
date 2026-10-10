@@ -26,6 +26,28 @@ class QuoteListTests(TestCase):
         values.update(overrides)
         return Quote.objects.create(**values)
 
+    def test_statistics_count_each_converted_offer_once_and_follow_filters(self):
+        from bookings.models import Booking
+        from suppliers.models import Supplier
+        supplier = Supplier.objects.create(supplier_code="STATS", supplier_name="Test stats supplier")
+        for _ in range(2):
+            Booking.objects.create(customer=self.customer, supplier=supplier, source_quote=self.draft)
+        response = self.client.get(reverse("quotes:quote_list"))
+        stats = response.context["stats"]
+        self.assertEqual((stats["total"], stats["issued"], stats["converted"]), (3, 2, 1))
+        self.assertEqual(stats["conversion_percent"], 50)
+        filtered = self.client.get(reverse("quotes:quote_list"), {"status": "SENT"}).context["stats"]
+        self.assertEqual((filtered["issued"], filtered["converted"]), (1, 0))
+        empty = self.client.get(reverse("quotes:quote_list"), {"q": "not-found"}).context["stats"]
+        self.assertEqual(empty["conversion_percent"], 0)
+
+    def test_statistics_include_all_pages(self):
+        for _ in range(26):
+            self.make_quote(status=Quote.Status.SENT)
+        response = self.client.get(reverse("quotes:quote_list"), {"page": 2})
+        self.assertEqual(response.context["stats"]["total"], 29)
+        self.assertEqual(response.context["stats"]["issued"], 27)
+
     def test_list_requires_login(self):
         self.client.logout()
         response = self.client.get(reverse("quotes:quote_list"))

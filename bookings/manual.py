@@ -6,7 +6,9 @@ from django import forms
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.db import transaction
-from django.shortcuts import redirect, render
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from customers.models import Customer
@@ -55,15 +57,66 @@ class ManualBookingForm(BookingFromOfferForm):
         return data
 
 
+def clone_initial(booking):
+    """Copy trip inputs, never identity, payment state or submission tokens."""
+    saved = booking.source_quote_snapshot.get("request", {})
+    excluded = {"entry_token", "existing_customer", "customer_name", "first_name", "last_name"}
+    initial = {key: value for key, value in saved.items()
+               if key in ManualBookingForm.base_fields and key not in excluded}
+    initial.update(customer_name="", existing_customer=None,
+                   supplier=booking.supplier_id, vehicle_group=booking.vehicle_group_id,
+                   order_source=booking.order_source, responsible=booking.salesperson_employee_id,
+                   sub_agent=booking.sub_agent_id, driver_count=max(booking.drivers.count(), 1))
+    for name in ("email", "phone_1", "phone_2", "phone_3", "country", "address"):
+        initial[name] = getattr(booking, f"customer_{name}_snapshot")
+    for name in ("wants_invoice", "invoice_name", "invoice_tax_id", "invoice_address", "invoice_email"):
+        initial[name] = getattr(booking, f"{name}_snapshot")
+    for name in ("flight_number", "hotel_name", "return_hotel_name", "pickup_address", "return_address",
+                 "manual_adjustment_label", "manual_adjustment_amount"):
+        initial[name] = getattr(booking, name)
+    for side in ("pickup", "return"):
+        value = getattr(booking, f"{side}_datetime")
+        if value:
+            local = timezone.localtime(value)
+            initial[f"{side}_date"] = local.date()
+            initial[f"{side}_time"] = local.strftime("%H:%M")
+        location = getattr(booking, f"{side}_location")
+        if location:
+            initial[f"{side}_city"] = location.city
+            initial[f"{side}_service"] = {"AIRPORT": "AIRPORT", "BRANCH": "CITY_BRANCH"}.get(
+                location.location_type, "ADDRESS")
+        elif " — " in getattr(booking, f"{side}_location_text"):
+            city, label = getattr(booking, f"{side}_location_text").split(" — ", 1)
+            initial[f"{side}_city"] = city
+            services = {label: code for code, label in ManualBookingForm.SERVICE_CHOICES}
+            initial[f"{side}_service"] = services.get(label, "ADDRESS")
+    extras = {line.extra.extra_code: int(line.quantity) for line in booking.extras.select_related("extra")}
+    initial["extra_choices"] = [code for code, _ in ManualBookingForm.EXTRA_CHOICES
+                                if code in extras and code != "YOUNG_DRIVER"]
+    initial["child_seat_quantity"] = extras.get("CHILD_SEAT", 0)
+    initial["cross_border_requested"] = bool(extras.get("CROSS_BORDER") or saved.get("cross_border_requested"))
+    initial["young_driver_quantity"] = 0
+    for index, seat in enumerate(booking.child_seat_details, 1):
+        for key in ("age", "height", "type_number"):
+            initial[f"child_seat_{index}_{key}"] = seat.get(key, "")
+    return initial
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 @transaction.atomic
 def new_booking(request):
     initial = {"entry_token": signing.dumps({"key": str(uuid4()), "user": request.user.pk}, salt="manual-entry"),
                "order_source": "SELF", "driver_count": 1}
+    clone_source = None
+    if request.GET.get("clone"):
+        if not request.GET["clone"].isdigit():
+            raise Http404
+        clone_source = get_object_or_404(Booking, pk=request.GET["clone"])
+        initial.update(clone_initial(clone_source))
     customer_id = request.GET.get("customer", "")
     selected = Customer.objects.filter(pk=customer_id).first() if customer_id.isdigit() else None
-    if selected:
+    if selected and not clone_source:
         for name in ("email", "phone_1", "phone_2", "phone_3", "country", "address", "preferred_language",
                      "wants_invoice", "invoice_name", "invoice_tax_id", "invoice_address", "invoice_email"):
             initial[name] = getattr(selected, name)
@@ -71,6 +124,8 @@ def new_booking(request):
         initial["existing_customer"] = selected.pk
         initial["driver_1_name"] = selected.full_name_latin
     form = ManualBookingForm(request.POST or None, initial=initial)
+    if clone_source:
+        form.fields.pop("existing_customer")
     result = token = deposit_form = None
     deposit_pending = deposit_once = False
     if request.method == "POST":
@@ -118,7 +173,7 @@ def new_booking(request):
                     except signing.BadSignature:
                         previous = None
                     if previous == stamp and request.POST.get("confirm_price") == "yes":
-                        customer = data["existing_customer"]
+                        customer = data.get("existing_customer")
                         if customer is None:
                             fields = ("first_name", "last_name", "email", "phone_1", "phone_2", "phone_3", "country", "address", "preferred_language",
                                       "wants_invoice", "invoice_name", "invoice_tax_id", "invoice_address", "invoice_email")
@@ -138,6 +193,7 @@ def new_booking(request):
                 form.add_error(None, error)
     return render(request, "bookings/from_offer.html", {
         "manual_entry": True, "form": form, "result": result, "review_token": token,
+        "clone_source": clone_source,
         "deposit_form": deposit_form, "deposit_pending": deposit_pending, "deposit_once": deposit_once,
         "active_menu": "orders", "customers": Customer.objects.all(), "delta": None,
         "group_suppliers": {str(group.pk): str(group.supplier_id) for group in form.fields["vehicle_group"].queryset},

@@ -13,7 +13,7 @@ from django.core.validators import validate_email
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse, HttpResponse, FileResponse
-from django.db.models import Q, Max
+from django.db.models import Q, Max, Count
 from django.urls import reverse
 from django.template.loader import render_to_string
 from django.views.decorators.cache import never_cache
@@ -27,7 +27,7 @@ from .models import Quote, QuoteOption, QuoteEmailDelivery
 from .email_tools import load_email_template, seat_guides, child_seat_text
 from .email_forms import EmailSubjectForm, BlockFormSet, OptionFormSet
 from .email_content import REQUIRED_BLOCKS
-from .localization import presentation_for, translate_text, offer_subject, prepare_calculation_display
+from .localization import presentation_for, translate_text, offer_subject, prepare_calculation_display, readable_terms, signature_display
 from .airport_pickup import airport_service_messages
 from .services import find_or_create_customer
 from .price_validation import quote_price_issues
@@ -59,6 +59,15 @@ def quote_list(request):
             quotes = quotes.filter(pickup_datetime__date__lte=data["pickup_to"])
     else:
         quotes = quotes.none()
+    issued = Q(sent_at__isnull=False) | Q(status__in=[Quote.Status.SENT, Quote.Status.ACCEPTED]) | Q(bookings__isnull=False)
+    stats = quotes.aggregate(
+        total=Count("pk", distinct=True),
+        issued=Count("pk", filter=issued, distinct=True),
+        converted=Count("pk", filter=Q(bookings__isnull=False), distinct=True),
+    )
+    stats["conversion_percent"] = (
+        round(Decimal(stats["converted"]) * 100 / stats["issued"], 1) if stats["issued"] else Decimal("0.0")
+    )
     sort = request.GET.get("sort", "-created_at")
     allowed_sorts = {"created_at", "-created_at", "pickup_datetime", "-pickup_datetime"}
     if sort not in allowed_sorts:
@@ -71,6 +80,7 @@ def quote_list(request):
     return render(request, "quotes/quote_list.html", {
         "page_obj": page, "filters": filters, "sort": sort,
         "filter_query": query.urlencode(), "active_menu": "quotes",
+        "stats": stats,
     })
 
 
@@ -238,7 +248,9 @@ def new_inquiry(request, customer_id=None):
 @login_required
 def inquiry_saved(request, quote_number):
     quote = Quote.objects.select_related("customer").get(quote_number=quote_number)
-    return render(request, "quotes/inquiry_saved.html", {"quote": quote})
+    return render(request, "quotes/inquiry_saved.html", {
+        "quote": quote, "included_options": quote.options.filter(is_included=True),
+    })
 
 
 @login_required
@@ -486,6 +498,7 @@ def _quote_preview_context(quote, *, is_email=False):
     options = list(quote.options.filter(is_included=True).select_related("comparison_class"))
     is_english = quote.language == "English"
     is_russian = quote.language == "Russian"
+    is_polish = quote.language == "Polish"
     presentation = presentation_for(quote.language)
     service_messages = airport_service_messages(
         quote, {option.supplier_id for option in options}, quote.language
@@ -522,9 +535,12 @@ def _quote_preview_context(quote, *, is_email=False):
         option.airport_service_message = service_messages.get(option.supplier_id, "")
         option.supplier_conditions = option.supplier.customer_conditions.get(quote.language, "")
         option.supplier_badges = option.supplier.offer_badges.get(quote.language, [])
+        if is_polish and not option.supplier_badges:
+            translations = presentation.get("translations", {})
+            option.supplier_badges = [translations[badge] for badge in option.supplier.offer_badges.get("Hebrew", []) if badge in translations]
         option.display_vehicle_class = (
             option.vehicle_group.customer_name_en or option.vehicle_group_name_snapshot
-            if is_english else option.calculation_snapshot.get("hebrew_vehicle_class", option.vehicle_group_name_snapshot)
+            if is_english or is_polish else option.calculation_snapshot.get("hebrew_vehicle_class", option.vehicle_group_name_snapshot)
         )
         option.display_included_items = [
             translate_item(item) if is_english else item
@@ -536,7 +552,7 @@ def _quote_preview_context(quote, *, is_email=False):
         ]
         option.display_included_items = [translate_text(item, presentation) for item in option.display_included_items]
         option.display_excluded_items = [translate_text(item, presentation) for item in option.display_excluded_items]
-        if is_russian:
+        if is_russian or is_english or is_polish:
             option.display_vehicle_class = translate_text(option.display_vehicle_class, presentation)
             option.calculation_snapshot = dict(option.calculation_snapshot)
             for key in ("body_type_label", "transmission_label", "fuel_type_label", "luggage_info"):
@@ -545,6 +561,21 @@ def _quote_preview_context(quote, *, is_email=False):
     introduction_keys = {"GREETING", "IMPORTANT", "CROSS_BORDER"}
     introduction_blocks = [block for block in blocks if block.block_key in introduction_keys]
     blocks = [block for block in blocks if block.block_key not in introduction_keys]
+    blocks.sort(key=lambda block: block.block_key != "ORDER_DETAILS")
+    term_styles = {
+        "PAYMENT_DEPOSIT": ("#fff8e8", "#a46708", "&#128274;"),
+        "PAYMENT": ("#eef8f2", "#23734b", "&#128179;"),
+        "BOOKING_PROCESS": ("#eef4ff", "#245fc7", "&#10003;"),
+    }
+    for block in blocks:
+        if block.block_key == "SIGNATURE":
+            block.signature_rows = signature_display(block.content)
+        if block.block_key == "ORDER_DETAILS":
+            block.action_lines = [line.strip().removeprefix("•").strip()
+                                  for line in block.content.splitlines() if line.strip()]
+        if block.block_key in term_styles:
+            block.display_background, block.display_accent, block.display_icon = term_styles[block.block_key]
+            block.display_points = readable_terms(block.content)
     guides = seat_guides(quote)
     service_labels = ({
         "AIRPORT": "Airport", "ADDRESS": "Delivery to a city address", "CITY_BRANCH": "City branch",
@@ -557,15 +588,15 @@ def _quote_preview_context(quote, *, is_email=False):
     pickup_location = f"{quote.pickup_city} — {service_labels.get(quote.pickup_service, quote.pickup_service)}"
     return_location = f"{quote.return_city} — {service_labels.get(quote.return_service, quote.return_service)}"
     if quote.pickup_address:
-        pickup_location += f": {quote.pickup_address}"
+        pickup_location += f": {translate_text(quote.pickup_address, presentation)}"
     if quote.return_address:
-        return_location += f": {quote.return_address}"
+        return_location += f": {translate_text(quote.return_address, presentation)}"
     return {
         "quote": quote, "options": options, "blocks": blocks,
         "pickup_location": pickup_location, "return_location": return_location,
         "is_email": is_email,
         "is_english": is_english,
-        "is_russian": is_russian, "is_ltr": is_english or is_russian,
+        "is_russian": is_russian, "is_polish": is_polish, "is_localized": is_russian or is_polish, "is_ltr": is_english or is_russian or is_polish,
         "offer_labels": presentation.get("labels", {}),
         "introduction_blocks": introduction_blocks,
         "guides": guides, "child_seat_text": child_seat_text(quote, guides),

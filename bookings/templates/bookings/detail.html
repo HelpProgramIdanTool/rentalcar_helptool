@@ -2,6 +2,8 @@
 {% block title %}{{ booking.booking_number }}{% endblock %}
 {% block content %}
 <h1>{{ booking.booking_number }}</h1>
+<p><a class="button" href="{% url 'quotes:new_booking' %}?clone={{ booking.pk }}">Клонировать и редактировать</a></p>
+{% if booking.source_quote_snapshot.reconciliation.note %}<p role="status" style="background:#fff3b0;padding:10px">{{ booking.source_quote_snapshot.reconciliation.note }}</p>{% endif %}
 {% if booking.source_quote_snapshot.supplier_statement %}<p style="background:#fff3b0;padding:10px"><strong>Учтён поставщиком: {{ booking.source_quote_snapshot.supplier_statement.period }}</strong>. Это отметка включения в расчёт, а не получения денег.</p>{% endif %}
 {% if booking.source_quote_snapshot.historical_import %}<section style="padding:10px;border:1px solid #ddd"><strong>Заказ из Excel — исходные данные</strong><p>Строка: {{ booking.source_quote_snapshot.historical_import.row }}. Группа: {{ booking.source_quote_snapshot.historical_import.raw.D }}</p><p>Получение: {{ booking.source_quote_snapshot.historical_import.raw.B }}</p><p>Возврат: {{ booking.source_quote_snapshot.historical_import.raw.C }}</p><p>Условия: {{ booking.source_quote_snapshot.historical_import.raw.F }}</p><p>Исходная сумма: {{ booking.source_quote_snapshot.historical_import.raw.E|default:'не указана' }}</p>{% for issue in booking.source_quote_snapshot.historical_import.issues %}<p style="color:#9c3000">Проверить: {{ issue }}</p>{% endfor %}</section>{% endif %}
 <p><a href="{% url 'quotes:booking_list' %}">← Все заказы</a></p>
@@ -48,7 +50,7 @@
 {% if booking.child_seat_details %}<h3>Детские кресла</h3><ul>{% for seat in booking.child_seat_details %}<li>Кресло {{ forloop.counter }}: возраст {{ seat.age|default:'не указан' }}, рост {{ seat.height|default:'не указан' }}{% if seat.height %} см{% endif %}, тип/номер {{ seat.type_number|default:'не указан' }}</li>{% endfor %}</ul>{% endif %}
 {% if booking.manual_adjustment_amount %}<p>{{ booking.manual_adjustment_label }} — {{ booking.manual_adjustment_amount }} {{ booking.currency }}</p>{% endif %}
 {% if booking.subagent_price_adjustment_amount %}<p>Надбавка для субагента — {{ booking.subagent_price_adjustment_amount }} {{ booking.currency }}</p>{% endif %}
-<p><strong>Итого: {{ booking.total_price_gross }} {{ booking.currency }}</strong></p>
+<p><strong>Итого: {% if booking.source_quote_snapshot.historical_import.amount_unknown %}требует проверки{% else %}{{ booking.total_price_gross }} {{ booking.currency }}{% endif %}</strong></p>
 <p>Депозит: {{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% if booking.source_quote_snapshot.deposit_usage == 'once' %} (только для этого заказа){% endif %}</p>
 <p>Заметка клиента: {{ booking.source_quote_snapshot.request.customer_notes }}</p>
 <p>Моя заметка: {{ booking.source_quote_snapshot.request.internal_notes }}</p>

@@ -66,7 +66,7 @@ def parse_free_text_inquiry(raw):
         warnings.append("Дата получения не распознана — внесите её вручную.")
     if not data["return_date"]:
         warnings.append("Дата возврата не распознана — внесите её вручную.")
-    warnings.append("Количество водителей принято равным 1 — измените при необходимости.")
+    warnings.append("Указан 1 водитель — проверьте.")
     requirements = {"passengers": None, "bags": None, "automatic": False, "manual": False, "categories": []}
     return data, requirements, warnings
 
@@ -139,7 +139,7 @@ def parse_inquiry(raw):
     quantity = fields.get("מספר כיסאות / בוסטרים", "")
     data["child_seat_quantity"] = quantity if quantity.isdigit() else ""
     if "ילדים" in text or "כיסא תינוק" in text or "CHILD_SEAT" in data["extra_choices"]:
-        warnings.append("Проверьте кресла и бустеры для всех детей, включая собственные. Платные кресла отмечены только при ответе «да».")
+        warnings.append("Проверьте все детские кресла, включая свои. Платные — только при ответе «да».")
     if fields.get("כל נהג מעל גיל 24 ועם לפחות שנה רישיון") != "כן":
         warnings.append("Уточните возраст и стаж каждого водителя; условия зависят от фирмы.")
     passengers = fields.get("מספר נוסעים כולל הנהג", "")
@@ -155,8 +155,8 @@ def parse_inquiry(raw):
     if drivers:
         data["driver_count"] = int(drivers.group(1))
     else:
-        warnings.append("Количество водителей принято равным 1 — измените при необходимости.")
-    warnings.append("Вместимость багажа нужно подтвердить у поставщика. Выбранные категории не подтверждают наличие машины.")
+        warnings.append("Указан 1 водитель — проверьте.")
+    warnings.append("Багаж и наличие авто уточните у фирмы.")
     if not requirements["passengers"]:
         warnings.append("Число пассажиров не распознано: выберите категории вручную.")
     data["internal_notes"] = "Заявка: " + fields.get("מספר פנייה", "без номера") + "\n" + "\n".join(warnings)
@@ -252,7 +252,7 @@ def import_inquiry(request):
         data["vehicle_groups"] = [g.pk for g in groups]
         data["suppliers"] = sorted({g.supplier_id for g in groups})
         if any(g.seats is None for g in groups):
-            warnings.append("У некоторых подходящих категорий не заполнено количество мест. Они показаны как кандидаты: проверьте вместимость перед отправкой.")
+            warnings.append("Не везде указано число мест — проверьте вместимость.")
         if not groups:
             warnings.append("Подходящие категории не найдены. Проверьте число мест и коробку передач в справочнике.")
     return JsonResponse({"fields": data, "warnings": warnings, "requirements": requirements})

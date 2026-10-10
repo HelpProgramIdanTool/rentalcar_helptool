@@ -1,0 +1,14 @@
+<section class="preview-actions" dir="ltr" aria-label="Действия с офертой">
+  <div class="preview-actions-main">
+    <form method="post" action="{% url 'quotes:send_quote' quote.quote_number %}">{% csrf_token %}<button class="action-primary" type="submit">Выслать из системы</button></form>
+    <button class="action-secondary" type="button" data-copy-offer="{% url 'quotes:copy_quote' quote.quote_number %}">Скопировать оферту</button>
+    <a class="action-secondary" href="{% url 'quotes:email_editor' quote.quote_number %}">Редактировать письмо</a>
+  </div>
+  <p class="action-recipient">Кому: <span dir="ltr">{{ quote.customer.email|default:"Email клиента не указан" }}</span></p>
+  <div class="preview-actions-more">
+    <a href="{% url 'quotes:edit_quote' quote.quote_number %}">Данные аренды</a>
+    <a href="{% url 'quotes:calculate_quote' quote.quote_number %}">К расчёту</a>
+    <form method="post" action="{% url 'quotes:duplicate_quote' quote.quote_number %}">{% csrf_token %}<button type="submit">Новая оферта для клиента</button></form>
+    <a href="{% url 'quotes:home' %}">На главную</a>
+  </div>
+</section>

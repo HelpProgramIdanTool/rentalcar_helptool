@@ -99,15 +99,21 @@ class FirstInquiryTests(TestCase):
     def test_new_inquiry_starts_empty_and_offers_draft_controls(self):
         response = self.client.get(reverse("quotes:new_inquiry"))
 
-        self.assertContains(response, "← На главную")
+        self.assertContains(response, 'aria-label="На главную"')
         self.assertContains(response, f'href="{reverse("quotes:home")}"')
         self.assertContains(response, "Очистить и начать новый запрос")
         self.assertContains(response, "Восстановить черновик")
         self.assertContains(response, "Малые автомобили")
         self.assertContains(response, 'class="message-panel"')
         self.assertContains(response, 'class="form-scroll"')
-        self.assertContains(response, "body { margin:0;overflow:hidden; }")
-        self.assertContains(response, "position:sticky;top:0")
+        self.assertNotContains(response, 'id="inquiry-help"')
+        self.assertNotContains(response, "Из данных клиента достаточно email")
+        self.assertNotContains(response, "Перенеси сюда данные из первого письма")
+        self.assertContains(response, 'aria-label="Очистить и начать новый запрос"')
+        self.assertContains(response, 'aria-label="Восстановить черновик"')
+        self.assertContains(response, 'id="import-inquiry"')
+        self.assertContains(response, '<button type="button" class="small-button" id="show-all-groups">Показать все категории</button>', html=True)
+        self.assertContains(response, 'name="customer_notes"')
         self.assertContains(response, 'type="date"')
         self.assertNotContains(response, "data-picker=")
         self.assertContains(response, 'autocomplete="off"')
@@ -824,6 +830,8 @@ class FirstInquiryTests(TestCase):
     def test_resending_offer_uses_new_subject_and_keeps_complete_content(self):
         self.client.post(reverse("quotes:new_inquiry"), self.data())
         quote = Quote.objects.get()
+        quote.email_subject = "TEST-CUSTOM-SUBJECT"
+        quote.save(update_fields=["email_subject"])
         self._add_included_option(quote)
         url = reverse("quotes:send_quote", args=[quote.quote_number])
 
@@ -834,7 +842,7 @@ class FirstInquiryTests(TestCase):
         first, second = mail.outbox
         self.assertNotEqual(first.subject, second.subject)
         for message in mail.outbox:
-            self.assertIn(quote.quote_number, message.subject)
+            self.assertIn("TEST-CUSTOM-SUBJECT", message.subject)
             self.assertIn("Version", message.subject)
             for benefit in STANDARD_INCLUDED_ITEMS:
                 self.assertIn(benefit, message.alternatives[0].content)
@@ -891,7 +899,7 @@ class FirstInquiryTests(TestCase):
         self.assertContains(
             response, reverse("quotes:send_quote", args=[quote.quote_number])
         )
-        self.assertContains(response, "← На главную")
+        self.assertContains(response, "На главную")
         self.assertContains(response, f'href="{reverse("quotes:home")}"')
 
     def test_calculation_steps_are_real_navigation_links(self):

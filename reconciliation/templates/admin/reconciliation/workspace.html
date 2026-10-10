@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+.recon-bar{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:18px;background:var(--darkened-bg);border-radius:10px;margin-bottom:18px}.recon-panel{border:1px solid var(--hairline-color);padding:18px;border-radius:10px;margin:16px 0}.recon-panel summary{font-weight:bold;cursor:pointer}.recon-table{width:100%}.recon-table td{vertical-align:top}.recon-table input{max-width:220px}.recon-action{padding:9px 15px;cursor:pointer} .recon-warning{color:#a85400}
+</style>
+<div class="recon-bar">
+<strong>{{ batch.get_state_display }}</strong><span>Проверить: {{ review_count }}</span>
+<span>Работник: {{ totals.employee_orders }} заказов · Нетто {{ totals.net }} PLN · {{ batch.rate }}% = <b>{{ totals.commission }} PLN</b></span>
+<a class="button" href="{% url 'admin:reconciliation_excel' batch.pk %}">Скачать Excel</a>
+<a class="button" href="{% url 'admin:reconciliation_excel' batch.pk %}?own=1">Моя таблица с отметками прошлых месяцев</a>
+</div>
+{% if totals.direct_orders %}<div class="recon-bar"><b>Прямые заказы поставщика: {{ totals.direct_orders }}</b><span>Нетто {{ totals.direct_net }} PLN · Моя комиссия {{ batch.direct_rate }}%: <b>{{ totals.direct_commission }} PLN</b></span><span>В комиссию работника не входят.</span></div>{% endif %}
+<p>Фирма: {{ batch.supplier }} · Фактура: {{ batch.invoice_number|default:"номер пока не указан" }} · Получено: {{ batch.received }} PLN · Выплачено работнику: {{ batch.employee_paid }} PLN</p>
+{% if batch.state == 'DRAFT' %}
+<details class="recon-panel"><summary>Работник, процент и подтверждённый НДС</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="calculation">{{ calculation_form.as_p }}<button>Сохранить параметры</button></form></details>
+<details class="recon-panel"><summary>Загрузить Excel</summary>
+<p>Последние настройки столбцов: <a href="?upload_kind=OWN">Мои записи</a> · <a href="?upload_kind=SUPPLIER">Поставщик</a> · <a href="?upload_kind=EMPLOYEE">Работник</a></p>
+<p>Сначала проверьте буквы столбцов. Новый отчёт поставщика заменяет прежний целиком. Оригиналы и предыдущие версии сохраняются.</p>
+<p>Мои записи One Rent / Kaizen: номер I, имя A, сумма E, получение B, возврат C, email H, телефон G.<br>
+Поставщик One Rent: номер C, имя E, брутто F, нетто G, получение D.<br>
+Поставщик Kaizen: номер B, имя F, нетто I, получение D, возврат E, счёт J.<br>
+Неиспользуемые столбцы очистите. Для списка работника укажите его столбцы.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="upload">{{ upload_form.as_p }}<button class="recon-action">Загрузить для проверки</button></form></details>
+<form method="post" class="recon-panel">{% csrf_token %}<input type="hidden" name="action" value="import"><p>Добавить отсутствующие заказы из моих записей и заполнить пустые поля. Строки с расхождениями пропускаются. Цены существующих заказов не заменяются.</p><button class="recon-action">Дополнить базу из моих записей</button></form>
+{% endif %}
+<form method="get"><input name="q" placeholder="Номер заказа" value="{{ request.GET.q }}"><select name="status"><option value="">Все статусы</option>{% for value,label in decisions %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button>Показать</button></form>
+<div style="overflow:auto"><table class="recon-table"><thead><tr><th>Заказ / клиент</th><th>Мои записи</th><th>Поставщик нетто</th><th>Работник</th><th>Решение</th></tr></thead><tbody>
+{% for row in page %}<tr><td><b>{{ row.number }}</b><br>{{ row.own.name }}{% if row.booking %}<br><a href="{% url 'admin:bookings_booking_change' row.booking.pk %}">Заказ в базе</a>{% endif %}</td><td>{{ row.own.amount|default:"—" }}{% if row.own.cancelled %}<br>В исходнике отмена{% endif %}</td><td>{{ row.net_display|default_if_none:"—" }}</td><td>{% if row.employee_data %}Да{% else %}—{% endif %}</td><td>
+{% for issue in row.issues %}<div class="recon-warning">{{ issue }}</div>{% endfor %}
+{% if batch.state == 'DRAFT' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="decide"><input type="hidden" name="row" value="{{ row.pk }}"><select name="decision">{% for value,label in decisions %}<option value="{{ value }}" {% if row.decision == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input name="note" value="{{ row.note }}" placeholder="Пояснение"><input name="corrected_number" placeholder="Correct reservation number"><input type="number" name="booking" placeholder="ID заказа для связи"><button>Сохранить</button></form>{% else %}{{ row.get_decision_display }} — {{ row.note }}{% endif %}</td></tr>{% empty %}<tr><td colspan="5">Нет строк. Загрузите файлы.</td></tr>{% endfor %}</tbody></table></div>
+<p>Страница {{ page.number }} / {{ page.paginator.num_pages }} {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&status={{ request.GET.status|urlencode }}&q={{ request.GET.q|urlencode }}">Назад</a>{% endif %} {% if page.has_next %}<a href="?page={{ page.next_page_number }}&status={{ request.GET.status|urlencode }}&q={{ request.GET.q|urlencode }}">Далее</a>{% endif %}</p>
+{% if batch.state == 'DRAFT' %}<form method="post" class="recon-panel">{% csrf_token %}<input type="hidden" name="action" value="close"><p>Завершение фиксирует отмены в карточках клиентов и переносит ожидающие заказы в следующий месяц.</p><button class="recon-action">Сверка завершена</button></form>{% else %}
+<details class="recon-panel" open><summary>Фактура и платежи</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="payment">{{ payment_form.as_p }}<button class="recon-action">Сохранить фактуру / оплату</button></form></details>
+<details class="recon-panel"><summary>Исправить сверку</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="reopen"><input name="reason" required placeholder="Причина исправления"><button>Открыть для исправления</button></form></details>{% endif %}
+<details class="recon-panel"><summary>История и версии Excel</summary>{% for version in versions %}<p>{{ version.created_at }} · {{ version.actor }} · {{ version.reason }} — <a href="{% url 'admin:reconciliation_excel' batch.pk %}?version={{ version.pk }}">Скачать v{{ version.pk }}</a></p>{% endfor %}</details>
+{% endblock %}

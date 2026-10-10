@@ -9,7 +9,7 @@
     <a href="{% url 'customers:list' %}"{% if active_menu == 'customers' %} aria-current="page"{% endif %}>Клиенты</a>
   </nav>
   <div class="app-menu-bottom">
-    {% if request.user.is_staff %}<a href="{% url 'admin:index' %}">⚙ Настройки</a>{% endif %}
+    {% if request.user.is_staff %}{% url 'admin:reconciliation_reconciliation_changelist' as reconciliation_url %}{% if reconciliation_url %}<a href="{{ reconciliation_url }}">▤ Сверка за месяц</a>{% endif %}<a href="{% url 'admin:index' %}">⚙ Настройки</a>{% endif %}
     <span>{{ request.user.get_short_name|default:request.user.username }}</span>
   </div>
 </aside>

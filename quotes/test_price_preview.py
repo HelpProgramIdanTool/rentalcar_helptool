@@ -71,6 +71,68 @@ class PricePreviewTests(TestCase):
         context=_quote_preview_context(self.quote,is_email=True)
         self.assertNotIn('TEST-AGE-BADGE',render_to_string('quotes/quote_preview.html',context))
 
+    def test_english_route_and_vehicle_details_use_translations_and_supplier_badges(self):
+        self.quote.language = 'English'
+        self.quote.return_address = 'כתובת המלון שלכם'
+        self.quote.save()
+        self.group.fuel_type_note = 'היברידי'
+        self.group.luggage_volume_liters = 321
+        self.group.save()
+        self.supplier.offer_badges = {'English': ['TEST-GUARANTEE'], 'Hebrew': ['HEBREW-BADGE']}
+        self.supplier.save()
+        QuoteOption.objects.create(quote=self.quote, supplier=self.supplier, vehicle_group=self.group,
+            comparison_class=self.comparison, total_price_gross=428, supplier_name_snapshot='TEST-SUPPLIER')
+        context = _quote_preview_context(self.quote, is_email=True)
+        self.assertIn('Your hotel address', context['return_location'])
+        for template in ('quotes/quote_preview.html', 'quotes/quote_email.txt'):
+            html = render_to_string(template, context)
+            self.assertIn('TEST-GUARANTEE', html)
+            self.assertIn('Hybrid', html)
+            self.assertIn('321 litres', html)
+            self.assertNotIn('כתובת המלון', html)
+            self.assertNotIn('HEBREW-BADGE', html)
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.return_address, 'כתובת המלון שלכם')
+
+    def test_polish_offer_has_polish_content_and_no_hebrew_fallback(self):
+        import re
+        from .localization import offer_subject
+        self.quote.language = 'Polish'
+        self.quote.return_address = 'כתובת המלון שלכם'
+        self.quote.save()
+        self.supplier.offer_badges = {'Hebrew': ['התחייבות לרכב עד גיל שנתיים']}
+        self.supplier.save()
+        self.group.fuel_type_note = 'היברידי'
+        self.group.save()
+        QuoteOption.objects.create(quote=self.quote, supplier=self.supplier, vehicle_group=self.group,
+            comparison_class=self.comparison, total_price_gross=428, supplier_name_snapshot='TEST-SUPPLIER')
+        context = _quote_preview_context(self.quote, is_email=True)
+        for template in ('quotes/quote_preview.html', 'quotes/quote_email.txt'):
+            output = render_to_string(template, context)
+            self.assertIn('Dane potrzebne do rezerwacji', output)
+            self.assertIn('Gwarancja: samochód nie starszy niż 2 lata', output)
+            self.assertIn('Adres Państwa hotelu', output)
+            self.assertIn('Hybryda', output)
+            self.assertFalse(re.search('[\u0590-\u05ff]', output))
+        self.assertEqual(offer_subject(self.quote), 'Oferta wynajmu samochodu w Polsce')
+
+    def test_every_selectable_language_has_an_active_template(self):
+        from .forms import FirstInquiryForm
+        from .models import QuoteTemplate
+        for language, _ in FirstInquiryForm.LANGUAGE_CHOICES:
+            self.assertTrue(QuoteTemplate.objects.filter(language=language, is_active=True).exists(), language)
+
+    def test_preview_has_send_actions_at_both_ends_but_email_has_none(self):
+        context = _quote_preview_context(self.quote)
+        html = render_to_string('quotes/quote_preview.html', context)
+        self.assertEqual(html.count('class="action-primary"'), 2)
+        self.assertEqual(html.count('id="copy-status"'), 1)
+        self.assertLess(html.index('class="action-primary"'), html.index('class="card top"'))
+        self.assertGreater(html.rindex('class="action-primary"'), html.index('class="card top"'))
+        context['is_email'] = True
+        email = render_to_string('quotes/quote_preview.html', context)
+        self.assertNotIn('class="action-primary"', email)
+
     def test_extras_appear_before_vehicle_and_supplier_choices(self):
         html=self.client.get(reverse('quotes:new_inquiry')).content.decode()
         self.assertLess(html.index('name="extra_choices"'),html.index('name="suppliers"'))

@@ -5,6 +5,15 @@
 {% include 'quotes/sidebar.html' %}
 <main class="workspace-main">
   <header class="workspace-header"><div><h1>Оферты</h1><p>Предложения клиентам и история отправки</p></div><a class="primary-link" href="{% url 'quotes:new_inquiry' %}">＋ Дать оферту</a></header>
+  <section aria-label="Статистика оферт" style="margin-bottom:16px">
+    <div style="display:flex;flex-wrap:wrap;gap:12px">
+      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">Всего оферт<br><strong style="font-size:26px">{{ stats.total }}</strong></div>
+      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">Выдано<br><strong style="font-size:26px">{{ stats.issued }}</strong></div>
+      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">Перешли в заказы<br><strong style="font-size:26px">{{ stats.converted }}</strong></div>
+      <div style="background:#e8fff1;color:#104b32;border:1px solid #a7e8bf;border-radius:10px;padding:14px 20px">Конверсия в заказ<br><strong style="font-size:26px">{{ stats.conversion_percent|floatformat:1 }}%</strong></div>
+    </div>
+    <p style="font-size:13px;color:#667085;margin:8px 0">По текущим фильтрам, на всех страницах. Выдано — отмечено отправкой, принятием или созданием заказа. Конверсия — доля выданных оферт, по которым создан хотя бы один заказ, включая впоследствии отменённые. Одна оферта считается один раз.</p>
+  </section>
   <section class="list-panel" aria-label="Список оферт">
     <form class="list-filters" method="get">
       <label class="search-field">{{ filters.q.label }}{{ filters.q }}{{ filters.q.errors }}</label>

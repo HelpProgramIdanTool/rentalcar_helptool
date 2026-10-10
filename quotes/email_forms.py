@@ -16,6 +16,13 @@ BLOCK_LABELS = {
 
 
 class EmailSubjectForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .localization import offer_subject
+        if not self.is_bound and not self.instance.email_subject:
+            self.initial["email_subject"] = offer_subject(self.instance)
+        self.fields["email_subject"].widget.attrs["dir"] = "rtl" if self.instance.language == "Hebrew" else "ltr"
+
     class Meta:
         model = Quote
         fields = ["email_subject"]

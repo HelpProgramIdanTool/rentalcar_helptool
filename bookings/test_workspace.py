@@ -196,6 +196,20 @@ class BookingWorkspaceTests(TestCase):
         self.assertContains(self.client.get(url, {"q": "ABC-123"}), self.booking.booking_number)
         self.assertNotContains(self.client.get(url, {"status": "CANCELLED"}), self.booking.booking_number)
 
+    def test_flight_is_on_pickup_line_only(self):
+        self.booking.flight_number = "lo2112"
+        self.booking.source_quote_snapshot = {"request": {
+            "pickup_city": "Kraków", "pickup_service": "AIRPORT",
+            "return_city": "Kraków", "return_service": "AIRPORT",
+        }}
+        self.booking.save()
+        response = self.client.get(reverse("quotes:supplier_message", args=[self.booking.pk]))
+        body = response.context["body"]
+        self.assertIn("Kraków Airport lo2112\n", body)
+        self.assertEqual(body.count("lo2112"), 1)
+        self.assertNotIn("Flight:", body)
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_supplier_draft_is_editable_and_does_not_send(self):
         response = self.client.get(reverse("quotes:supplier_message", args=[self.booking.pk]))
         self.assertContains(response, "supplier@example.com")

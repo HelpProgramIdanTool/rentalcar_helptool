@@ -1,5 +1,15 @@
 # Idan, look at what you built
 
+> Update, 10 October 2026: the measurements below are a historical report from
+> September, not current totals. Before today's synchronization, git contains
+> 69 commits (`git rev-list --count HEAD`). Test discovery now finds 452 tests.
+> The full run passed 446 and exposed six stale test expectations/data cases;
+> all seven tests in the affected group passed after their repair. Windows
+> temporary-directory permission errors disappeared outside the sandbox.
+> The remote already points to the new home (task 00). Before public deployment,
+> secrets/settings (task 02) still need work; see
+> [the current mentor review request](docs/questions-for-mentor.md).
+
 **Read this first. It takes four minutes.**
 
 This is not a compliment. Everything below was counted from your own project — from

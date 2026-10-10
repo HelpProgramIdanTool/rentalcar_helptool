@@ -47,6 +47,67 @@ class ManualBookingTests(TestCase):
         self.confirm(data, response)
         self.assertEqual(Booking.objects.count(), 1)
 
+    def test_clone_prefills_trip_but_requires_new_identity_and_review(self):
+        data, review = self.review(flight_number="TEST123", hotel_name="TEST HOTEL",
+                                   return_hotel_name="RETURN HOTEL")
+        self.confirm(data, review)
+        original = Booking.objects.get()
+        url = self.url + f"?clone={original.pk}"
+        response = self.client.get(url)
+        form = response.context["form"]
+        self.assertEqual(Booking.objects.count(), 1)
+        for field, expected in (("flight_number", "TEST123"), ("hotel_name", "TEST HOTEL"),
+                                ("return_hotel_name", "RETURN HOTEL"),
+                                ("phone_1", original.customer_phone_1_snapshot),
+                                ("email", original.customer_email_snapshot)):
+            self.assertEqual(form[field].value(), expected)
+        self.assertFalse(form["customer_name"].value())
+        self.assertNotIn("existing_customer", form.fields)
+        self.assertNotContains(response, 'name="customer"')
+        self.assertNotContains(response, 'name="existing_customer"')
+        self.assertFalse(form["driver_1_name"].value())
+        self.assertNotEqual(form["entry_token"].value(), data["entry_token"])
+        copied = {name: field.value() for name, field in ((name, form[name]) for name in form.fields)}
+        copied = {name: value for name, value in copied.items() if value is not None and value is not False}
+        copied.update(customer_name="Other Customer", driver_1_name="Other Driver")
+        reviewed = self.client.post(url, copied)
+        self.assertIsNotNone(reviewed.context["review_token"], reviewed.context["form"].errors)
+        created = self.client.post(url, {**copied, "action": "create", "confirm_price": "yes",
+                                       "review_token": reviewed.context["review_token"]})
+        self.assertEqual(created.status_code, 302)
+        clone = Booking.objects.exclude(pk=original.pk).get()
+        self.assertNotEqual(clone.customer_id, original.customer_id)
+        self.assertEqual(clone.flight_number, "TEST123")
+        self.assertEqual(clone.drivers.get().first_name, "Other")
+        self.assertEqual(clone.status, Booking.Status.DRAFT)
+        self.assertEqual(clone.supplier_booking_number, "")
+        original.refresh_from_db()
+        self.assertEqual(original.drivers.get().first_name, "Test")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_clone_keeps_seat_details_and_can_remove_seat(self):
+        extra = SupplierExtra.objects.create(supplier=self.supplier, extra_code="CHILD_SEAT", name="Test seat")
+        SupplierExtraRate.objects.create(extra=extra, calculation_type="PER_RENTAL",
+                                         amount_gross=10, valid_from="2026-01-01")
+        data, review = self.review(extra_choices=["CHILD_SEAT"], child_seat_quantity=1,
+                                  child_seat_1_age="3", child_seat_1_height="100",
+                                  child_seat_1_type_number="TEST-SEAT")
+        self.confirm(data, review)
+        original = Booking.objects.get()
+        url = self.url + f"?clone={original.pk}"
+        form = self.client.get(url).context["form"]
+        self.assertEqual(form["extra_choices"].value(), ["CHILD_SEAT"])
+        self.assertEqual(form["child_seat_1_type_number"].value(), "TEST-SEAT")
+        changed = {**data, "entry_token": form["entry_token"].value(), "extra_choices": [],
+                   "child_seat_quantity": 0, "customer_name": "Next Customer", "driver_1_name": "Next Driver"}
+        review = self.client.post(url, changed)
+        self.assertIsNotNone(review.context["review_token"], review.context["form"].errors)
+        self.client.post(url, {**changed, "action": "create", "confirm_price": "yes",
+                              "review_token": review.context["review_token"]})
+        clone = Booking.objects.exclude(pk=original.pk).get()
+        self.assertFalse(clone.extras.filter(extra=extra).exists())
+        self.assertTrue(original.extras.filter(extra=extra).exists())
+
     def test_two_drivers_and_young_driver_are_visible_saved_and_priced(self):
         extra = SupplierExtra.objects.create(
             supplier=self.supplier, extra_code="YOUNG_DRIVER", name="Young driver fee",

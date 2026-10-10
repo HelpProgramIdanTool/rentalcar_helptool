@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'quotes',
     'suppliers',
     'taxes',
+    'reconciliation',
 ]
 
 MIDDLEWARE = [

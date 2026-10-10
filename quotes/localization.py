@@ -20,8 +20,35 @@ def translate_text(text, presentation):
 def offer_subject(quote):
     if quote.email_subject:
         return quote.email_subject
-    label = presentation_for(quote.language).get("labels", {}).get("offer", "Car rental offer")
+    presentation = presentation_for(quote.language)
+    if presentation.get("default_subject"):
+        return presentation["default_subject"]
+    label = presentation.get("labels", {}).get("offer", "Car rental offer")
     return f"{label} {quote.quote_number}"
+
+
+def readable_terms(content):
+    """Separate sentences for display without rewriting the stored conditions."""
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+(?=[A-ZА-Я\u0590-\u05ff])|\n+", content)
+            if part.strip()]
+
+
+def signature_display(content):
+    """Style existing contact lines without changing their stored wording."""
+    rows = []
+    for index, line in enumerate(line.strip() for line in content.splitlines() if line.strip()):
+        row = {"text": line, "kind": "name" if index == 1 else "text"}
+        if re.fullmatch(r"https?://[^\s<>]+", line):
+            row.update(kind="website", href=line, text=re.sub(r"^https?://", "", line).rstrip("/"))
+        elif re.fullmatch(r"[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+", line):
+            row.update(kind="email", href="mailto:" + line)
+        else:
+            phone = re.search(r"\+\d[\d ()-]{6,}\d", line)
+            if phone:
+                row.update(kind="phone", text=phone.group(), label=line[:phone.start()].strip(),
+                           suffix=line[phone.end():].strip(), href="tel:" + re.sub(r"[^+\d]", "", phone.group()))
+        rows.append(row)
+    return rows
 
 
 def prepare_calculation_display(options, language):

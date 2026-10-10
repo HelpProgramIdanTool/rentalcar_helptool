@@ -6,7 +6,7 @@
 {% for message in messages %}<div class="editor-notice">{{ message }}</div>{% endfor %}
 <p>Тексты сохраняются только для этой оферты. Цены, даты и добавки берутся из расчёта. К теме при отправке добавляется номер версии.</p>
 <form method="post" id="email-form" novalidate>{% csrf_token %}
-<section class="editor-block">{{ subject_form.as_p }}<p class="help">Пустая тема: Car rental offer {{ quote.quote_number }}</p></section>
+<section class="editor-block">{{ subject_form.as_p }}</section>
 {{ blocks.management_form }}{{ blocks.non_form_errors }}
 {% for form in blocks %}<details class="editor-block" id="block-{{ form.instance.pk }}"{% if forloop.first or form.errors or request.GET.block == form.instance.pk|stringformat:'s' %} open{% endif %}><summary style="cursor:pointer;font-weight:600">{{ form.editor_label }}{% if form.is_enabled.field.disabled %} · обязательный{% endif %}</summary>{{ form.id }}{{ form.non_field_errors }}{{ form.title.as_field_group }}{{ form.content.as_field_group }}{{ form.is_enabled.as_field_group }}{{ form.display_order.as_field_group }}</details>{% endfor %}
 {{ options.management_form }}{{ options.non_form_errors }}

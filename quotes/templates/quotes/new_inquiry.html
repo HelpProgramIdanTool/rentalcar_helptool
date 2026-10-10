@@ -41,12 +41,19 @@
   html{height:auto;overflow-y:auto}
   body{height:auto;overflow:visible}
   .app{height:auto;min-height:100vh;align-items:start}
-  .app main{height:auto;min-height:100vh;overflow:visible;min-width:0}
+  .app main{height:auto;min-height:100vh;overflow:visible;min-width:0;padding:14px 18px}
+  .inquiry-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  .inquiry-header h1{font-size:22px;margin:0;line-height:1.2}
+  .inquiry-header a{color:#155eef;white-space:nowrap;text-decoration:none}
+  .icon-button{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:6px;border-radius:8px;background:#e8efff;color:#155eef;font-size:22px;line-height:1}
+  .icon-button:hover{background:#d7e4ff}
+  .icon-button:focus-visible{outline:2px solid #155eef;outline-offset:2px}
+  .inquiry-tools{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:12px;align-items:start}
   .app form{display:block;min-width:0}
   .app .work-area{height:auto;min-height:0;align-items:start}
-  .app .message-panel{position:sticky;top:12px;align-self:start;height:auto;max-height:calc(100dvh - 24px);min-width:0;gap:8px;overflow:auto;z-index:2}
+  .app .message-panel{position:sticky;top:12px;align-self:start;height:auto;max-height:none;min-width:0;gap:8px;overflow:visible;z-index:2}
   .app .message-panel .customer-message{flex:none;min-height:0}
-  .app .message-panel textarea{height:180px;min-height:100px;max-height:35dvh;resize:vertical;overscroll-behavior:contain}
+  .app .message-panel textarea{height:clamp(168.48px,35.64dvh,421.2px);min-height:142.56px;max-height:none;resize:vertical;overscroll-behavior:contain}
   .app .form-scroll{height:auto;overflow:visible;display:flex;flex-direction:column;padding:0;min-width:0;overscroll-behavior:auto}
   .app #import-result{flex:none;max-height:100px;overflow:auto}
   .app fieldset{min-width:0}
@@ -54,26 +61,29 @@
   .location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start;background:#f8fafc}
   .location-zone h2{margin:0;font-size:18px;color:#173b72}
   .location-zone .address-field{grid-column:auto}
-  .app .work-area{grid-template-columns:minmax(220px,26%) minmax(0,1fr)}
-  @media(max-width:800px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%;max-height:35dvh;top:0}.app .message-panel textarea{height:100px}.app .message-panel small{display:none}}
+  .app .work-area{grid-template-columns:minmax(240px,36%) minmax(0,1fr)}
+  @media(max-width:800px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%;position:sticky;top:0}.app .message-panel textarea{height:clamp(168.48px,32.4dvh,362.88px)}.app .message-panel small{display:none}.inquiry-header h1{font-size:20px}}
   @media(max-width:700px){.rental-locations{grid-template-columns:1fr}}
 </style>
 <style>.vehicle-price{font-weight:700;color:#155eef;white-space:nowrap}.vehicle-supplier label{flex-wrap:wrap}.vehicle-supplier label input{flex-shrink:0}#price-preview-status{margin:4px 0;font-size:12px;color:#475467}</style></head>
 <body><div class="app">{% include 'quotes/sidebar.html' %}<main>
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><h1>Новое обращение клиента</h1><a href="{% url 'quotes:home' %}" style="display:inline-block;padding:9px 13px;border-radius:8px;background:#e8efff;color:#155eef;font-weight:700;text-decoration:none">← На главную</a></div>
+  <div class="inquiry-header"><h1>Новое обращение</h1><a class="icon-button" href="{% url 'quotes:home' %}" title="На главную" aria-label="На главную"><span aria-hidden="true">⌂</span></a></div>
   {% if selected_customer %}<p>Оферта для: <strong>{{ selected_customer }}</strong></p>{% endif %}
-  <p class="hint">Из данных клиента достаточно email или любого одного телефона. Имя и остальные данные можно добавить позже.</p>
-  <p class="hint">Перенеси сюда данные из первого письма. Сначала сохранится клиент и черновик оферты.</p>
   <form method="post" novalidate autocomplete="off">
     {% csrf_token %}
     {{ form.non_field_errors }}
-    {% if not is_editing and not selected_customer %}<div class="actions"><button class="small-button" id="clear-draft" type="button">Очистить и начать новый запрос</button><button class="small-button" id="restore-draft" type="button">Восстановить черновик</button></div>{% endif %}
+    {% if not is_editing and not selected_customer %}
+    <div class="inquiry-tools" role="group" aria-label="Действия с черновиком">
+      <button class="icon-button" id="clear-draft" type="button" title="Очистить и начать новый запрос" aria-label="Очистить и начать новый запрос"><span aria-hidden="true">＋</span></button>
+      <button class="icon-button" id="restore-draft" type="button" title="Восстановить черновик" aria-label="Восстановить черновик"><span aria-hidden="true">↶</span></button>
+    </div>
+    {% endif %}
     <div class="work-area">
     <fieldset class="message-panel"><legend>Клиент написал</legend>
       <label class="customer-message">{{ form.customer_notes }}{{ form.customer_notes.errors }}</label>
-      <button type="button" id="import-inquiry">Заполнить из заявки и подобрать машины</button>
+      <button type="button" id="import-inquiry" title="Заполнить из заявки и подобрать машины">Подобрать авто</button>
       <input type="hidden" name="imported_inquiry" id="imported-inquiry" value="{{ request.POST.imported_inquiry }}">
-      <button type="button" id="show-all-groups" hidden>Показать все категории</button>
+      <button type="button" class="small-button" id="show-all-groups">Показать все категории</button>
       <div id="import-result" role="status" style="white-space:pre-line"></div>
       <small class="hint">Вставь сюда исходный текст письма клиента. Для иврита текст выравнивается справа.</small>
     </fieldset>
@@ -126,7 +136,10 @@
         </section>
       </div>
       <label>{{ form.driver_count.label }}{{ form.driver_count }}{{ form.driver_count.errors }}</label>
-      <label class="extras-choice">{{ form.extra_choices.label }}{{ form.extra_choices }}{{ form.extra_choices.errors }}</label>
+      <div class="extras-choice">{{ form.extra_choices.label }}
+        <div>{% for option in form.extra_choices %}<label for="{{ option.id_for_label }}" title="{{ option.choice_label }}">{{ option.tag }}<span>{% if option.data.value == 'YOUNG_DRIVER' %}Молодой / новый водитель{% elif option.data.value == 'CHILD_SEAT' %}Кресло / бустер{% elif option.data.value == 'SNOW_CHAINS' %}Цепи{% elif option.data.value == 'NAVIGATION' %}GPS{% elif option.data.value == 'WIFI_ROUTER' %}Wi-Fi{% else %}{{ option.choice_label }}{% endif %}</span></label>{% endfor %}</div>
+        {{ form.extra_choices.errors }}
+      </div>
       <label>{{ form.young_driver_quantity.label }}{{ form.young_driver_quantity }}{{ form.young_driver_quantity.errors }}<small>{{ form.young_driver_quantity.help_text }}</small></label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
       <label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
@@ -177,7 +190,6 @@
     document.querySelectorAll('.vehicle-supplier, .vehicle-section').forEach(el => {
       el.hidden = !Array.from(el.querySelectorAll('input[type="checkbox"]')).some(input => !input.closest('label').hidden);
     });
-    document.querySelector('#show-all-groups').hidden = ids === null;
     form.dispatchEvent(new Event('pricingchange'));
   }
   document.querySelector('#show-all-groups').addEventListener('click', () => filterGroups(null));
@@ -211,8 +223,8 @@
       returnServiceChanged = returnService.value !== pickupService.value;
       toggleAddresses(); toggleChildSeats(); updatePhones(); syncCrossBorder(); saveDraft(); scheduleLookup();
       const groupText=Array.isArray(data.fields.vehicle_groups)?' Подобрано групп: '+data.fields.vehicle_groups.length+'.':'';
-      result.textContent = 'Данные заполнены.' + groupText +
-        ' Проверьте и нажмите «Сохранить и перейти к расчёту».\n' + data.warnings.join('\n');
+      result.textContent = 'Готово.' + groupText +
+        ' Проверьте данные и перейдите к расчёту.\n' + data.warnings.join('\n');
     } catch (error) { result.textContent = error.message; }
     finally { this.disabled = false; }
   });

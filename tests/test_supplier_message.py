@@ -9,7 +9,8 @@ from bookings.message_content import price_breakdown, supplier_location
 class SupplierPriceBreakdownTests(SimpleTestCase):
     def booking(self, base="500", total="650", daily="100"):
         return SimpleNamespace(vehicle_price_gross=Decimal(base), total_price_gross=Decimal(total),
-            vehicle_daily_rate_gross_snapshot=Decimal(daily), rental_days=5, currency="PLN")
+            vehicle_daily_rate_gross_snapshot=Decimal(daily), rental_days=5, currency="PLN",
+            manual_adjustment_amount=Decimal("0"), subagent_price_adjustment_amount=Decimal("0"))
 
     def extra(self, amount, included=True, complete=True):
         return SimpleNamespace(calculated_price_gross=Decimal(amount), included_in_total=included, calculation_complete=complete)
