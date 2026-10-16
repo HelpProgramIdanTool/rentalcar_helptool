@@ -1,0 +1,6 @@
+.prc-video{position:relative;width:100%;background:#000;overflow:hidden}
+.prc-video .prc-video-link{position:absolute;inset:0;display:block;color:#fff}
+.prc-video .prc-video-link:focus-visible{outline:3px solid #fff;outline-offset:-4px}
+.prc-video img{width:100%;height:100%;object-fit:contain;display:block}
+.prc-video .prc-video-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#c00;color:#fff;border-radius:12px;padding:12px 24px;font:28px/1 sans-serif;direction:ltr}
+.prc-video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
