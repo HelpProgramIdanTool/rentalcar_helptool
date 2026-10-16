@@ -169,6 +169,10 @@ class AirportPickupWording(models.Model):
 
 
 class VehicleGroup(models.Model):
+    offer_section = models.CharField(max_length=20, default="cars", choices=[
+        ("cars", "Легковые: седаны, универсалы, хетчбэки"),
+        ("crossovers", "Кроссоверы"), ("premium", "Премиум"),
+        ("vans", "Минивэны и микроавтобусы")])
     show_in_offers = models.BooleanField(default=True, verbose_name="Предлагать в новых офертах")
     class Transmission(models.TextChoices):
         MANUAL = "MANUAL", "Manual"

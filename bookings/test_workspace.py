@@ -235,6 +235,38 @@ class BookingWorkspaceTests(TestCase):
         self.assertEqual(self.booking.status, "DRAFT")
         self.assertEqual(self.booking.total_price_gross, Decimal("300"))
 
+    def test_supplier_subject_uses_drivers_and_refreshes_old_generated_draft(self):
+        from .models import BookingDriver
+        BookingDriver.objects.create(booking=self.booking, first_name="Driver", last_name="One")
+        BookingDriver.objects.create(booking=self.booking, first_name="Driver", last_name="Two")
+        url = reverse("quotes:supplier_message", args=[self.booking.pk])
+        expected = "Car rental booking request - Driver One // Driver Two"
+        self.assertEqual(self.client.get(url).context["form"].initial["subject"], expected)
+        self.client.post(url, {"recipient": "supplier@example.com",
+            "subject": f"Car rental booking request {self.booking.booking_number}", "body": "Custom body"})
+        response = self.client.get(url)
+        self.assertEqual(response.context["form"].initial["subject"], expected)
+        self.assertEqual(response.context["body"], "Custom body")
+
+    def test_supplier_extra_uses_database_english_translation_in_new_and_saved_draft(self):
+        from unittest.mock import patch
+        from quotes.models import QuoteTemplate
+        QuoteTemplate.objects.filter(language="English").update(is_active=False)
+        QuoteTemplate.objects.create(name="Test English", language="English", is_active=True,
+            presentation={"translations": {"TEST-SOURCE": "TEST-ENGLISH"}})
+        extra = SimpleNamespace(supplier_visible_name="TEST-SOURCE", included_in_total=True,
+            calculation_complete=True, calculated_price_gross=Decimal("0"), quantity=Decimal("1"))
+        url = reverse("quotes:supplier_message", args=[self.booking.pk])
+        manager = type(self.booking.extras)
+        with patch.object(manager, "all", return_value=[extra]):
+            self.assertIn("TEST-ENGLISH x", self.client.get(url).context["body"])
+            self.client.post(url, {"recipient": "supplier@example.com", "subject": "Custom",
+                                  "body": "Note\nTEST-SOURCE x 1"})
+            extra.supplier_visible_name = "TEST-SOURCE"
+            response = self.client.get(url)
+            self.assertEqual(response.context["body"], "Note\nTEST-ENGLISH x 1")
+            self.assertEqual(response.context["form"].initial["subject"], "Custom")
+
     def test_compact_message_includes_price_address_and_zero_deposit(self):
         Booking.objects.filter(pk=self.booking.pk).update(
             customer_address_snapshot="Example street 10", source_quote_snapshot={"deposit": "0", "deposit_currency": "PLN"})

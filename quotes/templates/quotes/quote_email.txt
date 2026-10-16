@@ -7,7 +7,9 @@
 {% if is_english %}Vehicle return{% elif is_localized %}{{ offer_labels.return }}{% else %}החזרת הרכב{% endif %}: {{ return_location }} — {{ quote.return_datetime|date:"d.m.Y H:i" }}
 {% if is_english %}Rental days{% elif is_localized %}{{ offer_labels.days }}{% else %}מספר ימי שכירות{% endif %}: {{ quote.rental_days }}
 
-{% for option in options %}--------------------
+{% for option in options %}{% if option.section_heading %}
+{{ option.section_heading }}
+{% endif %}--------------------
 {{ forloop.counter }}. {{ option.supplier_name_snapshot }} — {{ option.display_vehicle_class }}
 {% for badge in option.supplier_badges %}{{ badge }}
 {% endfor %}{{ option.vehicle_models_snapshot }}

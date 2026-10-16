@@ -320,6 +320,21 @@ class FirstInquiryTests(TestCase):
         self.assertEqual(quote.customer.first_name, "Anna")
         self.assertEqual(quote.customer.last_name, "Nowak")
 
+    def test_calculation_defaults_all_then_preserves_operator_selection(self):
+        self.client.post(reverse("quotes:new_inquiry"), self.data())
+        quote = Quote.objects.get()
+        url = reverse("quotes:calculate_quote", args=[quote.quote_number])
+        response = self.client.get(url)
+        options = response.context["options"]
+        self.assertGreater(len(options), 1)
+        self.assertTrue(all(option["was_selected"] for option in options))
+        chosen = options[0]["group"].pk
+        self.client.post(url, {"selected_options": [str(chosen)]})
+        reopened = self.client.get(url)
+        self.assertEqual([o["group"].pk for o in reopened.context["options"] if o["was_selected"]], [chosen])
+        invalid = self.client.post(url, {})
+        self.assertFalse(any(o["was_selected"] for o in invalid.context["options"]))
+
     def test_customer_section_uses_one_name_field_and_compact_phone_button(self):
         response = self.client.get(reverse("quotes:new_inquiry"))
 

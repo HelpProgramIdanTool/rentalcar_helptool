@@ -299,9 +299,12 @@ def calculate_quote(request, quote_number):
     quote = Quote.objects.select_related("customer").get(quote_number=quote_number)
     options = calculate_quote_options(quote)
     saved_options = {item.vehicle_group_id: item for item in quote.options.filter(is_included=True)}
+    has_previous_selection = quote.options.exists()
     for option in options:
         saved = saved_options.get(option["group"].pk)
-        option["was_selected"] = saved is not None
+        option["was_selected"] = saved is not None or not has_previous_selection
+        if request.method == "POST":
+            option["was_selected"] = str(option["group"].pk) in request.POST.getlist("selected_options")
         if saved:
             option["manual_label"] = saved.manual_adjustment_label
             option["manual_amount"] = saved.manual_adjustment_amount
@@ -311,7 +314,7 @@ def calculate_quote(request, quote_number):
     if request.method == "POST":
         selected_ids = {int(value) for value in request.POST.getlist("selected_options") if value.isdigit()}
         available = {option["group"].id: option for option in options if option["available"]}
-        selected = [available[group_id] for group_id in selected_ids if group_id in available]
+        selected = [option for group_id, option in available.items() if group_id in selected_ids]
         adjustment_error = ""
         for option in selected:
             group_id = option["group"].id
@@ -495,11 +498,13 @@ def email_delivery(request, quote_number, delivery_id):
 def _quote_preview_context(quote, *, is_email=False):
     ensure_quote_document_blocks(quote)
     ensure_quote_option_presentation(quote)
-    options = list(quote.options.filter(is_included=True).select_related("comparison_class"))
+    options = list(quote.options.filter(is_included=True).select_related("comparison_class", "vehicle_group", "supplier"))
     is_english = quote.language == "English"
     is_russian = quote.language == "Russian"
     is_polish = quote.language == "Polish"
     presentation = presentation_for(quote.language)
+    from .sections import arrange_sections
+    options = arrange_sections(options, presentation)
     service_messages = airport_service_messages(
         quote, {option.supplier_id for option in options}, quote.language
     )

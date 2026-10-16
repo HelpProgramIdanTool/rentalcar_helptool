@@ -71,8 +71,58 @@ def parse_free_text_inquiry(raw):
     return data, requirements, warnings
 
 
+def _parse_other_site(text, raw):
+    """Adapt the flat website form; identify fields by labels, never their order."""
+    fields = {}
+    key = None
+    for line in text.splitlines():
+        if ':' in line:
+            key, value = line.split(':', 1)
+            key = ' '.join(key.strip().split())
+            fields[key] = value.strip()
+        elif key and line.strip():
+            fields[key] += '\n' + line.strip()
+    aliases = {'EMAIL': 'דוא״ל', 'שם ושם המשפחה': 'שם',
+               'מספר טלפון': 'טלפון / וואטסאפ', 'מספר הנוסעים': 'מספר נוסעים כולל הנהג',
+               'מספר מזוודות': 'מספר מזוודות משוער', 'תיבת הילוכים': 'תיבת הילוכים'}
+    normalized = [f'{target}: {fields.get(source, "")}' for source, target in aliases.items()]
+    for heading, date_key, place_key in (
+        ('קבלת הרכב', 'תאריך קבלת הרכב', 'מקום לקבלת הרכב'),
+        ('החזרת הרכב', 'תאריך החזרת הרכב', 'מקום להחזרת הרכב'),
+    ):
+        parts = fields.get(date_key, '').split()
+        place = fields.get(place_key, '')
+        city = place.split(',', 1)[0].strip()
+        service = 'שדה תעופה' if re.search(r'\bairport\b', place, re.I) else place
+        normalized.extend([heading + ':', 'עיר: ' + city, 'מקום: ' + service,
+                           'תאריך: ' + (parts[0] if parts else ''),
+                           'שעה: ' + (parts[1] if len(parts) > 1 else '')])
+    category = fields.get('מאפיין סוג', '')
+    normalized.extend(['קבוצות רכב שנבחרו:', '- ' + category] if category else [])
+    data, requirements, warnings = parse_inquiry('\n'.join(normalized))
+    data['customer_notes'] = raw
+    for side, label in (
+        ('pickup', 'יש להקליד את ההערות לגבי קבלת הרכב'),
+        ('return', 'יש להקליד את ההערות לגבי מיקום להחזרת הרכב'),
+    ):
+        note = fields.get(label, '')
+        if note:
+            # Notes can override the selected airport/city. Require a human decision.
+            warnings.append(('Получение' if side == 'pickup' else 'Возврат')
+                            + ': уточните место по примечанию клиента: ' + note)
+            data[f'{side}_city'] = ''
+            data[f'{side}_service'] = ''
+            data[f'{side}_address'] = ''
+    data['internal_notes'] = '\n'.join(warnings)
+    return data, requirements, warnings
+
+
 def parse_inquiry(raw):
     text = html.unescape(raw).replace("\\", "").replace("\u00a0", " ")
+    # Pasted mail may contain Markdown links instead of plain contact values.
+    text = re.sub(r"\[([^\]\n]+)\]\([^\n)]*\)", r"\1", text)
+    if 'תאריך קבלת הרכב:' in text and 'שם ושם המשפחה:' in text:
+        return _parse_other_site(text, raw)
     if "קבלת הרכב" not in text and "מספר פנייה" not in text:
         return parse_free_text_inquiry(raw)
     lines = [line.strip().strip("*").strip() for line in text.splitlines()]
@@ -111,18 +161,23 @@ def parse_inquiry(raw):
         elif "מלון" in place or "כתובת" in place:
             data[f"{side}_service"] = "ADDRESS"
         else:
-            data[f"{side}_service"] = {"סניף": "CITY_BRANCH"}.get(place, "")
+            data[f"{side}_service"] = {"סניף": "CITY_BRANCH", "סניף בעיר": "CITY_BRANCH"}.get(place, "")
         data[f"{side}_address"] = (
             place if data[f"{side}_service"] == "ADDRESS" and place not in {"מלון", "כתובת"} else ""
         )
         if "מלון" in place:
             warnings.append("Уточните название и точный адрес отеля перед отправкой предложения.")
         date = sections.get((side, "תאריך"), "")
-        try:
-            date = datetime.strptime(date, "%Y-%m-%d").strftime("%d-%m-%Y")
-        except ValueError:
-            warnings.append("Проверьте даты получения и возврата: ожидается дата ГГГГ-ММ-ДД в заявке.")
-            date = ""
+        parsed_date = ""
+        for date_format in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                parsed_date = datetime.strptime(date, date_format).strftime("%d-%m-%Y")
+                break
+            except ValueError:
+                continue
+        if not parsed_date:
+            warnings.append("Проверьте даты получения и возврата: дата в заявке не распознана.")
+        date = parsed_date
         data[f"{side}_date"] = date
         data[f"{side}_time"] = sections.get((side, "שעה"), "")
     def answer(label):
@@ -243,6 +298,7 @@ def import_inquiry(request):
         return JsonResponse({"error": "Вставьте заявку (до 30 000 символов)."}, status=400)
     data, requirements, warnings = parse_inquiry(raw)
     structured = "מספר נוסעים כולל הנהג" in raw and "קבלת הרכב" in raw
+    structured = structured or ('תאריך קבלת הרכב:' in raw and 'שם ושם המשפחה:' in raw)
     if not structured and not any(data.get(name) for name in ("pickup_date", "return_date", "pickup_city", "return_city")):
         return JsonResponse({"error": "Не удалось уверенно распознать даты или город. Существующие поля сохранены."}, status=400)
     form = FirstInquiryForm()

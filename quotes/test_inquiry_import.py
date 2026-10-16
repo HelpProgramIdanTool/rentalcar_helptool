@@ -43,6 +43,72 @@ GPS: לא
 
 
 class ParserTests(SimpleTestCase):
+    def test_other_site_labels_and_reversed_date_order(self):
+        raw = '''EMAIL: [sample@example.com](mailto:sample@example.com)
+שם ושם המשפחה: Test Customer
+מספר טלפון: 0123456789
+תאריך החזרת הרכב: 26/11/2026 12:00
+תאריך קבלת הרכב: 25/11/2026 12:00
+מקום להחזרת הרכב: Gdańsk, Lech Wałęsa Airport
+מקום לקבלת הרכב: Gdańsk, Lech Wałęsa Airport
+תיבת הילוכים: אוטומטית
+מספר מזוודות: 1
+מספר הנוסעים: 2
+מאפיין  סוג: רכב מיני
+'''
+        data, requirements, _ = parse_inquiry(raw)
+        self.assertEqual(data['email'], 'sample@example.com')
+        self.assertEqual(data['full_name'], 'Test Customer')
+        self.assertEqual(data['phone_1'], '0123456789')
+        self.assertEqual(data['pickup_date'], '25-11-2026')
+        self.assertEqual(data['return_date'], '26-11-2026')
+        self.assertEqual(data['pickup_time'], '12:00')
+        self.assertEqual(data['return_city'], 'Gdańsk')
+        self.assertEqual(data['pickup_service'], 'AIRPORT')
+        self.assertEqual(requirements['passengers'], 2)
+        self.assertEqual(requirements['bags'], 1)
+        self.assertTrue(requirements['automatic'])
+        self.assertEqual(requirements['categories'], ['רכב מיני'])
+        notes = '\nיש להקליד את ההערות לגבי קבלת הרכב: קרקוב\nמרחק הליכה\n'
+        data, _, warnings = parse_inquiry(raw + notes)
+        self.assertEqual(data['pickup_city'], '')
+        self.assertEqual(data['pickup_service'], '')
+        self.assertEqual(data['return_city'], 'Gdańsk')
+        self.assertIn('קרקוב\nמרחק הליכה', data['internal_notes'])
+        self.assertEqual(data['customer_notes'], raw + notes)
+        self.assertTrue(any('уточните место' in item for item in warnings))
+
+    def test_updated_website_email_with_markdown_and_day_first_dates(self):
+        raw = (SAMPLE.replace('2026-09-26', '15/10/2026')
+               .replace('2026-10-03', '16/10/2026')
+               .replace('test@example.com', '[test@example.com](mailto:test@example.com)')
+               .replace('קרקוב', 'Grodzisk Mazowiecki')
+               .replace('החזרת הרכב:\nעיר: Grodzisk Mazowiecki\nמקום: שדה תעופה',
+                        'החזרת הרכב:\nעיר: Grodzisk Mazowiecki\nמקום: סניף בעיר')
+               .replace('כולל הנהג: 6', 'כולל הנהג: 1')
+               .replace('משוער: 5', 'משוער: 1'))
+        raw = '| to me |\n| ----- |\n' + raw.replace('\n', '\\\n')
+        data, requirements, warnings = parse_inquiry(raw)
+        self.assertEqual(data['pickup_date'], '15-10-2026')
+        self.assertEqual(data['return_date'], '16-10-2026')
+        self.assertEqual(data['email'], 'test@example.com')
+        self.assertEqual(data['pickup_service'], 'AIRPORT')
+        self.assertEqual(data['return_service'], 'CITY_BRANCH')
+        self.assertEqual(data['pickup_city'], 'OTHER')
+        self.assertEqual(data['pickup_other_city'], 'Grodzisk Mazowiecki')
+        self.assertEqual(requirements['passengers'], 1)
+        self.assertEqual(requirements['bags'], 1)
+        self.assertTrue(requirements['automatic'])
+        self.assertFalse(data['cross_border_requested'])
+        self.assertEqual(data['extra_choices'], [])
+        self.assertEqual(data['customer_notes'], raw)
+        self.assertFalse(any('даты' in warning for warning in warnings))
+
+    def test_impossible_day_first_date_is_rejected(self):
+        data, _, warnings = parse_inquiry(SAMPLE.replace('2026-09-26', '31/02/2026'))
+        self.assertEqual(data['pickup_date'], '')
+        self.assertTrue(any('даты' in warning for warning in warnings))
+
     def test_free_hebrew_message_fills_certain_details_and_keeps_alternative(self):
         raw = ('התאריכים שלנו הם נחיתה ב11 לדצמבר, 09:00 (נרצה לאסוף רכב מהשדה),\n'
                'והחזרה אם אפשר בעיר קרקוב ב15/12 אחהצ-ערב, או ב16/12 ב7 בבוקר בשדה.')

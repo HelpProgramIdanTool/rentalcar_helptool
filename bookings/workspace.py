@@ -211,11 +211,22 @@ def supplier_message(request, pk):
     change_mode = (request.GET.get("change") == "1" or request.POST.get("change_mode") == "1")
     draft_description = "Supplier change draft saved" if change_mode else "Supplier message draft saved"
     extras = list(booking.extras.all())
+    from quotes.localization import presentation_for, translate_text
+    english = presentation_for("English")
+    extra_translations = {}
+    for item in extras:
+        original = item.supplier_visible_name
+        item.supplier_visible_name = translate_text(original, english)
+        if original != item.supplier_visible_name:
+            extra_translations[original] = item.supplier_visible_name
     names = " // ".join(f"{driver.first_name} {driver.last_name}".strip() for driver in booking.drivers.all())
+    driver_label = names or booking.customer_name_snapshot or "[driver names]"
+    subject = (f"Change request {booking.supplier_booking_number} - {driver_label}" if change_mode
+               else f"Car rental booking request - {driver_label}")
     draft = booking.history_events.filter(description=draft_description).order_by("-pk").first()
     initial = draft.changes["message"] if draft else {
         "recipient": (booking.supplier.changes_email or booking.supplier.booking_email) if change_mode else booking.supplier.booking_email,
-        "subject": (f"Change request {booking.supplier_booking_number} / {booking.booking_number}" if change_mode else f"Car rental booking request {booking.booking_number}"),
+        "subject": subject,
         "body": ((f"Please update existing reservation {booking.supplier_booking_number}.\nPlease confirm the changes and send an updated voucher.\n\n" if change_mode else "") + render_to_string("bookings/supplier_message.txt", {
             "booking": booking, "driver_names": names or booking.customer_name_snapshot or "[driver names]",
             "price_breakdown": price_breakdown(booking, extras),
@@ -224,6 +235,17 @@ def supplier_message(request, pk):
             "extras": [item for item in extras if item.included_in_total],
         }).strip()),
     }
+    if draft:
+        initial = dict(initial)
+        old_subject = (f"Change request {booking.supplier_booking_number} / {booking.booking_number}" if change_mode
+                       else f"Car rental booking request {booking.booking_number}")
+        if initial.get("subject") == old_subject:
+            initial["subject"] = subject
+        # Refresh known service labels without replacing an operator's custom draft.
+        body = initial.get("body", "")
+        for original, translated in extra_translations.items():
+            body = body.replace(original + " x ", translated + " x ")
+        initial["body"] = body
     form = SupplierMessageForm(request.POST or None, initial=initial)
     send_token = signing.dumps({"booking": booking.pk, "user": request.user.pk, "token": str(uuid4())}, salt="supplier-send")
     if request.method == "POST" and request.POST.get("action") in ("send", "mark_manual"):

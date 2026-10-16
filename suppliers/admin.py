@@ -108,7 +108,7 @@ class VehicleGroupAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Основные данные", {"fields": (
             "supplier", "group_code", "group_name", "customer_name_he",
-            "customer_name_en", "category", "body_type",
+            "customer_name_en", "category", "body_type", "offer_section",
             "transmission", "seats", "doors", "is_active", "show_in_offers", "display_order",
         )}),
         ("Багажник", {"fields": (
