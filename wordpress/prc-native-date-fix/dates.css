@@ -1,0 +1,3 @@
+.prc-calendar-control.prc-direct-date .prc-picker-display,
+.prc-calendar-control.prc-direct-date .prc-picker-icon{display:none}
+.prc-calendar-control.prc-direct-date .prc-native-picker{position:relative;left:auto;top:auto;transform:none;width:100%;min-width:0;min-height:48px;height:auto;opacity:1;pointer-events:auto;box-sizing:border-box;font-size:16px;direction:ltr}
