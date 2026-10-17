@@ -248,8 +248,13 @@ def new_inquiry(request, customer_id=None):
 @login_required
 def inquiry_saved(request, quote_number):
     quote = Quote.objects.select_related("customer").get(quote_number=quote_number)
+    from .sections import arrange_sections
+    included_options = arrange_sections(
+        list(quote.options.filter(is_included=True).select_related("vehicle_group")),
+        presentation_for(quote.language),
+    )
     return render(request, "quotes/inquiry_saved.html", {
-        "quote": quote, "included_options": quote.options.filter(is_included=True),
+        "quote": quote, "included_options": included_options,
     })
 
 

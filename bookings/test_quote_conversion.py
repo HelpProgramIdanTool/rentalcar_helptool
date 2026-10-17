@@ -55,6 +55,51 @@ class QuoteConversionTests(TestCase):
         self.assertNotContains(response, 'name="driver_2_first_name"')
         self.assertFalse(Booking.objects.exists())
 
+    def test_booking_choices_use_the_same_numbers_as_customer_offer(self):
+        from quotes.models import QuoteTemplate
+        from quotes.views import _quote_preview_context
+
+        # Interleave sections in saved order, as happened in the reported offer.
+        self.group.offer_section = "crossovers"
+        self.group.save(update_fields=["offer_section"])
+        self.option.display_order = 1
+        self.option.save(update_fields=["display_order"])
+        car = VehicleGroup.objects.create(supplier=self.supplier, group_code="TEST-CAR",
+            group_name="TEST-CAR", offer_section="cars")
+        car_option = QuoteOption.objects.create(quote=self.quote, supplier=self.supplier,
+            vehicle_group=car, comparison_class=self.option.comparison_class,
+            total_price_gross=100, currency="PLN", display_order=2)
+        second_car = VehicleGroup.objects.create(supplier=self.supplier, group_code="TEST-CAR-2",
+            group_name="TEST-CAR-2", offer_section="cars")
+        second_option = QuoteOption.objects.create(quote=self.quote, supplier=self.supplier,
+            vehicle_group=second_car, comparison_class=self.option.comparison_class,
+            total_price_gross=200, currency="PLN", display_order=3)
+        excluded_car = VehicleGroup.objects.create(supplier=self.supplier, group_code="TEST-HIDDEN",
+            group_name="TEST-HIDDEN", offer_section="cars")
+        QuoteOption.objects.create(quote=self.quote, supplier=self.supplier,
+            vehicle_group=excluded_car, comparison_class=self.option.comparison_class,
+            total_price_gross=300, is_included=False)
+        QuoteTemplate.objects.filter(language=self.quote.language).update(is_active=False)
+        template = QuoteTemplate.objects.create(name="TEST-ORDER", language=self.quote.language,
+            is_active=True, presentation={"section_order": ["cars", "crossovers"]})
+        url = reverse("quotes:inquiry_saved", args=[self.quote.quote_number])
+
+        for order, expected in [(["cars", "crossovers"], [car_option.pk, second_option.pk, self.option.pk]),
+                                (["crossovers", "cars"], [self.option.pk, car_option.pk, second_option.pk])]:
+            template.presentation = {"section_order": order}
+            template.save(update_fields=["presentation"])
+            response = self.client.get(url)
+            choices = list(response.context["included_options"])
+            self.assertEqual([option.pk for option in choices], expected)
+            for is_email in (False, True):
+                customer_options = _quote_preview_context(self.quote, is_email=is_email)["options"]
+                self.assertEqual([option.pk for option in choices],
+                                 [option.pk for option in customer_options])
+            # Each visible number still leads to its own option, not another vehicle.
+            html = response.content.decode()
+            links = [reverse("quotes:booking_from_offer", args=[self.quote.quote_number, pk]) for pk in expected]
+            self.assertEqual(sorted(links, key=html.index), links)
+
     def test_young_driver_offer_prefills_individual_driver_flags(self):
         self.quote.extra_requests = {"YOUNG_DRIVER": 1}
         self.quote.driver_count = 2
