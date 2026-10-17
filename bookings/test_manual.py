@@ -64,6 +64,7 @@ class ManualBookingTests(TestCase):
         self.assertFalse(form["customer_name"].value())
         self.assertNotIn("existing_customer", form.fields)
         self.assertNotContains(response, 'name="customer"')
+
         self.assertNotContains(response, 'name="existing_customer"')
         self.assertFalse(form["driver_1_name"].value())
         self.assertNotEqual(form["entry_token"].value(), data["entry_token"])
@@ -84,6 +85,15 @@ class ManualBookingTests(TestCase):
         original.refresh_from_db()
         self.assertEqual(original.drivers.get().first_name, "Test")
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_resubmitting_hidden_manual_order_does_not_create_duplicate(self):
+        data, review = self.review()
+        self.confirm(data, review)
+        booking = Booking.objects.get()
+        Booking.all_objects.filter(pk=booking.pk).update(is_archived=True)
+        self.confirm(data, review)
+        self.assertEqual(Booking.all_objects.count(), 1)
+        self.assertFalse(Booking.objects.exists())
 
     def test_clone_keeps_seat_details_and_can_remove_seat(self):
         extra = SupplierExtra.objects.create(supplier=self.supplier, extra_code="CHILD_SEAT", name="Test seat")

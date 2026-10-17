@@ -133,7 +133,7 @@ def new_booking(request):
             entry = signing.loads(request.POST.get("entry_token", ""), salt="manual-entry", max_age=86400)
             if entry["user"] != request.user.pk:
                 raise signing.BadSignature()
-            existing = Booking.objects.filter(manual_entry_key=entry["key"], created_by_user=request.user).first()
+            existing = Booking.all_objects.filter(manual_entry_key=entry["key"], created_by_user=request.user).first()
             if existing:
                 return redirect("quotes:booking_detail", pk=existing.pk)
         except (signing.BadSignature, KeyError):

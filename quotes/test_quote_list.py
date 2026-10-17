@@ -48,6 +48,15 @@ class QuoteListTests(TestCase):
         self.assertEqual(response.context["stats"]["total"], 29)
         self.assertEqual(response.context["stats"]["issued"], 27)
 
+    def test_hidden_mistaken_booking_is_not_counted_as_conversion(self):
+        from bookings.models import Booking
+        from suppliers.models import Supplier
+        supplier = Supplier.objects.create(supplier_code="HIDDEN-STATS", supplier_name="TEST")
+        booking = Booking.objects.create(customer=self.customer, supplier=supplier, source_quote=self.draft)
+        self.assertEqual(self.client.get(reverse("quotes:quote_list")).context["stats"]["converted"], 1)
+        Booking.all_objects.filter(pk=booking.pk).update(is_archived=True)
+        self.assertEqual(self.client.get(reverse("quotes:quote_list")).context["stats"]["converted"], 0)
+
     def test_list_requires_login(self):
         self.client.logout()
         response = self.client.get(reverse("quotes:quote_list"))

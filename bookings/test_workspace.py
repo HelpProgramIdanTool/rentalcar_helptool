@@ -49,6 +49,46 @@ class BookingWorkspaceTests(TestCase):
             self.assertEqual(self.booking.total_price_gross, Decimal("300"))
             self.assertTrue(self.booking.history_events.filter(description="Supplier voucher uploaded").exists())
 
+    def test_hide_requires_confirmation_and_keeps_data_for_restore(self):
+        url = reverse("quotes:archive_booking", args=[self.booking.pk])
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertTrue(Booking.objects.filter(pk=self.booking.pk).exists())
+        self.assertEqual(self.client.post(url, {"action": "hide"}).status_code, 400)
+        customer = self.booking.customer
+        original_status = self.booking.status
+        number = self.booking.booking_number
+        self.client.post(url, {"action": "hide", "confirm": "yes"})
+        self.assertFalse(Booking.objects.filter(pk=self.booking.pk).exists())
+        hidden = Booking.all_objects.get(pk=self.booking.pk)
+        self.assertEqual(hidden.status, original_status)
+        self.assertTrue(hidden.history_events.exists())
+        self.assertFalse(customer.bookings.filter(pk=hidden.pk).exists())
+        self.assertNotContains(self.client.get(reverse("quotes:booking_list")), number)
+        self.assertContains(self.client.get(reverse("quotes:booking_list") + "?archived=1"), number)
+        self.assertRedirects(self.client.get(self.url), url)
+        self.client.post(url, {"action": "restore", "confirm": "yes"})
+        self.assertTrue(customer.bookings.filter(pk=hidden.pk).exists())
+        self.assertContains(self.client.get(reverse("quotes:booking_list")), number)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_hide_is_idempotent_and_does_not_hide_another_order(self):
+        other = Booking.objects.create(supplier=self.supplier, customer=self.booking.customer)
+        url = reverse("quotes:archive_booking", args=[self.booking.pk])
+        for _ in range(2):
+            self.client.post(url, {"action": "hide", "confirm": "yes"})
+        self.assertTrue(Booking.objects.filter(pk=other.pk).exists())
+        self.assertEqual(self.booking.history_events.filter(description="Ошибочный заказ скрыт").count(), 1)
+
+    def test_hide_requires_login_and_csrf(self):
+        from django.test import Client
+        url = reverse("quotes:archive_booking", args=[self.booking.pk])
+        self.client.logout()
+        self.assertEqual(self.client.post(url, {"action": "hide", "confirm": "yes"}).status_code, 302)
+        protected = Client(enforce_csrf_checks=True)
+        protected.force_login(self.user)
+        self.assertEqual(protected.post(url, {"action": "hide", "confirm": "yes"}).status_code, 403)
+        self.assertTrue(Booking.objects.filter(pk=self.booking.pk).exists())
+
     def test_voucher_rejects_invalid_content_and_large_file(self):
         with override_settings(STORAGES={"default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}, "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}}):
             url = reverse("quotes:upload_voucher", args=[self.booking.pk])

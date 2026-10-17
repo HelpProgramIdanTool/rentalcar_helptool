@@ -98,7 +98,8 @@ def download_voucher(request, pk, voucher_id):
 
 @login_required
 def booking_list(request):
-    bookings = Booking.objects.select_related(
+    archived = request.GET.get("archived") == "1"
+    bookings = Booking.all_objects.filter(is_archived=archived).select_related(
         "supplier", "vehicle_group", "salesperson_employee", "sub_agent",
         "created_by_user", "confirmed_by_user",
     )
@@ -127,6 +128,7 @@ def booking_list(request):
         "page_obj": Paginator(bookings.order_by("-created_at", "-pk"), 30).get_page(request.GET.get("page")),
         "q": query, "status": status, "supplier_id": supplier, "suppliers": Supplier.objects.all(),
         "statuses": Booking.Status.choices, "active_menu": "orders",
+        "archived": archived,
     })
 
 
@@ -134,6 +136,8 @@ def booking_list(request):
 @require_http_methods(["GET", "POST"])
 @transaction.atomic
 def booking_detail(request, pk):
+    if Booking.all_objects.filter(pk=pk, is_archived=True).exists():
+        return redirect("quotes:archive_booking", pk=pk)
     booking = get_object_or_404(Booking.objects.select_for_update().select_related("supplier", "vehicle_group", "source_quote"), pk=pk)
     form = ReservationForm(request.POST or None, booking=booking, initial={
         "supplier_booking_number": booking.supplier_booking_number, "status": booking.status,
@@ -192,6 +196,30 @@ def booking_detail(request, pk):
         ).count(),
         "status_history": status_history, "active_menu": "orders",
     })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+@transaction.atomic
+def archive_booking(request, pk):
+    booking = get_object_or_404(Booking.all_objects.select_for_update(), pk=pk)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if request.POST.get("confirm") != "yes" or action not in {"hide", "restore"}:
+            return render(request, "bookings/archive.html", {"booking": booking,
+                "error": "Подтвердите выбранное действие.", "active_menu": "orders"}, status=400)
+        archived = action == "hide"
+        if booking.is_archived != archived:
+            Booking.all_objects.filter(pk=pk).update(is_archived=archived, updated_at=timezone.now())
+            booking.log_history(BookingHistoryEvent.EventType.DETAILS_CHANGED,
+                "Ошибочный заказ скрыт" if archived else "Заказ восстановлен",
+                changes={"is_archived": {"old": booking.is_archived, "new": archived},
+                         "operator_user_id": request.user.pk})
+        messages.success(request, "Заказ скрыт. Его можно восстановить в разделе «Скрытые заказы»."
+                         if archived else "Заказ восстановлен.")
+        return redirect("quotes:booking_list" if archived else "quotes:booking_detail",
+                        **({} if archived else {"pk": pk}))
+    return render(request, "bookings/archive.html", {"booking": booking, "active_menu": "orders"})
 
 
 class SupplierMessageForm(forms.Form):

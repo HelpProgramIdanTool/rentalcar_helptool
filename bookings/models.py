@@ -39,7 +39,15 @@ class BookingNumberSequence(models.Model):
             return f"RC-{year}-{sequence.last_number:05d}"
 
 
+class VisibleBookingManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_archived=False)
+
+
 class Booking(models.Model):
+    is_archived = models.BooleanField(default=False, db_index=True, editable=False)
+    objects = VisibleBookingManager()
+    all_objects = models.Manager()
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         WAITING_CONFIRMATION = "WAITING_CONFIRMATION", "Waiting confirmation"
@@ -218,6 +226,7 @@ class Booking(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        base_manager_name = "all_objects"
 
     @property
     def marked_supplier_booking_number(self):

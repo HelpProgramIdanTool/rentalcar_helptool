@@ -59,11 +59,11 @@ def quote_list(request):
             quotes = quotes.filter(pickup_datetime__date__lte=data["pickup_to"])
     else:
         quotes = quotes.none()
-    issued = Q(sent_at__isnull=False) | Q(status__in=[Quote.Status.SENT, Quote.Status.ACCEPTED]) | Q(bookings__isnull=False)
+    issued = Q(sent_at__isnull=False) | Q(status__in=[Quote.Status.SENT, Quote.Status.ACCEPTED]) | Q(bookings__is_archived=False)
     stats = quotes.aggregate(
         total=Count("pk", distinct=True),
         issued=Count("pk", filter=issued, distinct=True),
-        converted=Count("pk", filter=Q(bookings__isnull=False), distinct=True),
+        converted=Count("pk", filter=Q(bookings__is_archived=False), distinct=True),
     )
     stats["conversion_percent"] = (
         round(Decimal(stats["converted"]) * 100 / stats["issued"], 1) if stats["issued"] else Decimal("0.0")

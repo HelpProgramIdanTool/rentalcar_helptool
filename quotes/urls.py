@@ -22,6 +22,7 @@ urlpatterns = [
     path("bookings/<int:pk>/vouchers/", workspace.upload_voucher, name="upload_voucher"),
     path("bookings/<int:pk>/vouchers/<int:voucher_id>/download/", workspace.download_voucher, name="download_voucher"),
     path("bookings/<int:pk>/", workspace.booking_detail, name="booking_detail"),
+    path("bookings/<int:pk>/archive/", workspace.archive_booking, name="archive_booking"),
     path("offers/<str:quote_number>/email/", views.email_editor, name="email_editor"),
     path("offers/<str:quote_number>/guides/<str:code>/", views.quote_guide, name="quote_guide"),
     path("offers/<str:quote_number>/deliveries/<int:delivery_id>/", views.email_delivery, name="email_delivery"),

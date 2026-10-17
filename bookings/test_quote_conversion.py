@@ -205,6 +205,17 @@ class QuoteConversionTests(TestCase):
 
         self.assertEqual(Booking.objects.filter(source_quote=self.quote).count(), 1)
 
+    def test_hidden_order_disappears_from_offer_and_old_submit_does_not_duplicate_it(self):
+        data, review = self.review()
+        self.create(data, review)
+        booking = Booking.objects.get()
+        Booking.all_objects.filter(pk=booking.pk).update(is_archived=True)
+        self.assertNotContains(self.client.get(reverse("quotes:inquiry_saved", args=[self.quote.quote_number])),
+                               booking.booking_number)
+        self.create(data, review)
+        self.assertEqual(Booking.all_objects.filter(source_quote=self.quote).count(), 1)
+        self.assertFalse(Booking.objects.filter(source_quote=self.quote).exists())
+
     def test_a_new_review_can_create_an_identical_second_order(self):
         data, first_review = self.review(driver_1_name="Anna Nowak")
         self.create(data, first_review)

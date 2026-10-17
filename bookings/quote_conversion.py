@@ -352,7 +352,7 @@ def from_offer(request, quote_number, option_id):
                     and previous.get("nonce")
                 )
                 if valid_review and request.POST.get("confirm_price") == "yes":
-                    existing = Booking.objects.filter(
+                    existing = Booking.all_objects.filter(
                         source_quote=quote,
                         source_quote_snapshot__conversion_nonce=previous["nonce"],
                     ).first()

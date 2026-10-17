@@ -1,0 +1,19 @@
+{% extends 'customers/base.html' %}
+{% block title %}{{ booking.booking_number }}{% endblock %}
+{% block content %}
+<h1>{% if booking.is_archived %}Восстановить заказ{% else %}Стереть ошибочный заказ из истории{% endif %}</h1>
+<p><strong>{{ booking.booking_number }}</strong> · {{ booking.customer_name_snapshot }} · {{ booking.supplier }}</p>
+{% if booking.is_archived %}
+<p>Заказ скрыт. После восстановления он снова появится в истории клиента и рабочих списках.</p>
+{% else %}
+<p>Заказ исчезнет из истории клиента и рабочих списков. Данные сохранятся: его можно будет восстановить в разделе «Скрытые заказы».</p>
+<p>Это действие не отменяет резервацию у поставщика и не отзывает отправленные письма.</p>
+{% endif %}
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<form method="post">{% csrf_token %}
+<input type="hidden" name="action" value="{% if booking.is_archived %}restore{% else %}hide{% endif %}">
+<p><label><input type="checkbox" name="confirm" value="yes" required> Подтверждаю действие для {{ booking.booking_number }}</label></p>
+<button type="submit">{% if booking.is_archived %}Восстановить{% else %}Стереть из истории{% endif %}</button>
+</form>
+<p><a href="{% url 'quotes:booking_list' %}{% if booking.is_archived %}?archived=1{% endif %}">Вернуться к списку заказов</a></p>
+{% endblock %}

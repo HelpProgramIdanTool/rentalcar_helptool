@@ -3,6 +3,7 @@
 {% block content %}
 <h1>{{ booking.booking_number }}</h1>
 <p><a class="button" href="{% url 'quotes:new_booking' %}?clone={{ booking.pk }}">Клонировать и редактировать</a></p>
+<p><a href="{% url 'quotes:archive_booking' booking.pk %}">Стереть ошибочный заказ из истории</a></p>
 {% if booking.source_quote_snapshot.reconciliation.note %}<p role="status" style="background:#fff3b0;padding:10px">{{ booking.source_quote_snapshot.reconciliation.note }}</p>{% endif %}
 {% if booking.source_quote_snapshot.supplier_statement %}<p style="background:#fff3b0;padding:10px"><strong>Учтён поставщиком: {{ booking.source_quote_snapshot.supplier_statement.period }}</strong>. Это отметка включения в расчёт, а не получения денег.</p>{% endif %}
 {% if booking.source_quote_snapshot.historical_import %}<section style="padding:10px;border:1px solid #ddd"><strong>Заказ из Excel — исходные данные</strong><p>Строка: {{ booking.source_quote_snapshot.historical_import.row }}. Группа: {{ booking.source_quote_snapshot.historical_import.raw.D }}</p><p>Получение: {{ booking.source_quote_snapshot.historical_import.raw.B }}</p><p>Возврат: {{ booking.source_quote_snapshot.historical_import.raw.C }}</p><p>Условия: {{ booking.source_quote_snapshot.historical_import.raw.F }}</p><p>Исходная сумма: {{ booking.source_quote_snapshot.historical_import.raw.E|default:'не указана' }}</p>{% for issue in booking.source_quote_snapshot.historical_import.issues %}<p style="color:#9c3000">Проверить: {{ issue }}</p>{% endfor %}</section>{% endif %}
