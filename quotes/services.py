@@ -428,6 +428,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             if not extra_rate:
                 lines.append({
                     "name": _extra_line_name(extra, quantity),
+                    "extra": extra,
                     "warning": "Нет подходящего тарифа",
                 })
                 continue

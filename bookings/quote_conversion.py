@@ -129,6 +129,26 @@ class BookingFromOfferForm(FirstInquiryForm):
         ]
         return data
 
+def extra_calculation_errors(result):
+    """Explain every unresolved service without changing the calculation."""
+    labels = dict(FirstInquiryForm.EXTRA_CHOICES)
+    errors = []
+    for code in result.get("unavailable_requests", []):
+        label = labels.get(code, code)
+        errors.append(
+            f"{label}: у поставщика «{result['supplier'].supplier_name}» нет доступной услуги в базе. "
+            "Уточните её доступность и добавьте услугу в базу либо снимите её выбор."
+        )
+    for line in result.get("extra_lines", []):
+        if line.get("warning"):
+            name = line["extra"].name if line.get("extra") else line["name"]
+            errors.append(
+                f"{name}: {line['warning']}. "
+                "Проверьте тариф этой услуги на выбранные даты и срок аренды."
+            )
+    return list(dict.fromkeys(errors))
+
+
 def calculate(option, data):
     inquiry = copy.copy(option.quote)
     inquiry.sub_agent = data.get("sub_agent")
@@ -184,8 +204,9 @@ def calculate(option, data):
             result["extra_lines"].append(dict(extra=extra, rate=rate, quantity=Decimal(night_count), price=price, name=extra.name))
             result["extras_total"] += price
             result["total"] += price
-    if result["unavailable_requests"] or any(line.get("warning") for line in result["extra_lines"]):
-        raise forms.ValidationError("Не удалось рассчитать все выбранные добавки. Проверьте тарифы или измените выбор.")
+    errors = extra_calculation_errors(result)
+    if errors:
+        raise forms.ValidationError(errors)
     codes = {line["extra"].extra_code for line in result["extra_lines"]}
     if inquiry.cross_border_requested and "CROSS_BORDER" not in codes:
         raise forms.ValidationError("Нет тарифа на выезд за границу. Уточните условия перед созданием заказа.")

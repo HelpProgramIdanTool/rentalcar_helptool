@@ -523,7 +523,18 @@ class QuoteConversionTests(TestCase):
 
     def test_missing_extra_blocks_creation(self):
         response = self.client.post(self.url, {**self.data, "extra_choices": ["CHILD_SEAT"], "child_seat_quantity": 2})
-        self.assertContains(response, "Не удалось рассчитать все выбранные добавки")
+        self.assertContains(response, "Детское кресло / бустер")
+        self.assertContains(response, "нет доступной услуги в базе")
+        self.assertContains(response, self.supplier.supplier_name)
+        self.assertFalse(Booking.objects.exists())
+
+    def test_missing_extra_rate_names_the_database_service(self):
+        SupplierExtra.objects.create(supplier=self.supplier, extra_code="CHILD_SEAT", name="TEST-SERVICE-NAME")
+        response = self.client.post(self.url, {**self.data, "extra_choices": ["CHILD_SEAT"], "child_seat_quantity": 1})
+        self.assertContains(response, "TEST-SERVICE-NAME")
+        self.assertContains(response, "Нет подходящего тарифа")
+        self.assertContains(response, "на выбранные даты и срок аренды")
+        self.assertFalse(Booking.objects.exists())
 
     def test_extras_quantity_caps_survive_booking_save(self):
         extra = SupplierExtra.objects.create(supplier=self.supplier, extra_code="CHILD_SEAT", name="Seat")
