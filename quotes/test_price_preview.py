@@ -57,7 +57,7 @@ class PricePreviewTests(TestCase):
         self.assertEqual(self.client.post(self.url,self.data).status_code,302)
 
     def test_badge_comes_from_supplier_data_in_html_and_plain_text(self):
-        self.supplier.offer_badges={'Hebrew':['TEST-AGE-BADGE']}
+        self.supplier.offer_badges={'Hebrew':['TEST-AGE-BADGE', 'TEST-INSURANCE-BADGE']}
         self.supplier.save()
         self.quote.language='Hebrew'
         self.quote.save()
@@ -65,7 +65,9 @@ class PricePreviewTests(TestCase):
             comparison_class=self.comparison,total_price_gross=428,supplier_name_snapshot='TEST-SUPPLIER')
         context=_quote_preview_context(self.quote,is_email=True)
         for template in ('quotes/quote_preview.html','quotes/quote_email.txt'):
-            self.assertIn('TEST-AGE-BADGE',render_to_string(template,context))
+            rendered = render_to_string(template,context)
+            self.assertIn('TEST-AGE-BADGE', rendered)
+            self.assertIn('TEST-INSURANCE-BADGE', rendered)
         self.supplier.offer_badges={}
         self.supplier.save()
         context=_quote_preview_context(self.quote,is_email=True)
