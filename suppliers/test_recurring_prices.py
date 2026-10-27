@@ -66,6 +66,18 @@ class RecurringQuoteTests(TestCase):
         self.assertEqual(result['extras_total'], Decimal(28))
         self.assertEqual(result['total'], Decimal(428))
 
+    def test_two_included_drivers_have_no_extra_charge(self):
+        self.supplier.included_driver_count = 2
+        self.supplier.save(update_fields=['included_driver_count'])
+        result, = calculate_quote_options(self.quote)
+        self.assertEqual(result['extras_total'], Decimal(0))
+        self.assertEqual(result['total'], Decimal(400))
+        self.assertFalse(any(line.get('extra') and line['extra'].extra_code == 'ADDITIONAL_DRIVER'
+                             for line in result['extra_lines']))
+        self.quote.driver_count = 3
+        result, = calculate_quote_options(self.quote)
+        self.assertEqual(result['extras_total'], Decimal(28))
+
     def test_december_in_later_year_uses_high_season(self):
         self.quote.pickup_datetime = self.quote.pickup_datetime.replace(year=2040, month=12, day=1)
         self.quote.return_datetime = self.quote.pickup_datetime + timedelta(days=4)
