@@ -24,6 +24,8 @@ def _future_year(day, month):
 def parse_free_text_inquiry(raw):
     """Extract only facts that are explicit in a short Hebrew customer message."""
     text = html.unescape(raw).replace("\\", "")
+    if re.search(r"איסוף\b", text) and re.search(r"החזרה\b", text):
+        return _parse_customer_email(text, raw)
     warnings = []
     data = {
         "customer_notes": raw, "preferred_language": "Hebrew", "driver_count": 1,
@@ -68,6 +70,74 @@ def parse_free_text_inquiry(raw):
         warnings.append("Дата возврата не распознана — внесите её вручную.")
     warnings.append("Указан 1 водитель — проверьте.")
     requirements = {"passengers": None, "bags": None, "automatic": False, "manual": False, "categories": []}
+    return data, requirements, warnings
+
+
+def _parse_customer_email(text, raw):
+    """Read pickup and return independently; never invent a missing year."""
+    warnings = []
+    data = {"customer_notes": raw, "preferred_language": "Hebrew"}
+    requirements = {"passengers": None, "bags": None,
+                    "automatic": bool(re.search(r"אוטומט", text)), "manual": False, "categories": []}
+    labels = list(re.finditer(r"(?:איסוף|החזרה)\b", text))
+    dates = {}
+    for index, label in enumerate(labels):
+        side = "pickup" if label.group() == "איסוף" else "return"
+        description = "получения" if side == "pickup" else "возврата"
+        segment = text[label.end():labels[index + 1].start() if index + 1 < len(labels) else len(text)]
+        if "קרקוב" in segment or "קראקוב" in segment:
+            data[f"{side}_city"] = "Kraków"
+        match = re.search(r"(?<!\d)(\d{1,2})[./](\d{1,2})(?:[./](\d{2}|\d{4}))?(?!\d)", segment)
+        if match:
+            data[f"{side}_date"] = ""
+            if not match.group(3):
+                warnings.append(f"Дата {description}: {match.group(0)} — год не указан. Уточните год и заполните дату.")
+            else:
+                year = int(match.group(3))
+                year = year + 2000 if year < 100 else year
+                try:
+                    parsed = date(year, int(match.group(2)), int(match.group(1)))
+                    dates[side] = parsed
+                    data[f"{side}_date"] = parsed.strftime("%d-%m-%Y")
+                except ValueError:
+                    warnings.append(f"Дата {description} {match.group(0)} не существует. Проверьте её.")
+        time_match = re.search(r"(?:בשעה|שעה)\s*(\d{1,2})[.:](\d{2})(?!\d)", segment)
+        if time_match:
+            hour, minute = map(int, time_match.groups())
+            if hour < 24 and minute < 60:
+                data[f"{side}_time"] = f"{hour:02d}:{minute:02d}"
+            else:
+                warnings.append(f"Проверьте время {description}: {time_match.group(0)}.")
+        if re.search(r"שדה\s*(?:ה)?תעופה|נמל\s*(?:ה)?תעופה", segment):
+            data[f"{side}_service"] = "AIRPORT"
+        elif "מלון" in segment:
+            data[f"{side}_service"] = "ADDRESS"
+            warnings.append(f"Уточните название и точный адрес отеля для {description}.")
+        elif "סניף" in segment:
+            data[f"{side}_service"] = "CITY_BRANCH"
+        else:
+            street = re.search(r"\(([A-Za-zÀ-ž][A-Za-zÀ-ž\s.\d-]*)\)", segment)
+            if street:
+                data[f"{side}_address"] = street.group(1).strip()
+                data[f"{side}_service"] = "ADDRESS"
+                warnings.append(f"Место {description}: {street.group(1).strip()} — уточните точный адрес или отделение.")
+    if dates.get("pickup") and dates.get("return") and dates["return"] < dates["pickup"]:
+        data["pickup_date"] = data["return_date"] = ""
+        warnings.append("Возврат указан раньше получения. Проверьте годы обеих дат; автоматически они не исправлены.")
+    name = re.search(r"(?:^|\n)\s*נהג\s*[:\-]?\s*([^\n]+)", text)
+    if name:
+        data["full_name"] = name.group(1).strip()
+    phone = re.search(r"(?<!\w)\+\d[\d -]{7,}\d", text)
+    if phone:
+        data["phone_1"] = phone.group().strip()
+    email = re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", text)
+    if email:
+        data["email"] = email.group()
+    if "סלובקיה" in text:
+        warnings.append("Клиент упомянул Словакию. Уточните выезд за границу и его стоимость; услуга не добавлена автоматически.")
+    if requirements["automatic"]:
+        warnings.append("Клиент просит автомат. Выберите подходящие группы автомобиля; существующий выбор не изменён.")
+    data["internal_notes"] = "\n".join(warnings)
     return data, requirements, warnings
 
 

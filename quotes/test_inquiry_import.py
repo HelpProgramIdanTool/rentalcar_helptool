@@ -43,6 +43,38 @@ GPS: לא
 
 
 class ParserTests(SimpleTestCase):
+    def test_customer_email_with_dotted_dates_keeps_only_explicit_facts(self):
+        raw = ('היי עידן\nאפשר הצעת מחיר לרכב אוטומט CLASS C /D משהו יוקרתי\n'
+               'איסוף ב16.11 בקראקוב בשדה תעופה בשעה 15.00\n'
+               'החזרה ב18.11 בקראקוב בתוך העיר(jasnogorska) בשעה 15.00.\n'
+               'נהג Test Driver\n+972500000001')
+        data, requirements, warnings = parse_inquiry(raw)
+        self.assertEqual(data['full_name'], 'Test Driver')
+        self.assertEqual(data['phone_1'], '+972500000001')
+        self.assertEqual(data['pickup_city'], 'Kraków')
+        self.assertEqual(data['return_city'], 'Kraków')
+        self.assertEqual(data['pickup_service'], 'AIRPORT')
+        self.assertEqual(data['return_address'], 'jasnogorska')
+        self.assertEqual(data['pickup_time'], '15:00')
+        self.assertEqual(data['return_time'], '15:00')
+        self.assertEqual(data['pickup_date'], '')
+        self.assertEqual(data['return_date'], '')
+        self.assertTrue(any('год не указан' in w for w in warnings))
+        self.assertTrue(requirements['automatic'])
+        self.assertNotIn('email', data)
+        self.assertNotIn('driver_count', data)
+        self.assertEqual(data['customer_notes'], raw)
+
+    def test_free_email_contradictory_years_and_invalid_dates_never_crash(self):
+        for pickup in ('20.10.36', '31.02.26'):
+            raw = f'איסוף : {pickup}\nמלון בקראקוב בשעה 10.00\nהחזרה : 22.10.26\nקרקוב נמל תעופה בשעה 04.00'
+            data, _, warnings = parse_inquiry(raw)
+            self.assertEqual(data['pickup_date'], '')
+            self.assertTrue(warnings)
+            self.assertEqual(data['pickup_service'], 'ADDRESS')
+            self.assertEqual(data['return_service'], 'AIRPORT')
+            self.assertEqual(data['return_time'], '04:00')
+
     def test_other_site_labels_and_reversed_date_order(self):
         raw = '''EMAIL: [sample@example.com](mailto:sample@example.com)
 שם ושם המשפחה: Test Customer
@@ -241,6 +273,22 @@ class ParserTests(SimpleTestCase):
 
 
 class ImportViewTests(TestCase):
+    def test_free_customer_email_fills_form_fields_without_creating_records(self):
+        raw = ('איסוף ב16.11 בקראקוב בשדה תעופה בשעה 15.00\n'
+               'החזרה ב18.11 בקראקוב בתוך העיר(jasnogorska) בשעה 15.00\n'
+               'נהג Test Driver\n+972500000001')
+        response = self.client.post(reverse('quotes:import_inquiry'), {'text': raw})
+        self.assertEqual(response.status_code, 200)
+        fields = response.json()['fields']
+        self.assertEqual(fields['full_name'], 'Test Driver')
+        self.assertEqual(fields['pickup_time'], '15:00')
+        self.assertEqual(fields['pickup_service'], 'AIRPORT')
+        self.assertEqual(fields['return_address'], 'jasnogorska')
+        self.assertEqual(fields['pickup_date'], '')
+        self.assertNotIn('vehicle_groups', fields)
+        self.assertNotIn('suppliers', fields)
+        self.assertFalse(Quote.objects.exists())
+
     def setUp(self):
         self.client.force_login(get_user_model().objects.create_user(username='import-test'))
 
