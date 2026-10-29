@@ -13,6 +13,28 @@ from .views import _quote_preview_context
 
 
 class PricePreviewTests(TestCase):
+    def test_required_benefit_survives_supplier_custom_benefits_in_all_offer_formats(self):
+        from .models import QuoteTemplate
+        template = QuoteTemplate.objects.filter(language='Hebrew', is_active=True).first()
+        template.presentation = {**template.presentation, 'required_included_items': ['TEST-REQUIRED-BENEFIT']}
+        template.save(update_fields=['presentation'])
+        self.supplier.included_benefits = ['TEST-SUPPLIER-BENEFIT']
+        self.supplier.save(update_fields=['included_benefits'])
+        option, = calculate_quote_options(self.quote)
+        self.assertEqual(option['included_items'].count('TEST-REQUIRED-BENEFIT'), 1)
+        self.assertIn('TEST-SUPPLIER-BENEFIT', option['included_items'])
+        saved = QuoteOption.objects.create(quote=self.quote, supplier=self.supplier,
+            vehicle_group=self.group, comparison_class=self.comparison,
+            total_price_gross=428, supplier_name_snapshot='TEST-SUPPLIER',
+            calculation_snapshot={'included_items': []})
+        context = _quote_preview_context(self.quote, is_email=True)
+        for name in ('quotes/quote_preview.html', 'quotes/quote_email.txt'):
+            output = render_to_string(name, context)
+            self.assertIn('TEST-REQUIRED-BENEFIT', output)
+            self.assertIn('TEST-SUPPLIER-BENEFIT', output)
+        saved.refresh_from_db()
+        self.assertEqual(saved.total_price_gross, Decimal('428'))
+
     def setUp(self):
         starting_data.RecurringQuoteTests.setUp(self)
         self.client.force_login(get_user_model().objects.create_user(username='preview-test'))

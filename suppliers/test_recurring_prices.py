@@ -134,12 +134,17 @@ class RecurringQuoteTests(TestCase):
         self.assertIn(self.supplier.pk, form.subagent_unavailable_supplier_ids)
         self.assertIn(self.supplier.pk, form.initial['suppliers'])
 
-    def test_supplier_benefits_are_read_from_data_without_standard_promises(self):
+    def test_supplier_benefits_keep_required_terms_without_other_standard_promises(self):
+        from quotes.models import QuoteTemplate
+        template = QuoteTemplate.objects.filter(language='Hebrew', is_active=True).first()
+        template.presentation = {**template.presentation, 'required_included_items': ['TEST-REQUIRED-TERM']}
+        template.save(update_fields=['presentation'])
         self.supplier.included_benefits = ['TEST-BENEFIT-HE']
         self.supplier.save()
         result, = calculate_quote_options(self.quote)
         from quotes.services import STANDARD_INCLUDED_ITEMS
         self.assertIn('TEST-BENEFIT-HE', result['included_items'])
+        self.assertIn('TEST-REQUIRED-TERM', result['included_items'])
         for item in STANDARD_INCLUDED_ITEMS:
             self.assertNotIn(item, result['included_items'])
 
