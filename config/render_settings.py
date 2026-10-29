@@ -57,5 +57,9 @@ SECURE_HSTS_PRELOAD = True
 CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS]
 
 # Never print customer emails to the server log if SMTP has not been configured.
+SILENCED_SYSTEM_CHECKS = []
 if not (GMAIL_ADDRESS and GMAIL_APP_PASSWORD):
     MAILERS = {'default': {'BACKEND': 'django.core.mail.backends.dummy.EmailBackend'}}
+    # Email is deliberately disabled for the initial test deployment.
+    # Suppress only this known check; keep every other deployment check active.
+    SILENCED_SYSTEM_CHECKS = ['mail.E001']

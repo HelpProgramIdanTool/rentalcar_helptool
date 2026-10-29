@@ -1,5 +1,7 @@
 import importlib
 import os
+import subprocess
+import sys
 from unittest.mock import patch
 
 from django.core.exceptions import ImproperlyConfigured
@@ -7,6 +9,24 @@ from django.test import SimpleTestCase
 
 
 class RenderSettingsTests(SimpleTestCase):
+    def test_deployment_check_passes_without_email_credentials(self):
+        environment = {
+            **os.environ,
+            'DJANGO_SETTINGS_MODULE': 'config.render_settings',
+            'DJANGO_SECRET_KEY': 'test-only-not-a-real-secret-' + 'x' * 60,
+            'RENDER_EXTERNAL_HOSTNAME': 'example-test.onrender.com',
+            'DATABASE_URL': 'postgresql://test:test@localhost/test',
+            'DJANGO_MEDIA_ROOT': '/var/data/private_uploads',
+            'GMAIL_ADDRESS': '',
+            'GMAIL_APP_PASSWORD': '',
+            'DJANGO_ALLOWED_HOSTS': '',
+        }
+        result = subprocess.run(
+            [sys.executable, 'manage.py', 'check', '--deploy', '--fail-level', 'WARNING'],
+            env=environment, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def load(self, **changes):
         environment = {
             'DJANGO_SECRET_KEY': 'test-only-not-a-real-secret-' + 'x' * 60,
