@@ -1,0 +1,12 @@
+<h1>RentalCar Backups</h1>
+<p>RentalCar Backups is a private backup utility for the operator of Poland Rent a Car, managed by Idan. Its purpose is to protect the business's rental-management database and uploaded booking documents by keeping recoverable copies outside the application server.</p>
+<h2>What the utility does</h2>
+<p>The intended workflow creates dated database and document archives, encrypts them before upload, and stores them in the operator's Google Drive. The operator can download and decrypt copies to test recovery or restore the rental-management system. It is not a public rental booking service or a service offered to other Google users.</p>
+<h2>Why Google Drive access is requested</h2>
+<p>Google authorization allows the utility to create and manage its backup files, list their names and metadata, and download them for verification and recovery. The intended configuration uses the drive.file permission for files created or explicitly authorized for this utility. It does not require Gmail, contacts or calendar access. Authorization alone does not start a backup schedule.</p>
+<h2>Current setup status</h2>
+<p>As of 29 October 2026, Google Drive authorization and independent encrypted backups are being configured. Scheduled uploads and successful restoration from an independent copy have not yet been verified. These pages do not provide access to backups, credentials or customer records.</p>
+<h2>Who may use it</h2>
+<p>Only the business operator and people expressly authorized by the operator may configure or use this utility. Customers do not need to connect their own Google accounts.</p>
+<p>Read the <a href="/rentalcar-backups-privacy/">Privacy Policy</a> and <a href="/rentalcar-backups-terms/">Terms of Use</a> before authorizing access. Questions: <a href="mailto:idan.poland@gmail.com">idan.poland@gmail.com</a>.</p>
+<p class="date">Last updated: 29 October 2026.</p>
