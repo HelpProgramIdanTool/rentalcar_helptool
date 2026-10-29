@@ -15,6 +15,7 @@ class MissingRateReasonTests(TestCase):
         price_list = PriceList.objects.create(
             supplier=supplier, name="Test list", version="test-v1",
             effective_from=date(2026, 1, 1), effective_to=date(2027, 1, 31), status="ACTIVE",
+            repeat_annually=False,
         )
         season = PriceSeason.objects.create(
             price_list=price_list, season_code="ALL", season_name="Test season",

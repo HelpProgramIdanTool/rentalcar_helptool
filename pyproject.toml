@@ -3,10 +3,14 @@ name = "help-tool-project-rent-a-car"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "dj-database-url>=3.1.2",
     "django>=6.1",
+    "gunicorn>=26.2.0",
     "openpyxl>=3.1.5",
+    "psycopg[binary]>=3.3.6",
     "pymupdf>=1.28.2",
     "pypdf>=6.16.2",
     "reportlab>=5.0.1",
+    "whitenoise[brotli]>=6.12.0",
     "xlrd>=2.0.2",
 ]
