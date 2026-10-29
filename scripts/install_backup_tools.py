@@ -5,11 +5,29 @@ import os
 from pathlib import Path
 import platform
 import tempfile
-from urllib.request import urlopen
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 import zipfile
 
 VERSION = '1.75.2'
+# From the official v1.75.2 SHA256SUMS, fetched during setup.
+LINUX_SHA256 = '349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702'
 DESTINATION = Path('/var/data/backup-tools/rclone')
+
+
+def download_archive(filename):
+    sources = (
+        f'https://downloads.rclone.org/v{VERSION}/{filename}',
+        f'https://github.com/rclone/rclone/releases/download/v{VERSION}/{filename}',
+    )
+    for number, url in enumerate(sources, 1):
+        try:
+            request = Request(url, headers={'User-Agent': 'RentalCar-Backup-Installer/1.0'})
+            with urlopen(request, timeout=120) as response:
+                return response.read()
+        except (URLError, TimeoutError):
+            print(f'Official download source {number} unavailable.')
+    raise RuntimeError('Both official download sources failed; nothing installed.')
 
 
 def verified_binary(archive, checksums, filename):
@@ -33,11 +51,8 @@ def main():
     if not os.path.ismount('/var/data'):
         raise SystemExit('Persistent disk /var/data is not mounted; nothing installed.')
     filename = f'rclone-v{VERSION}-linux-amd64.zip'
-    base = f'https://downloads.rclone.org/v{VERSION}/'
-    with urlopen(base + filename, timeout=120) as response:
-        archive = response.read()
-    with urlopen(base + 'SHA256SUMS', timeout=30) as response:
-        checksums = response.read().decode('utf-8')
+    archive = download_archive(filename)
+    checksums = f'{LINUX_SHA256}  {filename}'
     binary = verified_binary(archive, checksums, filename)
     DESTINATION.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     temporary = None
