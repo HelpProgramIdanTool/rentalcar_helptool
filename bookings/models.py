@@ -639,23 +639,22 @@ class Booking(models.Model):
             season__is_active=True,
             season__price_list__status="ACTIVE",
             season__price_list__effective_from__lte=pickup_date,
-            season__rental_date_from__lte=pickup_date,
             day_range__is_active=True,
             day_range__days_from__lte=self.rental_days,
         ).filter(
-            Q(season__price_list__effective_to__isnull=True)
+            Q(season__price_list__repeat_annually=True)
+            | Q(season__price_list__effective_to__isnull=True)
             | Q(season__price_list__effective_to__gte=pickup_date),
-            Q(season__rental_date_to__isnull=True)
-            | Q(season__rental_date_to__gte=pickup_date),
             Q(day_range__days_to__isnull=True)
             | Q(day_range__days_to__gte=self.rental_days),
         )
-        selected_rate = rates.select_related(
+        candidates = rates.select_related(
             "season__price_list", "day_range"
         ).order_by(
             "-season__price_list__effective_from",
             "-season__priority",
-        ).first()
+        )
+        selected_rate = next((rate for rate in candidates if rate.season.applies_on(pickup_date)), None)
         if not selected_rate:
             self._clear_vehicle_price(self.PriceCalculationStatus.NO_RATE)
             self._apply_manual_vehicle_price()

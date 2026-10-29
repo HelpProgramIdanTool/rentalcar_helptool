@@ -283,6 +283,8 @@ def _missing_rate_reason(group, pickup_date, days, audience=PriceList.Audience.S
     if audience == PriceList.Audience.SUBAGENT and not rates.exists():
         return "Не загружен подходящий тариф для субагентов. Загрузите ценник субагентов для этой группы и срока аренды."
     for rate in rates:
+        if rate.season.price_list.repeat_annually:
+            return "В загруженном прайсе нет подходящего сезона для выбранной даты. Проверьте границы сезонов."
         ends = [end for end in (
             rate.season.price_list.effective_to, rate.season.rental_date_to
         ) if end is not None]
@@ -340,7 +342,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             day_range__is_active=True,
             day_range__days_from__lte=quote.rental_days,
         ).filter(
-            Q(season__price_list__effective_to__isnull=True) | Q(season__price_list__effective_to__gte=pickup_date),
+            Q(season__price_list__repeat_annually=True) | Q(season__price_list__effective_to__isnull=True) | Q(season__price_list__effective_to__gte=pickup_date),
             Q(day_range__days_to__isnull=True) | Q(day_range__days_to__gte=quote.rental_days),
         ).select_related("season__price_list", "day_range").order_by(
             "-season__price_list__effective_from", "-season__priority"

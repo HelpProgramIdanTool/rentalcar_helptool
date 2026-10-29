@@ -17,6 +17,22 @@ from suppliers.models import (
 
 
 class RecurringSeasonTests(SimpleTestCase):
+    def test_repeated_season_keeps_exact_day_boundaries(self):
+        price_list = PriceList(repeat_annually=True)
+        season = PriceSeason(price_list=price_list, rental_date_from=date(2026, 6, 24), rental_date_to=date(2026, 8, 21))
+        for year in (2027, 2040):
+            self.assertFalse(season.applies_on(date(year, 6, 23)))
+            self.assertTrue(season.applies_on(date(year, 6, 24)))
+            self.assertTrue(season.applies_on(date(year, 8, 21)))
+            self.assertFalse(season.applies_on(date(year, 8, 22)))
+
+    def test_repeated_winter_season_crosses_new_year(self):
+        season = PriceSeason(price_list=PriceList(repeat_annually=True),
+            rental_date_from=date(2026, 8, 22), rental_date_to=date(2027, 1, 31))
+        self.assertTrue(season.applies_on(date(2030, 1, 31)))
+        self.assertTrue(season.applies_on(date(2030, 8, 22)))
+        self.assertFalse(season.applies_on(date(2030, 2, 1)))
+
     def test_months_repeat_without_an_expiry_year(self):
         season = PriceSeason(recurring_months=[1, 2, 3, 4, 5, 10, 11])
         for year in (2026, 2027, 2040):
@@ -65,6 +81,30 @@ class RecurringQuoteTests(TestCase):
         self.assertEqual(result['base'], Decimal(400))
         self.assertEqual(result['extras_total'], Decimal(28))
         self.assertEqual(result['total'], Decimal(428))
+
+    def test_expired_last_price_list_repeats_and_newer_price_list_wins(self):
+        from bookings.models import Booking
+        old = self.supplier.price_lists.get(version='TEST')
+        old.effective_to = date(2026, 12, 31)
+        old.save(update_fields=['effective_to'])
+        old.seasons.update(recurring_months=[], rental_date_from=date(2026, 1, 1),
+                           rental_date_to=date(2026, 12, 31))
+        old.seasons.filter(season_code='HIGH').update(is_active=False)
+        result, = calculate_quote_options(self.quote)
+        self.assertTrue(result['available'])
+        self.assertEqual(result['daily_rate'], Decimal(100))
+        booking = Booking.objects.create(customer=self.quote.customer, supplier=self.supplier,
+            vehicle_group=self.group, pickup_datetime=self.quote.pickup_datetime,
+            return_datetime=self.quote.return_datetime)
+        self.assertEqual(booking.vehicle_daily_rate_gross_snapshot, Decimal(100))
+        newer = PriceList.objects.create(supplier=self.supplier, version='NEW', name='New',
+            effective_from=date(2027, 1, 1), effective_to=date(2027, 12, 31), status='ACTIVE')
+        season = PriceSeason.objects.create(price_list=newer, season_code='ALL', season_name='TEST',
+            rental_date_from=date(2027, 1, 1), rental_date_to=date(2027, 12, 31))
+        days = PriceDayRange.objects.create(price_list=newer, range_code='ALL', days_from=1)
+        VehicleRate.objects.create(season=season, day_range=days, vehicle_group=self.group, daily_rate_gross=300)
+        result, = calculate_quote_options(self.quote)
+        self.assertEqual(result['daily_rate'], Decimal(300))
 
     def test_two_included_drivers_have_no_extra_charge(self):
         self.supplier.included_driver_count = 2

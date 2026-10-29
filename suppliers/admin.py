@@ -210,6 +210,7 @@ class PriceListAdmin(admin.ModelAdmin):
         "supplier",
         "effective_from",
         "effective_to",
+        "repeat_annually",
         "currency",
         "status",
         "audience",

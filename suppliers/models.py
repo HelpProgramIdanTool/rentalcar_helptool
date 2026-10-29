@@ -446,6 +446,10 @@ class PriceList(models.Model):
     version = models.CharField(max_length=50)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True, blank=True)
+    repeat_annually = models.BooleanField(
+        default=True,
+        verbose_name="Повторять сезоны ежегодно до нового прайса",
+    )
     currency = models.CharField(max_length=3, default="PLN")
     status = models.CharField(
         max_length=20,
@@ -494,6 +498,15 @@ class PriceSeason(models.Model):
     def applies_on(self, day):
         if self.recurring_months:
             return day.month in self.recurring_months
+        if (self.price_list_id or "price_list" in self._state.fields_cache) and self.price_list.repeat_annually:
+            if day < self.rental_date_from:
+                return False
+            if self.rental_date_to is None:
+                return True
+            start = (self.rental_date_from.month, self.rental_date_from.day)
+            end = (self.rental_date_to.month, self.rental_date_to.day)
+            current = (day.month, day.day)
+            return start <= current <= end if start <= end else current >= start or current <= end
         return self.rental_date_from <= day and (
             self.rental_date_to is None or day <= self.rental_date_to
         )
