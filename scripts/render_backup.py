@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.backup_alerts import notify
+from scripts.backup_heartbeat import heartbeat_success
 PRIVATE = Path('/var/data/backup-private')
 STATE = PRIVATE / 'status.json'
 RCLONE = '/var/data/backup-tools/rclone'
@@ -131,6 +132,7 @@ def run_backup():
                 run_command([*prefix, 'check', '--download', '--one-way', str(folder), remote], log)
             status.update(result='success', last_success=datetime.now(timezone.utc).isoformat(), remote=remote)
             write_json(STATE, status)
+            heartbeat_success()
             print('BACKUP SUCCESS: database and uploads encrypted; remote read-back verified.', flush=True)
         except Exception:
             status['result'] = 'failed'

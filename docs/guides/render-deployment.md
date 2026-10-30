@@ -125,5 +125,30 @@ detect a complete service stop, a killed scheduler, or all network outages.
 An independent external monitor for missing backup heartbeats remains to be
 configured; do not claim complete missed-run monitoring from email alerts alone.
 
+## Independent missing-backup monitor
+
+Idan selected Healthchecks.io Hobbyist ($0) on 30 October 2026. Account setup and
+live notification delivery still require verification. Create a Cron check with
+schedule `0 3 * * *`, timezone `Europe/Warsaw`, and a one-hour grace period.
+Enable its email integration for the operator. Store its UUID-based
+`https://hc-ping.com/...` endpoint as `BACKUP_HEARTBEAT_URL` on Render; it is a
+secret and must not be pasted into chat or committed.
+
+Code sends an empty HTTPS POST only after export, encrypted upload and remote
+read-back verification succeed. No start/failure pings or diagnostic data are
+sent. A network failure retries three times, logs a generic warning and leaves
+the valid backup marked successful. Healthchecks will then warn about missing
+confirmation. This also catches a stopped scheduler or Render service at the
+next expected backup deadline, not immediately when the website goes down.
+
+After configuring the endpoint, run a real manual backup and confirm the check
+shows a received success ping. Test Healthchecks email delivery and, in a
+separate temporary check, its missing-ping alert. Do not declare setup complete
+until those independent notifications are received. Normal schedule expects a
+success at 03:00 and alerts after the grace period (approximately 04:00 Poland).
+
+References: https://healthchecks.io/pricing/ and
+https://healthchecks.io/docs/http_api/
+
 References: https://render.com/docs/deploy-django and
 https://whitenoise.readthedocs.io/en/stable/django.html
