@@ -13,6 +13,36 @@ from .views import _quote_preview_context
 
 
 class PricePreviewTests(TestCase):
+    def test_disabled_navigation_is_not_advertised_as_paid_optional_service(self):
+        navigation = SupplierExtra.objects.create(supplier=self.supplier,
+            extra_code='NAVIGATION', name='TEST-NAVIGATION')
+        SupplierExtraRate.objects.create(extra=navigation, amount_gross=10,
+            calculation_type='PER_DAY', valid_from=date(2026, 1, 1))
+        available, = calculate_quote_options(self.quote)
+        self.assertTrue(any('GPS' in line for line in available['excluded_items']))
+        navigation.is_active = False
+        navigation.save(update_fields=['is_active'])
+        unavailable, = calculate_quote_options(self.quote)
+        self.assertFalse(any('GPS' in line for line in unavailable['excluded_items']))
+        self.assertEqual(available['total'], unavailable['total'])
+
+    def test_one_rent_gps_data_update_leaves_other_suppliers_unchanged(self):
+        from importlib import import_module
+        from django.apps import apps
+        from suppliers.models import Supplier
+        one, _ = Supplier.objects.get_or_create(supplier_code='02', defaults={'supplier_name': 'TEST-ONE'})
+        one_extra, _ = SupplierExtra.objects.get_or_create(supplier=one, extra_code='GPS',
+            defaults={'name': 'TEST-GPS'})
+        SupplierExtra.objects.filter(pk=one_extra.pk).update(is_active=True)
+        other = SupplierExtra.objects.create(supplier=self.supplier, extra_code='GPS', name='TEST-OTHER-GPS')
+        configure = import_module('suppliers.migrations.0042_disable_one_rent_gps').disable_unavailable_gps
+        configure(apps, None)
+        configure(apps, None)
+        one_extra.refresh_from_db()
+        other.refresh_from_db()
+        self.assertFalse(one_extra.is_active)
+        self.assertTrue(other.is_active)
+
     def test_seasonal_benefit_is_rendered_in_html_and_plaintext_and_removed_in_summer(self):
         from datetime import datetime
         from zoneinfo import ZoneInfo
