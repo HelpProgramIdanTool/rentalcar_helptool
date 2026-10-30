@@ -107,5 +107,23 @@ Clean up test data and the temporary database only with Idan's approval after
 reviewing the report. The Free instance expires after 30 days; it is not a
 replacement for the original database or independent backups.
 
+## Backup failure email
+
+The operator approved `idan.caliber@gmail.com` as recipient. Configure the separate
+Render secret file `backup-alerts.json` with `sender`, `recipient`, and `password`
+(Gmail app password). Keep this file out of Git and chat. It does not enable the
+customer mail backend or change customer email settings.
+
+After deployment run `uv run python scripts/backup_alerts.py` in Render Shell and
+confirm the test message arrives. Real backup failures send one message and
+repeat no more often than every six hours. Successful retries send one recovery
+message if an outage notification was delivered. Mail delivery failures are
+logged without secrets and do not turn a failed backup into a successful one.
+
+These alerts depend on the backup process and Gmail being reachable. They cannot
+detect a complete service stop, a killed scheduler, or all network outages.
+An independent external monitor for missing backup heartbeats remains to be
+configured; do not claim complete missed-run monitoring from email alerts alone.
+
 References: https://render.com/docs/deploy-django and
 https://whitenoise.readthedocs.io/en/stable/django.html

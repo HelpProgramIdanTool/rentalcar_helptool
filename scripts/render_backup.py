@@ -15,6 +15,8 @@ import uuid
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from scripts.backup_alerts import notify
 PRIVATE = Path('/var/data/backup-private')
 STATE = PRIVATE / 'status.json'
 RCLONE = '/var/data/backup-tools/rclone'
@@ -144,8 +146,10 @@ def main():
         try:
             run_backup()
         except Exception as error:
+            notify('failure')
             print(f'BACKUP FAILED ({type(error).__name__}). No success recorded; check private diagnostics.', flush=True)
             raise SystemExit(1)
+        notify('recovery')
         return
     print('Backup scheduler: daily at 03:00 Europe/Warsaw; automatic deletion disabled.', flush=True)
     while True:
@@ -154,8 +158,11 @@ def main():
             try:
                 run_backup()
             except Exception as error:
+                notify('failure')
                 print(f'BACKUP FAILED ({type(error).__name__}); retry in one hour.', flush=True)
                 time.sleep(3600)
+            else:
+                notify('recovery')
         time.sleep(60)
 
 
