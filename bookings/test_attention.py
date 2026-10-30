@@ -161,3 +161,47 @@ class AttentionQueueTests(TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, 'не указан')
         self.assertContains(response, 'не указаны')
+
+    def test_duplicate_warning_identifies_existing_order_and_preserves_input(self):
+        from .models import BookingDriver
+        existing = self.booking(supplier_booking_number='EXISTING-123', status=Booking.Status.CONFIRMED)
+        BookingDriver.objects.create(booking=existing, first_name='TEST-EXISTING', last_name='DRIVER',
+            role=BookingDriver.Role.MAIN)
+        Booking.objects.filter(pk=existing.pk).update(customer_name_snapshot='TEST-EXISTING-CLIENT',
+            customer_email_snapshot='existing-order@example.com',
+            pickup_datetime=timezone.make_aware(timezone.datetime(2026, 11, 1, 10)),
+            return_datetime=timezone.make_aware(timezone.datetime(2026, 11, 3, 10)))
+        waiting = self.booking(status=Booking.Status.WAITING_CONFIRMATION)
+        response = self.client.post(self.url, {'booking_id': waiting.pk,
+            'supplier_booking_number': 'existing-123'})
+        self.assertContains(response, 'В нашей базе')
+        self.assertContains(response, reverse('quotes:booking_detail', args=[existing.pk]))
+        self.assertContains(response, 'TEST-EXISTING-CLIENT')
+        self.assertContains(response, 'TEST-EXISTING DRIVER')
+        self.assertContains(response, 'existing-order@example.com')
+        self.assertContains(response, '01.11.2026')
+        self.assertContains(response, 'value="existing-123"')
+        waiting.refresh_from_db()
+        self.assertEqual(waiting.supplier_booking_number, '')
+        self.assertEqual(waiting.status, Booking.Status.WAITING_CONFIRMATION)
+
+    def test_duplicate_warning_does_not_expose_another_employees_order(self):
+        existing = self.booking(supplier_booking_number='PRIVATE-123', created_by_user=self.user)
+        Booking.objects.filter(pk=existing.pk).update(customer_email_snapshot='private-order@example.com')
+        waiting = self.booking(status=Booking.Status.WAITING_CONFIRMATION, created_by_user=self.other)
+        self.client.force_login(self.other)
+        response = self.client.post(self.url, {'booking_id': waiting.pk,
+            'supplier_booking_number': 'PRIVATE-123'})
+        self.assertContains(response, 'к которой у вас нет доступа')
+        self.assertNotContains(response, 'private-order@example.com')
+        self.assertNotContains(response, reverse('quotes:booking_detail', args=[existing.pk]))
+
+    def test_error_stays_on_submitted_page(self):
+        self.booking(supplier_booking_number='TAKEN')
+        for _ in range(31):
+            waiting = self.booking(status=Booking.Status.WAITING_CONFIRMATION)
+        response = self.client.post(self.url + '?page=2', {'booking_id': waiting.pk,
+            'supplier_booking_number': 'TAKEN'})
+        self.assertEqual(response.context['page_obj'].number, 2)
+        self.assertContains(response, 'value="TAKEN"')
+        self.assertContains(response, f'?page=2#booking-{waiting.pk}')
