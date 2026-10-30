@@ -13,6 +13,38 @@ from .views import _quote_preview_context
 
 
 class PricePreviewTests(TestCase):
+    def test_seasonal_benefit_is_rendered_in_html_and_plaintext_and_removed_in_summer(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from .models import QuoteTemplate
+        template = QuoteTemplate.objects.filter(language='Hebrew', is_active=True).first()
+        template.presentation = {**template.presentation, 'seasonal_included_items': [{
+            'start_month': 11, 'start_day': 1, 'end_month': 4, 'end_day': 30,
+            'text': 'TEST-SEASONAL-WORDING'}]}
+        template.save(update_fields=['presentation'])
+        self.supplier.included_benefits = ['TEST-SUPPLIER-ONLY']
+        self.supplier.save(update_fields=['included_benefits'])
+        self.quote.pickup_datetime = datetime(2027, 11, 1, 12, tzinfo=ZoneInfo('Europe/Warsaw'))
+        self.quote.return_datetime = datetime(2027, 11, 3, 12, tzinfo=ZoneInfo('Europe/Warsaw'))
+        self.quote.save()
+        option, = calculate_quote_options(self.quote)
+        self.assertEqual(option['included_items'].count('TEST-SEASONAL-WORDING'), 1)
+        saved = QuoteOption.objects.create(quote=self.quote, supplier=self.supplier,
+            vehicle_group=self.group, comparison_class=self.comparison,
+            total_price_gross=428, supplier_name_snapshot='TEST-SUPPLIER',
+            calculation_snapshot={'included_items': []})
+        context = _quote_preview_context(self.quote, is_email=True)
+        for name in ('quotes/quote_preview.html', 'quotes/quote_email.txt'):
+            self.assertIn('TEST-SEASONAL-WORDING', render_to_string(name, context))
+        saved.refresh_from_db()
+        self.assertEqual(saved.total_price_gross, Decimal('428'))
+        self.quote.pickup_datetime = datetime(2027, 7, 1, 12, tzinfo=ZoneInfo('Europe/Warsaw'))
+        self.quote.return_datetime = datetime(2027, 7, 3, 12, tzinfo=ZoneInfo('Europe/Warsaw'))
+        self.quote.save()
+        context = _quote_preview_context(self.quote, is_email=True)
+        for name in ('quotes/quote_preview.html', 'quotes/quote_email.txt'):
+            self.assertNotIn('TEST-SEASONAL-WORDING', render_to_string(name, context))
+
     def test_required_benefit_survives_supplier_custom_benefits_in_all_offer_formats(self):
         from .models import QuoteTemplate
         template = QuoteTemplate.objects.filter(language='Hebrew', is_active=True).first()

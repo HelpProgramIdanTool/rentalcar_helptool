@@ -15,6 +15,7 @@ from suppliers.models import (
 )
 from .airport_pickup import airport_code_for_city
 from .models import QuoteDocumentBlock, QuoteTemplate
+from .seasonal_benefits import seasonal_included_items
 
 
 HEBREW_VEHICLE_CLASS_NAMES = {
@@ -58,9 +59,17 @@ STANDARD_INCLUDED_ITEMS = [
 ]
 
 
-def required_included_items():
+def required_included_items(quote=None):
     template = QuoteTemplate.objects.filter(language='Hebrew', is_active=True).first()
-    return template.presentation.get('required_included_items', []) if template else []
+    presentation = template.presentation if template else {}
+    required = list(presentation.get('required_included_items', []))
+    if quote:
+        required.extend(seasonal_included_items(
+            timezone.localtime(quote.pickup_datetime).date(),
+            timezone.localtime(quote.return_datetime).date(),
+            presentation.get('seasonal_included_items', []),
+        ))
+    return list(dict.fromkeys(required))
 
 
 def normalize_included_items(items, benefits=None, required_items=()):
@@ -303,7 +312,7 @@ def _missing_rate_reason(group, pickup_date, days, audience=PriceList.Audience.S
 
 
 def calculate_quote_options(quote, *, vehicle_group=None):
-    required_items = required_included_items()
+    required_items = required_included_items(quote)
     pickup_date = timezone.localtime(quote.pickup_datetime).date()
     requested_group_ids = {vehicle_group.pk} if vehicle_group else set(
         quote.requested_vehicle_groups.values_list("id", flat=True)
@@ -577,7 +586,10 @@ def ensure_quote_option_presentation(quote):
         if not calculated:
             if group.body_type and not fallback_body:
                 snapshot["hebrew_vehicle_class"] = fallback_title
-            snapshot["included_items"] = normalize_included_items(snapshot.get("included_items", []), group.supplier.included_benefits, required_included_items())
+            template = QuoteTemplate.objects.filter(language='Hebrew', is_active=True).first()
+            seasonal_texts = {rule['text'] for rule in (template.presentation if template else {}).get('seasonal_included_items', [])}
+            items = [item for item in snapshot.get("included_items", []) if item not in seasonal_texts]
+            snapshot["included_items"] = normalize_included_items(items, group.supplier.included_benefits, required_included_items(quote))
             saved_option.calculation_snapshot = snapshot
             saved_option.save(update_fields=["calculation_snapshot"])
             continue
