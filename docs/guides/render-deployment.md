@@ -78,5 +78,34 @@ Before transferring real data, test restoration in an isolated destination and
 agree retention/deletion and failure notifications. Pause writes for the final
 consistent migration; routine snapshots are not a substitute for that pause.
 
+## Isolated restoration test
+
+Create a separate empty PostgreSQL 18 instance in Frankfurt, named
+`rentalcar-restore-test` (Free compute was selected for the initial test).
+Add its internal URL to the application as `RESTORE_TEST_DATABASE_URL`, keeping
+the existing `DATABASE_URL` unchanged. Do not display or paste either secret.
+Disable external access on the test instance as well.
+
+Deploy the latest code, then run in the application's Shell:
+
+`uv run python scripts/test_render_restore.py`
+
+The command refuses the original database server (including its external alias),
+requires a test database name beginning `rentalcar_restore_test`, and refuses
+any target already containing user tables. It restores the last successfully
+recorded backup using a single transaction and never uses `--clean` or `--create`.
+Files go into a new private `restore-test-*` directory, not the application's
+working upload directory. SHA-256 checks, restored table counts and voucher file
+references are checked. A private report records counts without record contents.
+
+Do not interpret a zero-file restore as proof of recovery of real vouchers:
+that means the selected backup had no uploaded files. File extraction is tested
+separately with invented files. Actual account login on the restored database,
+working prices after migration and real attachments require later acceptance
+checks. The command must not be rerun against the now-populated test database.
+Clean up test data and the temporary database only with Idan's approval after
+reviewing the report. The Free instance expires after 30 days; it is not a
+replacement for the original database or independent backups.
+
 References: https://render.com/docs/deploy-django and
 https://whitenoise.readthedocs.io/en/stable/django.html
