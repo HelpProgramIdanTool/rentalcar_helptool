@@ -27,7 +27,7 @@ def attention_bookings(user):
         Q(status=Booking.Status.UPDATE_PENDING)
         | Q(status=Booking.Status.WAITING_CONFIRMATION, supplier_booking_number__regex=r'^\s*$')
     ).annotate(waiting_since=Coalesce(Subquery(sent.values('sent_at')[:1]), 'updated_at')
-    ).select_related('supplier').order_by(F('pickup_datetime').asc(nulls_last=True), 'pk')
+    ).select_related('supplier').prefetch_related('drivers').order_by(F('pickup_datetime').asc(nulls_last=True), 'pk')
 
 
 def attention_count(request):

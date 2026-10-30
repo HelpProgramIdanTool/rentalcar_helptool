@@ -138,3 +138,26 @@ class AttentionQueueTests(TestCase):
         self.assertEqual(response.context['booking_attention_count'], 1)
         self.assertContains(response, reverse('quotes:attention_queue'))
         self.assertContains(response, 'background:#b91c1c')
+
+    def test_queue_shows_order_email_and_all_driver_names(self):
+        from .models import BookingDriver
+        booking = self.booking(status=Booking.Status.WAITING_CONFIRMATION,
+            customer_email_snapshot='saved-order@example.com')
+        self.customer.email = 'changed-customer@example.com'
+        self.customer.save()
+        BookingDriver.objects.create(booking=booking, first_name='TEST-MAIN', last_name='DRIVER',
+            role=BookingDriver.Role.MAIN)
+        BookingDriver.objects.create(booking=booking, first_name='TEST-SECOND', last_name='DRIVER',
+            role=BookingDriver.Role.ADDITIONAL, display_order=2)
+        Booking.objects.filter(pk=booking.pk).update(customer_email_snapshot='saved-order@example.com')
+        response = self.client.get(self.url)
+        self.assertContains(response, 'saved-order@example.com')
+        self.assertNotContains(response, 'changed-customer@example.com')
+        self.assertContains(response, 'TEST-MAIN DRIVER')
+        self.assertContains(response, 'TEST-SECOND DRIVER')
+
+    def test_queue_explains_missing_contact_and_drivers(self):
+        self.booking(status=Booking.Status.WAITING_CONFIRMATION, customer_email_snapshot='')
+        response = self.client.get(self.url)
+        self.assertContains(response, 'не указан')
+        self.assertContains(response, 'не указаны')

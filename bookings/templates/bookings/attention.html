@@ -8,6 +8,8 @@
 {% for booking in page_obj %}
 <section class="customer-info" style="display:block;background:white;border:1px solid #d7dfeb;border-radius:12px">
   <h2><a href="{% url 'quotes:booking_detail' booking.pk %}">{{ booking.booking_number }}</a> · {{ booking.customer_name_snapshot }}</h2>
+  <p><strong>Email в заказе:</strong> <bdi>{{ booking.customer_email_snapshot|default:'не указан' }}</bdi></p>
+  <p><strong>Водители:</strong> {% for driver in booking.drivers.all %}<bdi>{{ driver.first_name }} {{ driver.last_name }}</bdi>{% if not forloop.last %}; {% endif %}{% empty %}не указаны{% endfor %}</p>
   <p>{{ booking.supplier }} · {{ booking.pickup_datetime|date:'d.m.Y H:i' }} — {{ booking.return_datetime|date:'d.m.Y H:i' }}</p>
   <p><strong>{% if booking.status == 'UPDATE_PENDING' %}Ожидает подтверждения изменений{% else %}Нет номера поставщика{% endif %}</strong></p>
   <p>Ожидание с {{ booking.waiting_since|date:'d.m.Y H:i' }} · прошло {{ booking.waiting_since|timesince }}</p>
