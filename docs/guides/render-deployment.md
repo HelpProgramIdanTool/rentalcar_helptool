@@ -179,5 +179,20 @@ backup. Review `retention-report.json` and any private `retention-error.log` und
 `/var/data/backup-private`. Automatic cleanup remains disabled until the explicit
 environment flag is set. Update public backup disclosures once enabled.
 
+## PDF file recovery verification
+
+After deployment run `uv run python scripts/test_upload_restore.py` in Render
+Shell. It creates a uniquely named valid PDF containing only invented test text
+under the private uploads directory, makes a new encrypted backup and downloads
+it into a separate private test directory. It checks the manifest, safely
+extracts the uploads archive, compares the PDF's exact SHA-256 checksum and opens
+the restored PDF to verify its test text. No database records are created or
+changed. After success it removes only the unique source probe from this run.
+On failure it leaves the probe for diagnosis and removes no existing vouchers.
+
+This verifies the real storage/backup/decryption/extraction path for a PDF. It
+does not itself test attaching a voucher to a booking through the web interface
+or opening a restored file through an authenticated application session.
+
 References: https://render.com/docs/deploy-django and
 https://whitenoise.readthedocs.io/en/stable/django.html
