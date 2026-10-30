@@ -13,6 +13,36 @@ from .views import _quote_preview_context
 
 
 class PricePreviewTests(TestCase):
+    def test_car_free_chain_update_does_not_disable_other_suppliers_chains(self):
+        from importlib import import_module
+        from django.apps import apps
+        from suppliers.models import Supplier
+        car_free, _ = Supplier.objects.get_or_create(supplier_code='01', defaults={'supplier_name': 'TEST-CAR-FREE'})
+        chains, _ = SupplierExtra.objects.get_or_create(supplier=car_free, extra_code='SNOW_CHAINS',
+            defaults={'name': 'TEST-CHAINS'})
+        SupplierExtra.objects.filter(pk=chains.pk).update(is_active=True)
+        other = SupplierExtra.objects.create(supplier=self.supplier, extra_code='SNOW_CHAINS', name='TEST-OTHER-CHAINS')
+        configure = import_module('suppliers.migrations.0043_disable_car_free_snow_chains').disable_unavailable_chains
+        configure(apps, None)
+        configure(apps, None)
+        chains.refresh_from_db()
+        other.refresh_from_db()
+        self.assertFalse(chains.is_active)
+        self.assertTrue(other.is_active)
+
+    def test_disabled_snow_chains_are_not_advertised_as_optional(self):
+        chains = SupplierExtra.objects.create(supplier=self.supplier,
+            extra_code='SNOW_CHAINS', name='TEST-CHAINS')
+        SupplierExtraRate.objects.create(extra=chains, amount_gross=10,
+            calculation_type='PER_DAY', valid_from=date(2026, 1, 1))
+        available, = calculate_quote_options(self.quote)
+        self.assertTrue(any('שרשראות' in line for line in available['excluded_items']))
+        chains.is_active = False
+        chains.save(update_fields=['is_active'])
+        unavailable, = calculate_quote_options(self.quote)
+        self.assertFalse(any('שרשראות' in line for line in unavailable['excluded_items']))
+        self.assertEqual(available['total'], unavailable['total'])
+
     def test_disabled_navigation_is_not_advertised_as_paid_optional_service(self):
         navigation = SupplierExtra.objects.create(supplier=self.supplier,
             extra_code='NAVIGATION', name='TEST-NAVIGATION')
