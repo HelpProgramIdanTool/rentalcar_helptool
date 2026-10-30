@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from config.rental_duration import calculate_rental_days
 from suppliers.models import VehicleGroup, Supplier
@@ -32,6 +33,10 @@ def preview_prices(request):
         supplier__status=Supplier.Status.ACTIVE, is_active=True, show_in_offers=True).select_related('supplier')
     prices = {}
     for group in groups:
+        if group.available_from and timezone.localtime(quote.pickup_datetime).date() < group.available_from:
+            prices[str(group.pk)] = {'available': False, 'not_offered': True,
+                'reason': f'Доступно с {group.available_from:%d.%m.%Y} по дате получения.'}
+            continue
         options = calculate_quote_options(quote, vehicle_group=group)
         option = options[0] if options else None
         complete = bool(option and option['available'] and not option['unavailable_requests']

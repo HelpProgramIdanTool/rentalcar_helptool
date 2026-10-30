@@ -333,6 +333,8 @@ def calculate_quote_options(quote, *, vehicle_group=None):
       if requested_group_ids:
         groups = groups.filter(id__in=requested_group_ids)
       for group in groups:
+        if group.available_from and pickup_date < group.available_from:
+            continue
         if (getattr(quote, "sub_agent_id", None) and
                 group.supplier.subagent_pricing_method == Supplier.SubagentPricingMethod.UNAVAILABLE):
             continue

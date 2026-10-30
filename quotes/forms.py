@@ -346,6 +346,11 @@ class FirstInquiryForm(forms.Form):
         if any(cleaned.get(f"{side}_city") in self.foreign_city_names for side in ("pickup", "return")):
             cleaned["cross_border_requested"] = True
         pickup_date = cleaned.get("pickup_date")
+        if pickup_date and groups is not None:
+            unavailable_groups = groups.filter(available_from__gt=pickup_date)
+            if unavailable_groups.exists():
+                self.add_error("vehicle_groups", "Для выбранной даты получения группа ещё недоступна: " +
+                    "; ".join(f"{group.group_name} — с {group.available_from:%d.%m.%Y}" for group in unavailable_groups))
         pickup_time = cleaned.get("pickup_time")
         return_date = cleaned.get("return_date")
         return_time = cleaned.get("return_time")

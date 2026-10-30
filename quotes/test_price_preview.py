@@ -13,6 +13,23 @@ from .views import _quote_preview_context
 
 
 class PricePreviewTests(TestCase):
+    def test_group_availability_depends_on_pickup_date_in_preview_and_calculation(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        self.group.available_from = date(2027, 4, 1)
+        self.group.save(update_fields=['available_from'])
+        for day, allowed in [('31-03-2027', False), ('01-04-2027', True), ('02-04-2027', True)]:
+            with self.subTest(day=day):
+                response = self.client.post(self.url, {**self.data, 'pickup_date':day, 'return_date':'03-04-2027'})
+                self.assertEqual(response.status_code, 200)
+                price = response.json()['prices'][str(self.group.pk)]
+                self.assertEqual(price['available'], allowed)
+                self.assertEqual(price.get('not_offered', False), not allowed)
+                self.quote.pickup_datetime = datetime.strptime(day, '%d-%m-%Y').replace(hour=12, tzinfo=ZoneInfo('Europe/Warsaw'))
+                self.quote.return_datetime = datetime(2027, 4, 3, 12, tzinfo=ZoneInfo('Europe/Warsaw'))
+                self.quote.rental_days = (self.quote.return_datetime-self.quote.pickup_datetime).days
+                self.assertEqual(bool(calculate_quote_options(self.quote)), allowed)
+
     def test_car_free_chain_update_does_not_disable_other_suppliers_chains(self):
         from importlib import import_module
         from django.apps import apps

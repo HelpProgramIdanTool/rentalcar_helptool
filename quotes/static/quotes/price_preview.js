@@ -39,6 +39,23 @@
       }
       labels.forEach((span, id) => {
         const price = result.prices[id];
+        const label = span.closest('label');
+        const input = label.querySelector('input[name="vehicle_groups"]');
+        if (label.dataset.availabilityHidden === '1') {
+          label.hidden = false;
+          label.style.display = label.dataset.availabilityDisplay || '';
+          input.disabled = false;
+          delete label.dataset.availabilityHidden;
+        }
+        if (price?.not_offered) {
+          label.dataset.availabilityDisplay = label.style.display;
+          label.style.display = 'none';
+          label.hidden = true;
+          label.dataset.availabilityHidden = '1';
+          input.checked = false;
+          input.disabled = true;
+          return;
+        }
         if (!price) return;
         span.textContent = price.available ? ` (${price.total} ${price.currency})` : ' (нет расчёта)';
         span.title = price.available ? 'Итого за весь срок с выбранными добавками, до ручной доплаты.' : price.reason;
