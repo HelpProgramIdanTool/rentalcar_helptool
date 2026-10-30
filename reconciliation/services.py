@@ -74,6 +74,28 @@ def require_open(batch):
         raise ValidationError('Сверка завершена. Сначала откройте её для исправления с указанием причины.')
 
 
+def unnumbered_candidates(supplier, data):
+    """Suggest review, never identify an order from email alone."""
+    email = str(data.get('email') or '').strip()
+    if not email or not data.get('pickup') or not data.get('return'):
+        return Booking.objects.none()
+    dates = {}
+    try:
+        for field, key in [('pickup_datetime', 'pickup'), ('return_datetime', 'return')]:
+            value = datetime.fromisoformat(data[key])
+            time_match = re.search(r'\b([01]?\d|2[0-3]):([0-5]\d)\b', data.get(key + '_raw', ''))
+            if time_match:
+                value = value.replace(hour=int(time_match[1]), minute=int(time_match[2]))
+            dates[field] = timezone.make_aware(value) if timezone.is_naive(value) else value
+    except (TypeError, ValueError):
+        return Booking.objects.none()
+    from django.db.models import Q
+    return Booking.objects.filter(supplier=supplier, supplier_booking_number__regex=r'^\s*$', **dates).filter(
+        Q(customer_email_snapshot__iexact=email)
+        | Q(customer_email_snapshot='', customer__email__iexact=email)
+    )
+
+
 @transaction.atomic
 def stage(batch, kind, name, content, mapping, rows, actor):
     batch = Reconciliation.objects.select_for_update().get(pk=batch.pk)
@@ -180,6 +202,16 @@ def import_own(batch, actor, row_ids=None):
             continue
         booking = matches[0] if matches else None
         if not booking:
+            candidates = list(unnumbered_candidates(batch.supplier, data).values_list('booking_number', flat=True))
+            if candidates:
+                issue = ('Возможен повтор существующего заказа без номера поставщика: '
+                         + ', '.join(candidates) + '. Совпадают фирма, email и даты/время. '
+                         'Новая карточка не создана. Проверьте существующий заказ и внесите в него номер поставщика перед повторным импортом.')
+                if issue not in row.issues:
+                    row.issues = [*row.issues, issue]
+                    row.save(update_fields=['issues'])
+                counts['review'] += 1
+                continue
             name = data.get('name', '').replace('\u200b','').strip()
             if not name:
                 counts['review'] += 1

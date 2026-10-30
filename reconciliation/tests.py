@@ -96,6 +96,42 @@ class WorkflowTests(TestCase):
         import_own(self.batch,self.actor)
         self.assertEqual(Customer.objects.filter(email='shared@example.test').count(),2)
 
+    def test_import_does_not_duplicate_unnumbered_booking_with_same_email_and_dates(self):
+        from datetime import datetime
+        from django.utils import timezone
+        Booking.objects.filter(pk=self.booking.pk).update(supplier_booking_number='',
+            customer_email_snapshot='same@example.test',
+            pickup_datetime=timezone.make_aware(datetime(2026,9,10,14,30)),
+            return_datetime=timezone.make_aware(datetime(2026,9,12,13,30)))
+        row = self.row(number='NEW-456', booking=None, decision='REVIEW', own={
+            'name':'TEST DRIVER', 'email':'same@example.test', 'amount':'100',
+            'pickup':'2026-09-10T00:00:00', 'pickup_raw':'10.09.2026 14:30',
+            'return':'2026-09-12T00:00:00', 'return_raw':'12.09.2026 13:30'})
+        before = Booking.objects.count()
+        result = import_own(self.batch,self.actor)
+        self.assertEqual(result['review'],1)
+        self.assertEqual(Booking.objects.count(),before)
+        row.refresh_from_db()
+        self.assertIsNone(row.booking_id)
+        self.assertIn(self.booking.booking_number, ' '.join(row.issues))
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.supplier_booking_number,'')
+        self.assertEqual(self.booking.total_price_gross,Decimal('123'))
+
+    def test_matching_email_with_different_dates_does_not_block_new_order(self):
+        from datetime import datetime
+        from django.utils import timezone
+        Booking.objects.filter(pk=self.booking.pk).update(supplier_booking_number='',
+            customer_email_snapshot='same@example.test',
+            pickup_datetime=timezone.make_aware(datetime(2026,9,10,10)),
+            return_datetime=timezone.make_aware(datetime(2026,9,12,10)))
+        self.row(number='NEW-789',booking=None,decision='REVIEW',own={
+            'name':'TEST DRIVER','email':'same@example.test','amount':'100',
+            'pickup':'2026-09-15T10:00:00','return':'2026-09-17T10:00:00'})
+        result = import_own(self.batch,self.actor)
+        self.assertEqual(result['created'],1)
+        self.assertTrue(Booking.objects.filter(supplier_booking_number='NEW-789').exists())
+
     def test_close_cancel_carry_and_no_payment_assumption(self):
         row=self.row(decision='CANCEL', note='Confirmed cancellation')
         close(self.batch,self.actor)
