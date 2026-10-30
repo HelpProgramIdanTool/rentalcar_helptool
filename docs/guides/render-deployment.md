@@ -26,8 +26,9 @@ Render supplies RENDER_EXTERNAL_HOSTNAME automatically. For a custom domain add
 DJANGO_ALLOWED_HOSTS with exact hostnames, separated by commas. No wildcard.
 Do not copy the local development key. The Render configuration refuses that key.
 
-Without SMTP settings the server intentionally discards emails. Do not enable
-customer email sending during testing. The local email configuration is unchanged.
+Server work mail defaults to a guarded test-only backend. Without its separate
+secret configuration it refuses sending; it never silently discards a message
+or reports a blocked message as sent. Local email configuration is unchanged.
 
 ## Before using real data
 
@@ -193,6 +194,34 @@ On failure it leaves the probe for diagnosis and removes no existing vouchers.
 This verifies the real storage/backup/decryption/extraction path for a PDF. It
 does not itself test attaching a voucher to a booking through the web interface
 or opening a restored file through an authenticated application session.
+
+## Work mail prepared while local operation remains authoritative
+
+Idan requested preparation on 30 October while continuing local operation until
+approximately 10 November (the date is a plan, not an automatic switch).
+
+Add the separately prepared private `work-mail.json` to Render Secret Files:
+`sender`, `password` (Gmail app password), `test_recipient`. The authorized test
+recipient is `idan.caliber@gmail.com`. Never share the file or commit it.
+Do not replace the existing backup-alerts.json or rclone.conf secret files.
+
+`WORK_MAIL_MODE` defaults to `test-only`. The guarded backend checks every To,
+CC and BCC address in the whole batch before connecting to Gmail. Any address
+outside the configured operator mailbox blocks the batch. It does not silently
+redirect customer messages to the operator. Missing configuration and invalid
+modes also block sending. Quotes remain unsent and supplier delivery attempts
+are marked failed with a visible explanation.
+
+After deploying, run `uv run python scripts/test_work_mail.py` in Render Shell.
+It first confirms an invented external recipient is blocked, then sends one
+plain-text/HTML test message only to the operator. Confirm receipt before
+claiming server work mail is tested. No real quote or booking is created by this
+test. Backup alert SMTP remains separate.
+
+Do not set `WORK_MAIL_MODE=live` until Idan explicitly authorizes the final
+cutover after local reconciliation, transfer and acceptance checks. The date
+alone never enables sending. Local settings continue using the existing SMTP
+configuration and are not subject to the Render-only guard.
 
 References: https://render.com/docs/deploy-django and
 https://whitenoise.readthedocs.io/en/stable/django.html

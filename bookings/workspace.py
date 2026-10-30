@@ -301,10 +301,11 @@ def supplier_message(request, pk):
                             EmailMultiAlternatives(subject=delivery.subject, body=delivery.body, to=parse_email_addresses(delivery.recipient)).send())
                         if count != 1:
                             raise SMTPException("Message not accepted")
-                    except (SMTPException, OSError, ValueError):
+                    except (SMTPException, OSError, ValueError) as error:
                         delivery.status = "FAILED"
                         delivery.save(update_fields=["status"])
-                        form.add_error(None, "Отправка не подтверждена. Текст сохранён в истории. Проверьте почту перед повторной отправкой.")
+                        from config.work_mail import WorkMailBlocked
+                        form.add_error(None, str(error) if isinstance(error, WorkMailBlocked) else "Отправка не подтверждена. Текст сохранён в истории. Проверьте почту перед повторной отправкой.")
                     else:
                         with transaction.atomic():
                             delivery.status = "MANUAL" if request.POST.get("action") == "mark_manual" else "SENT"

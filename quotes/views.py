@@ -662,8 +662,9 @@ def send_quote(request, quote_number):
     try:
         if message.send(fail_silently=False) != 1:
             raise SMTPException("No message accepted")
-    except (SMTPException, OSError):
-        messages.error(request, "Не удалось отправить письмо. Черновик сохранён. Проверьте подключение к почте.")
+    except (SMTPException, OSError) as error:
+        from config.work_mail import WorkMailBlocked
+        messages.error(request, str(error) if isinstance(error, WorkMailBlocked) else "Не удалось отправить письмо. Черновик сохранён. Проверьте подключение к почте.")
         return redirect("quotes:email_editor", quote_number=quote.quote_number)
     QuoteEmailDelivery.objects.create(
         quote=quote, sent_by_user=request.user, recipient=email,

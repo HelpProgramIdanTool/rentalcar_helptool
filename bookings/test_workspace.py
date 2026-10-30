@@ -366,6 +366,18 @@ class BookingWorkspaceTests(TestCase):
         ).exists())
         self.assertEqual(self.client.get(url).context["body"], data["body"])
 
+    def test_server_mail_block_does_not_mark_supplier_request_sent(self):
+        from unittest.mock import patch
+        from config.work_mail import WorkMailBlocked
+        url, data = self.send_data()
+        with patch('bookings.workspace.EmailMultiAlternatives.send', side_effect=WorkMailBlocked('TEST-SERVER-MAIL-BLOCKED')) as send:
+            response = self.client.post(url, data)
+        send.assert_called_once()
+        self.assertContains(response, 'TEST-SERVER-MAIL-BLOCKED')
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'DRAFT')
+        self.assertEqual(self.booking.supplier_deliveries.get().status, 'FAILED')
+
     def test_two_recipients_receive_one_message_and_are_saved_in_history(self):
         url, data = self.send_data()
         data['recipient'] = 'first@example.com; second@example.com; first@example.com'

@@ -56,10 +56,12 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS]
 
-# Never print customer emails to the server log if SMTP has not been configured.
+# Work mail remains test-only until a separate explicit cutover decision.
+from .work_mail import load_work_mail
+WORK_MAIL_MODE = os.environ.get('WORK_MAIL_MODE', 'test-only')
+MAILERS = {'default': {'BACKEND': 'config.work_mail.GuardedWorkMailBackend'}}
+try:
+    DEFAULT_FROM_EMAIL = load_work_mail().get('sender', 'not-configured@example.invalid')
+except (OSError, ValueError):
+    raise ImproperlyConfigured('Invalid work-mail.json secret file.') from None
 SILENCED_SYSTEM_CHECKS = []
-if not (GMAIL_ADDRESS and GMAIL_APP_PASSWORD):
-    MAILERS = {'default': {'BACKEND': 'django.core.mail.backends.dummy.EmailBackend'}}
-    # Email is deliberately disabled for the initial test deployment.
-    # Suppress only this known check; keep every other deployment check active.
-    SILENCED_SYSTEM_CHECKS = ['mail.E001']

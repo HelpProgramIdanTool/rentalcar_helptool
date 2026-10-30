@@ -157,6 +157,17 @@ class EmailEditorTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
         self.assertFalse(self.quote.email_deliveries.exists())
 
+    def test_server_test_block_preserves_quote_draft_and_explains_reason(self):
+        from config.work_mail import WorkMailBlocked
+        with patch('quotes.views.EmailMultiAlternatives.send', side_effect=WorkMailBlocked('TEST-SERVER-MAIL-BLOCKED')) as send:
+            response = self.client.post(reverse('quotes:send_quote', args=[self.quote.quote_number]), follow=True)
+        send.assert_called_once()
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, Quote.Status.DRAFT)
+        self.assertIsNone(self.quote.sent_at)
+        self.assertFalse(self.quote.email_deliveries.exists())
+        self.assertContains(response, 'TEST-SERVER-MAIL-BLOCKED')
+
     def test_foreign_block_cannot_be_edited_and_subject_rejects_newline(self):
         other = Quote.objects.create(customer=self.quote.customer, language="Hebrew", pickup_datetime=self.quote.pickup_datetime, return_datetime=self.quote.return_datetime)
         ensure_quote_document_blocks(other)

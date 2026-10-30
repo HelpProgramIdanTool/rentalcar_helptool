@@ -51,6 +51,8 @@ class RenderSettingsTests(SimpleTestCase):
         self.assertEqual(settings.DATABASES['default']['ENGINE'], 'django.db.backends.postgresql')
         self.assertEqual(settings.MIDDLEWARE[1], 'whitenoise.middleware.WhiteNoiseMiddleware')
         self.assertNotIn('console', str(settings.MAILERS))
+        self.assertEqual(settings.WORK_MAIL_MODE, 'test-only')
+        self.assertEqual(settings.MAILERS['default']['BACKEND'], 'config.work_mail.GuardedWorkMailBackend')
 
     def test_missing_or_unsafe_configuration_stops_startup(self):
         for changes in (
