@@ -66,6 +66,82 @@ class VoucherUploadForm(forms.Form):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
+@transaction.atomic
+@never_cache
+def attention_queue(request):
+    from .attention import attention_bookings
+    error = ""
+    if request.method == "POST":
+        if not request.POST.get("booking_id", "").isdigit():
+            from django.http import Http404
+            raise Http404
+        booking = get_object_or_404(
+            attention_bookings(request.user).select_for_update(of=("self",)), pk=request.POST.get("booking_id"),
+        )
+        old_status = booking.status
+        number = request.POST.get("supplier_booking_number", "").strip()
+        form = ReservationForm({
+            "supplier_booking_number": number,
+            "flight_number": booking.flight_number,
+            "status": Booking.Status.CONFIRMED,
+        }, booking=booking)
+        upload_form = VoucherUploadForm(request.POST, request.FILES)
+        has_upload = bool(request.FILES.get("file"))
+        if not form.is_valid():
+            error = " ".join(str(e) for errors in form.errors.values() for e in errors)
+        elif has_upload and not upload_form.is_valid():
+            error = " ".join(str(e) for errors in upload_form.errors.values() for e in errors)
+        elif old_status == Booking.Status.UPDATE_PENDING:
+            last_delivery = booking.supplier_deliveries.filter(
+                status__in=["SENT", "MANUAL"], sent_at__isnull=False,
+            ).order_by("-sent_at").first()
+            last_event = booking.history_events.filter(
+                event_type=BookingHistoryEvent.EventType.STATUS_CHANGED,
+                new_status=Booking.Status.UPDATE_PENDING,
+            ).order_by("-created_at").first()
+            cutoff = max((value for value in (
+                last_delivery.sent_at if last_delivery else None,
+                last_event.created_at if last_event else None,
+            ) if value), default=None)
+            has_new_voucher = cutoff and booking.vouchers.filter(received_at__gte=cutoff).exists()
+            if request.POST.get("verified") != "yes":
+                error = "Отметьте, что новый ваучер проверен и изменения подтверждены поставщиком."
+            elif not has_upload and not has_new_voucher:
+                error = "Загрузите новый ваучер, полученный после отправки изменений."
+        if not error:
+            voucher = None
+            if has_upload:
+                uploaded = upload_form.cleaned_data["file"]
+                voucher = BookingVoucher.objects.create(
+                    booking=booking, file=uploaded, original_filename=uploaded.name[:255],
+                    uploaded_by_user=request.user,
+                )
+            Booking.objects.filter(pk=booking.pk).update(
+                supplier_booking_number=number, status=Booking.Status.CONFIRMED,
+                confirmed_by_user=request.user, updated_at=timezone.now(),
+            )
+            actor = Employee.objects.filter(login_user=request.user).first()
+            booking.log_history(BookingHistoryEvent.EventType.DETAILS_CHANGED,
+                "Подтверждение в очереди внимания",
+                changes={"supplier_booking_number": {"old": booking.supplier_booking_number, "new": number},
+                         "operator_user_id": request.user.pk,
+                         "voucher_id": voucher.pk if voucher else None,
+                         "voucher_verified": old_status == Booking.Status.UPDATE_PENDING}, created_by=actor)
+            booking.log_history(BookingHistoryEvent.EventType.STATUS_CHANGED,
+                "Подтверждено оператором в очереди внимания", old_status=old_status,
+                new_status=Booking.Status.CONFIRMED,
+                changes={"operator_user_id": request.user.pk}, created_by=actor)
+            messages.success(request, "Подтверждение сохранено. Стоимость заказа не изменена.")
+            return redirect("quotes:attention_queue")
+    bookings = attention_bookings(request.user)
+    return render(request, "bookings/attention.html", {
+        "page_obj": Paginator(bookings, 30).get_page(request.GET.get("page")),
+        "error": error, "active_menu": "attention",
+    })
+
+
+@login_required
 @require_http_methods(["POST"])
 def upload_voucher(request, pk):
     booking = get_object_or_404(Booking, pk=pk)

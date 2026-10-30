@@ -12,7 +12,7 @@
 {% if booking.supplier_booking_number %}
 <p>Номер заказа у поставщика: <strong>{{ booking.marked_supplier_booking_number }}</strong>{% if booking.sub_agent %} <small>(номер поставщика: {{ booking.supplier_booking_number }})</small>{% endif %}</p>
 <p><a href="{% url 'admin:bookings_booking_change' booking.pk %}">Изменить данные заказа</a> · <a href="{% url 'quotes:supplier_message' booking.pk %}?change=1">Подготовить письмо об изменении</a></p>
-{% if booking.status == 'UPDATE_PENDING' %}<p role="status">Изменения отправлены поставщику. Ожидаем новое подтверждение по тому же номеру заказа.</p>{% endif %}
+{% if booking.status == 'UPDATE_PENDING' %}<p role="status">Изменения отправлены поставщику. Ожидаем новое подтверждение по тому же номеру заказа. <a href="{% url 'quotes:attention_queue' %}">Проверить новый ваучер и подтвердить изменения</a></p>{% endif %}
 {% endif %}
 <p>{{ booking.get_order_source_display }}{% if booking.salesperson_employee %} · Ответственный: {{ booking.salesperson_employee }}{% endif %}{% if booking.sub_agent %} · Субагент: {{ booking.sub_agent }}{% endif %}</p>
 {% if booking.created_by_user %}<p>Внёс в систему: {{ booking.created_by_user }}</p>{% endif %}

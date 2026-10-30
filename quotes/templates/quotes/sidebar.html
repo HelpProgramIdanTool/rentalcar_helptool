@@ -5,6 +5,7 @@
   <nav aria-label="Главное меню">
     <a href="{% url 'quotes:home' %}">⌂ На главную</a>
     <a href="{% url 'quotes:booking_list' %}"{% if active_menu == 'orders' %} aria-current="page"{% endif %}>Заказы</a>
+    <a href="{% url 'quotes:attention_queue' %}"{% if active_menu == 'attention' %} aria-current="page"{% endif %}>Требуют внимания <strong {% if booking_attention_count %}style="background:#b91c1c;color:white;padding:3px 9px;border-radius:16px"{% endif %}>{{ booking_attention_count|default:0 }}</strong></a>
     <a href="{% url 'quotes:quote_list' %}"{% if active_menu == 'quotes' %} aria-current="page"{% endif %}>Оферты</a>
     <a href="{% url 'customers:list' %}"{% if active_menu == 'customers' %} aria-current="page"{% endif %}>Клиенты</a>
   </nav>

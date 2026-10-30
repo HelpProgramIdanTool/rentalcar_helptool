@@ -17,6 +17,7 @@ urlpatterns = [
     path("offers/<str:quote_number>/copy/", views.copy_quote, name="copy_quote"),
     path("offers/<str:quote_number>/book/<int:option_id>/", quote_conversion.from_offer, name="booking_from_offer"),
     path("bookings/", workspace.booking_list, name="booking_list"),
+    path("bookings/attention/", workspace.attention_queue, name="attention_queue"),
     path("bookings/new/", manual.new_booking, name="new_booking"),
     path("bookings/<int:pk>/supplier-message/", workspace.supplier_message, name="supplier_message"),
     path("bookings/<int:pk>/vouchers/", workspace.upload_voucher, name="upload_voucher"),

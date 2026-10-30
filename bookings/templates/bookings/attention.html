@@ -1,0 +1,30 @@
+{% extends 'customers/base.html' %}
+{% block title %}Требуют внимания{% endblock %}
+{% block content %}
+<h1>Требуют внимания — {{ page_obj.paginator.count }}</h1>
+<p>Отправленные заказы без номера поставщика и изменения без подтверждения. Ближайшие даты получения машины — сверху.</p>
+{% for message in messages %}<p role="status">{{ message }}</p>{% endfor %}
+{% if error %}<p role="alert" style="color:#b91c1c">{{ error }}</p>{% endif %}
+{% for booking in page_obj %}
+<section class="customer-info" style="display:block;background:white;border:1px solid #d7dfeb;border-radius:12px">
+  <h2><a href="{% url 'quotes:booking_detail' booking.pk %}">{{ booking.booking_number }}</a> · {{ booking.customer_name_snapshot }}</h2>
+  <p>{{ booking.supplier }} · {{ booking.pickup_datetime|date:'d.m.Y H:i' }} — {{ booking.return_datetime|date:'d.m.Y H:i' }}</p>
+  <p><strong>{% if booking.status == 'UPDATE_PENDING' %}Ожидает подтверждения изменений{% else %}Нет номера поставщика{% endif %}</strong></p>
+  <p>Ожидание с {{ booking.waiting_since|date:'d.m.Y H:i' }} · прошло {{ booking.waiting_since|timesince }}</p>
+  <p><a href="{% url 'quotes:supplier_message' booking.pk %}{% if booking.status == 'UPDATE_PENDING' %}?change=1{% endif %}">Письмо и история отправок</a></p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.pk }}">
+    <p><label>Номер поставщика <input name="supplier_booking_number" value="{{ booking.supplier_booking_number }}" maxlength="100" required></label></p>
+    <p><label>Новый ваучер (PDF, JPG, PNG) <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png"></label></p>
+    {% if booking.status == 'UPDATE_PENDING' %}
+    <p><label><input type="checkbox" name="verified" value="yes" required> Новый ваучер проверен. Поставщик подтвердил изменения.</label></p>
+    <p>Можно использовать новый ваучер, уже загруженный в карточку после отправки изменений.</p>
+    {% endif %}
+    <button type="submit">{% if booking.status == 'UPDATE_PENDING' %}Изменения подтверждены{% else %}Сохранить номер и подтвердить{% endif %}</button>
+  </form>
+</section>
+{% empty %}<p>Заказов, требующих внимания, нет.</p>{% endfor %}
+{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+<span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Далее</a>{% endif %}
+{% endblock %}
