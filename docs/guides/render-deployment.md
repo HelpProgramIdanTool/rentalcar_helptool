@@ -150,5 +150,34 @@ success at 03:00 and alerts after the grace period (approximately 04:00 Poland).
 References: https://healthchecks.io/pricing/ and
 https://healthchecks.io/docs/http_api/
 
+## Retention policy approved 30 October 2026
+
+Keep every completed run from the latest 30 Polish calendar dates, the latest
+verified run from each of the current and previous 11 calendar months, and the
+latest successful verified backup regardless of age. Missing months cannot be
+created retroactively. Copies without a `verified.json` completion marker,
+unknown directory names and unrelated files are not eligible for deletion.
+
+New backups upload a completion marker only after their full remote read-back
+passes, then verify that marker as well. Existing earlier copies do not have
+markers and are deliberately retained until separately reviewed.
+
+First deploy and run a new manual backup. Run the read-only preview:
+
+`uv run python scripts/backup_retention.py`
+
+It writes a private retention report and prints counts without deleting files.
+Only after reviewing it, enable `BACKUP_RETENTION_ENABLED=1` on Render and deploy.
+Cleanup then runs after each successful backup. It refuses cleanup if the last
+success is older than 24 hours, missing, unverified or failed. It deletes only
+the four known files in an expired managed backup folder, then removes the
+empty folder, never a recursive directory purge. A changed directory stops
+cleanup. Provider trash rules still apply; no permanent trash purge is used.
+
+Retention failure is logged separately and does not invalidate the new verified
+backup. Review `retention-report.json` and any private `retention-error.log` under
+`/var/data/backup-private`. Automatic cleanup remains disabled until the explicit
+environment flag is set. Update public backup disclosures once enabled.
+
 References: https://render.com/docs/deploy-django and
 https://whitenoise.readthedocs.io/en/stable/django.html

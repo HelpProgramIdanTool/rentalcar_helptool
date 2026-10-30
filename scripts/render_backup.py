@@ -130,6 +130,11 @@ def run_backup():
                 run_command([*prefix, 'copy', str(folder), remote], log)
                 # Read back and decrypt all uploaded bytes, comparing to local originals.
                 run_command([*prefix, 'check', '--download', '--one-way', str(folder), remote], log)
+                # Mark eligibility for future retention only after the full read-back succeeds.
+                marker = folder / 'verified.json'
+                write_json(marker, {'format': 1, 'backup': stamp})
+                run_command([*prefix, 'copyto', str(marker), remote + '/verified.json'], log)
+                run_command([*prefix, 'check', '--download', '--one-way', '--include', 'verified.json', str(folder), remote], log)
             status.update(result='success', last_success=datetime.now(timezone.utc).isoformat(), remote=remote)
             write_json(STATE, status)
             heartbeat_success()
@@ -138,6 +143,16 @@ def run_backup():
             status['result'] = 'failed'
             write_json(STATE, status)
             raise
+
+
+def scheduled_retention():
+    if os.environ.get('BACKUP_RETENTION_ENABLED') != '1':
+        return
+    from scripts.backup_retention import prune_backups
+    try:
+        prune_backups(apply=True)
+    except Exception as error:
+        print('RETENTION FAILED (' + type(error).__name__ + '); verified backup remains valid.', flush=True)
 
 
 def main():
@@ -152,8 +167,10 @@ def main():
             print(f'BACKUP FAILED ({type(error).__name__}). No success recorded; check private diagnostics.', flush=True)
             raise SystemExit(1)
         notify('recovery')
+        scheduled_retention()
         return
-    print('Backup scheduler: daily at 03:00 Europe/Warsaw; automatic deletion disabled.', flush=True)
+    retention = '30 days daily / 12 calendar months monthly' if os.environ.get('BACKUP_RETENTION_ENABLED') == '1' else 'automatic deletion disabled'
+    print('Backup scheduler: daily at 03:00 Europe/Warsaw; ' + retention + '.', flush=True)
     while True:
         status = json.loads(STATE.read_text()) if STATE.exists() else {}
         if backup_due(datetime.now(timezone.utc), status.get('last_success')):
@@ -165,6 +182,7 @@ def main():
                 time.sleep(3600)
             else:
                 notify('recovery')
+                scheduled_retention()
         time.sleep(60)
 
 
