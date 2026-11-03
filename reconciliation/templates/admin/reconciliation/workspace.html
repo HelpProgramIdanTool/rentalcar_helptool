@@ -14,6 +14,7 @@
 </div>
 <div class="recon-bar"><strong>Отчёт фирмы: {{ statement.lines }} строк</strong><span>Брутто: {{ statement.gross|default_if_none:"неполные данные" }} PLN</span><span>Нетто: {{ statement.net|default_if_none:"неполные данные" }} PLN</span><span>Сопоставлено с моими записями: {{ statement.matched_lines }} · Без совпадения: {{ statement.unmatched_lines }}</span></div>
 <p>Порядок: <b>1. Мои записи → 2. Отчёт фирмы → 3. Позже — заказы работника.</b> Сопоставление не означает получение оплаты. Отсутствие строки у фирмы само по себе не означает отмену.</p>
+<p><strong>Для сверки принимаются суммы фирмы.</strong> Суммы моих записей сохранены справочно; разница с ними сама по себе не блокирует сверку.</p>
 <details class="recon-panel"><summary>Сохранённые исходные файлы</summary>{% for upload in source_uploads %}<p>{{ upload.get_kind_display }}: <a href="{% url 'admin:reconciliation_source_file' batch.pk upload.pk %}">{{ upload.name }}</a> · {{ upload.created_at }}</p>{% empty %}<p>Исходные файлы ещё не загружены.</p>{% endfor %}</details>
 {% if totals.direct_orders %}<div class="recon-bar"><b>Прямые заказы поставщика: {{ totals.direct_orders }}</b><span>Нетто {{ totals.direct_net }} PLN · Моя комиссия {{ batch.direct_rate }}%: <b>{{ totals.direct_commission }} PLN</b></span><span>В комиссию работника не входят.</span></div>{% endif %}
 <p>Фирма: {{ batch.supplier }} · Фактура: {{ batch.invoice_number|default:"номер пока не указан" }} · Получено: {{ batch.received }} PLN · Выплачено работнику: {{ batch.employee_paid }} PLN</p>

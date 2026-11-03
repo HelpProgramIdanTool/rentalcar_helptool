@@ -22,7 +22,7 @@ from .services import row_net, money, totals, stage, import_own, decide, close, 
 class CalculationTests(SimpleTestCase):
     def test_statement_totals_are_independent_of_worker_and_decisions(self):
         from .services import statement_summary
-        rows=[SimpleNamespace(own={'name':'TEST'},supplier_lines=[{'gross':'123','net':'100'}]),
+        rows=[SimpleNamespace(own={'name':'TEST','amount':'9999'},supplier_lines=[{'gross':'123','net':'100'}]),
               SimpleNamespace(own={},supplier_lines=[{'gross':'246','net':'200'},{'gross':'-12.30','net':'-10'}])]
         result=statement_summary(rows)
         self.assertEqual(result,{'lines':3,'gross':Decimal('356.70'),'net':Decimal('290.00'),
