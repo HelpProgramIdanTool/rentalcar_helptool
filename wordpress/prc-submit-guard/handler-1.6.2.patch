@@ -1,0 +1,73 @@
+--- a/poland-car-request-form.php
++++ b/poland-car-request-form.php
+@@ -2,7 +2,7 @@
+ /**
+  * Plugin Name: Poland Rent Car Request Form
+  * Description: Responsive Hebrew rental car request form with request storage, Gmail delivery, automatic retries, failed-email recovery and strict rental date validation.
+- * Version: 1.6.1
++ * Version: 1.6.2
+  * Author: Idan / ChatGPT
+  * Text Domain: poland-car-request-form
+  */
+@@ -11,9 +11,11 @@
+     exit;
+ }
+ 
++require_once __DIR__ . '/request-dedup.php';
++
+ final class Poland_Car_Request_Form {
+ 
+-    const VERSION = '1.6.1';
++    const VERSION = '1.6.2';
+     const SHORTCODE = 'poland_car_request_form';
+     const NONCE_ACTION = 'poland_car_request_submit';
+     const NONCE_FIELD = 'poland_car_request_nonce';
+@@ -96,6 +98,7 @@
+     public function render_shortcode($atts = []) {
+         wp_enqueue_style('poland-car-request-form');
+         wp_enqueue_script('poland-car-request-form');
++        wp_enqueue_script('prc-submit-guard', plugin_dir_url(__FILE__) . 'assets/submit-guard.js', ['poland-car-request-form'], self::VERSION, true);
+ 
+         $server_now = current_datetime();
+         $server_epoch_ms = $server_now->getTimestamp() * 1000;
+@@ -1041,15 +1044,20 @@
+         }
+ 
+         $data = $validation;
+-        $request_id = $this->generate_request_id();
+-        $post_id = $this->save_request($request_id, $data);
+-
+-        if (is_wp_error($post_id) || !$post_id) {
++        $result = PRC_Request_Dedup::save($data, function ($fingerprint) use ($data) {
++            return $this->save_request($this->generate_request_id(), $data, $fingerprint);
++        });
++
++        if (is_wp_error($result) || !$result) {
+             $restore_token = $this->store_restore_data($data);
+             $this->redirect_with_status('error', '', 'save_failed', $restore_token);
+         }
+ 
+-        $this->send_request_email($post_id);
++        $post_id = $result['post_id'];
++        $request_id = get_post_meta($post_id, '_prc_request_id', true);
++        if ($result['created']) {
++            $this->send_request_email($post_id);
++        }
+         $this->redirect_with_status('success', $request_id);
+     }
+ 
+@@ -1606,12 +1614,13 @@
+         return 'PRC-' . wp_date('ymd-His') . '-' . wp_rand(1000, 9999);
+     }
+ 
+-    private function save_request($request_id, array $data) {
++    private function save_request($request_id, array $data, $fingerprint = '') {
+         $post_id = wp_insert_post(
+             [
+                 'post_type'   => self::POST_TYPE,
+                 'post_status' => 'publish',
+                 'post_title'  => $request_id . ' — ' . $data['full_name'],
++                'meta_input' => ['_prc_submission_fingerprint' => $fingerprint],
+             ],
+             true
+         );

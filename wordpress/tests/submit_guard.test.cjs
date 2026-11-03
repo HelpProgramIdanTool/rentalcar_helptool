@@ -14,6 +14,8 @@ function setup(validate) {
 }
 test('plugin PHP parses', () => {
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-submit-guard/prc-submit-guard.php','utf8'));
+  new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-submit-guard/request-dedup.php','utf8'));
+  new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/tests/request_dedup.integration.php','utf8'));
 });
 test('one accepted submission, two repeats blocked; data preserved', () => {
   const {dom,form,submit} = setup();
