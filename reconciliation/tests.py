@@ -136,6 +136,19 @@ class WorkflowTests(TestCase):
         import_own(self.batch,self.actor)
         self.assertEqual(Customer.objects.filter(email='shared@example.test').count(),2)
 
+    def test_manual_historical_order_uses_supplier_amount_and_imports_once(self):
+        row = self.row(number='MANUAL-456', booking=None, own={
+            'name':'MANUAL TEST', 'amount':'999', 'email':'manual@example.test'},
+            supplier_lines=[{'gross':'100', 'net':'80'}, {'gross':'20', 'net':'16'}])
+        first = import_own(self.batch, self.actor, row_ids=[row.pk])
+        second = import_own(self.batch, self.actor, row_ids=[row.pk])
+        row.refresh_from_db()
+        self.assertEqual(first['created'], 1)
+        self.assertEqual(second['created'], 0)
+        self.assertEqual(row.booking.total_price_gross, Decimal('120'))
+        self.assertEqual(row.own['amount'], '999')
+        self.assertTrue(row.booking.source_quote_snapshot['historical_import'])
+
     def test_import_does_not_duplicate_unnumbered_booking_with_same_email_and_dates(self):
         from datetime import datetime
         from django.utils import timezone

@@ -235,9 +235,14 @@ def import_own(batch, actor, row_ids=None):
             if not customer:
                 first, _, last = name.partition(' ')
                 customer = Customer.objects.create(first_name=first[:100], last_name=last[:100], full_name_latin=name[:200], email=data.get('email','')[:254], phone_1=data.get('phone','')[:30])
+            # Historical orders may have been sent manually. Prefer the firm's
+            # complete amount while retaining the owner's original source below.
+            gross_values = [line.get('gross') for line in row.supplier_lines]
+            amount = money(sum((Decimal(value) for value in gross_values), Decimal(0))) if gross_values and all(
+                value not in (None, '') for value in gross_values) else Decimal(data.get('amount') or 0)
             booking = Booking(customer=customer, supplier=batch.supplier, supplier_booking_number=row.number,
                 status='DRAFT', source_quote_snapshot={'historical_import': {'reconciliation_id': batch.pk, 'source': data}},
-                total_price_gross=Decimal(data.get('amount') or 0), vehicle_price_gross=Decimal(data.get('amount') or 0))
+                total_price_gross=amount, vehicle_price_gross=amount)
             booking.save()
             known.setdefault(identifier(row.number), []).append(booking)
             counts['created'] += 1
