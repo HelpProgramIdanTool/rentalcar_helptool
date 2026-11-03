@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
+from django.utils.http import content_disposition_header
 from decimal import Decimal
 from .models import Reconciliation, Row, Revision, Upload
 from .forms import UploadForm, PaymentForm, CalculationForm
@@ -80,7 +81,17 @@ class ReconciliationAdmin(admin.ModelAdmin):
 
     def get_urls(self):
         return [path('<int:pk>/workspace/', self.admin_site.admin_view(self.work), name='reconciliation_workspace'),
+                path('<int:pk>/sources/<int:upload_id>/', self.admin_site.admin_view(self.source_file), name='reconciliation_source_file'),
                 path('<int:pk>/excel/', self.admin_site.admin_view(self.excel), name='reconciliation_excel')] + super().get_urls()
+
+    def source_file(self, request, pk, upload_id):
+        batch = self.checked(request, pk)
+        upload = get_object_or_404(Upload, pk=upload_id, reconciliation=batch)
+        response = HttpResponse(bytes(upload.content), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = content_disposition_header(True, upload.name)
+        response['Cache-Control'] = 'private, no-store'
+        response['X-Content-Type-Options'] = 'nosniff'
+        return response
 
     def checked(self, request, pk):
         if not self.has_view_permission(request) or (request.method=='POST' and not self.has_change_permission(request)):
@@ -180,8 +191,14 @@ class ReconciliationAdmin(admin.ModelAdmin):
         page = Paginator(query, 50).get_page(request.GET.get('page'))
         for row in page:
             row.net_display = services.row_net(row, batch.vat)
+            row.display_name = row.own.get('name') or next((line.get('name') for line in row.supplier_lines if line.get('name')), '') or (row.booking.customer_name_snapshot if row.booking else '')
+            row.unmatched_invoice = row.number.startswith('INVOICE-')
+            row.invoice_numbers = ', '.join(line['invoice'] for line in row.supplier_lines if line.get('invoice'))
         context = dict(self.admin_site.each_context(request), title=str(batch), batch=batch, upload_form=upload,
             payment_form=payment, calculation_form=CalculationForm(instance=batch), page=page, totals=services.totals(batch), versions=batch.revisions.all(),
             decisions=Row._meta.get_field('decision').choices, review_count=batch.rows.filter(decision='REVIEW').count(),
             opts=self.model._meta)
+        context['statement'] = services.statement_summary(batch.rows.all())
+        context['has_employee_file'] = batch.uploads.filter(kind='EMPLOYEE').exists()
+        context['source_uploads'] = batch.uploads.order_by('created_at', 'pk')
         return TemplateResponse(request, 'admin/reconciliation/workspace.html', context)

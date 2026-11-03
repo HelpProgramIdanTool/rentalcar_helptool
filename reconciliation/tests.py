@@ -20,6 +20,20 @@ from .services import row_net, money, totals, stage, import_own, decide, close, 
 
 
 class CalculationTests(SimpleTestCase):
+    def test_statement_totals_are_independent_of_worker_and_decisions(self):
+        from .services import statement_summary
+        rows=[SimpleNamespace(own={'name':'TEST'},supplier_lines=[{'gross':'123','net':'100'}]),
+              SimpleNamespace(own={},supplier_lines=[{'gross':'246','net':'200'},{'gross':'-12.30','net':'-10'}])]
+        result=statement_summary(rows)
+        self.assertEqual(result,{'lines':3,'gross':Decimal('356.70'),'net':Decimal('290.00'),
+            'matched_lines':1,'unmatched_lines':2})
+
+    def test_statement_totals_do_not_present_partial_values_as_complete(self):
+        from .services import statement_summary
+        result=statement_summary([SimpleNamespace(own={},supplier_lines=[{'gross':'123','net':None}])])
+        self.assertEqual(result['gross'],Decimal('123'))
+        self.assertIsNone(result['net'])
+
     def test_prefixes_and_iso_dates(self):
         for text in ['RC123', '(RC) 123', '[RC]123', 'NN 123', 'HT 123']:
             self.assertEqual(identifier(text), '123')
@@ -54,6 +68,32 @@ class CalculationTests(SimpleTestCase):
 
 
 class WorkflowTests(TestCase):
+    def test_original_source_download_is_exact_private_and_scoped(self):
+        from .models import Upload
+        self.client.force_login(self.actor)
+        content=b'EXACT-ORIGINAL-TEST-BYTES'
+        upload=Upload.objects.create(reconciliation=self.batch,kind='OWN',name='test.xlsx',digest='a'*64,content=content)
+        url=reverse('admin:reconciliation_source_file',args=[self.batch.pk,upload.pk])
+        response=self.client.get(url)
+        self.assertEqual(response.content,content)
+        self.assertIn('private',response['Cache-Control'])
+        self.assertIn('no-store',response['Cache-Control'])
+        other=Reconciliation.objects.create(supplier=self.supplier,month=date(2026,10,1))
+        self.assertEqual(self.client.get(reverse('admin:reconciliation_source_file',args=[other.pk,upload.pk])).status_code,404)
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code,302)
+
+    def test_workspace_explains_invoice_identity_and_pending_worker_stage(self):
+        self.client.force_login(self.actor)
+        self.row(number='INVOICE-TEST-1',booking=None,own={},employee_data={},decision='REVIEW',
+            supplier_lines=[{'name':'TEST-INVOICE-NAME','invoice':'TEST-INVOICE','gross':'123','net':'100'}])
+        response=self.client.get(reverse('admin:reconciliation_workspace',args=[self.batch.pk]))
+        self.assertContains(response,'TEST-INVOICE-NAME')
+        self.assertContains(response,'Номер заказа не установлен')
+        self.assertContains(response,'Список работника ещё не получен')
+        self.assertContains(response,'Отчёт фирмы: 1 строк')
+        self.assertEqual(response.context['statement']['net'],Decimal('100'))
+
     def setUp(self):
         root = Path('.test-temp').resolve()
         root.mkdir(exist_ok=True)

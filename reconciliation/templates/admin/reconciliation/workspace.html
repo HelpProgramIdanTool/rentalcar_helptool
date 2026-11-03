@@ -5,10 +5,16 @@
 </style>
 <div class="recon-bar">
 <strong>{{ batch.get_state_display }}</strong><span>Проверить: {{ review_count }}</span>
+{% if has_employee_file %}
 <span>Работник: {{ totals.employee_orders }} заказов · Нетто {{ totals.net }} PLN · {{ batch.rate }}% = <b>{{ totals.commission }} PLN</b></span>
-<a class="button" href="{% url 'admin:reconciliation_excel' batch.pk %}">Скачать Excel</a>
+{% else %}<span>Список работника ещё не получен. Его заказы и выплаты пока не определены.</span>{% endif %}
+{% if versions %}<a class="button" href="{% url 'admin:reconciliation_excel' batch.pk %}">Скачать Excel</a>
 <a class="button" href="{% url 'admin:reconciliation_excel' batch.pk %}?own=1">Моя таблица с отметками прошлых месяцев</a>
+{% else %}<span>Отдельная версия Excel ещё не подготовлена. Исходные файлы сохранены ниже.</span>{% endif %}
 </div>
+<div class="recon-bar"><strong>Отчёт фирмы: {{ statement.lines }} строк</strong><span>Брутто: {{ statement.gross|default_if_none:"неполные данные" }} PLN</span><span>Нетто: {{ statement.net|default_if_none:"неполные данные" }} PLN</span><span>Сопоставлено с моими записями: {{ statement.matched_lines }} · Без совпадения: {{ statement.unmatched_lines }}</span></div>
+<p>Порядок: <b>1. Мои записи → 2. Отчёт фирмы → 3. Позже — заказы работника.</b> Сопоставление не означает получение оплаты. Отсутствие строки у фирмы само по себе не означает отмену.</p>
+<details class="recon-panel"><summary>Сохранённые исходные файлы</summary>{% for upload in source_uploads %}<p>{{ upload.get_kind_display }}: <a href="{% url 'admin:reconciliation_source_file' batch.pk upload.pk %}">{{ upload.name }}</a> · {{ upload.created_at }}</p>{% empty %}<p>Исходные файлы ещё не загружены.</p>{% endfor %}</details>
 {% if totals.direct_orders %}<div class="recon-bar"><b>Прямые заказы поставщика: {{ totals.direct_orders }}</b><span>Нетто {{ totals.direct_net }} PLN · Моя комиссия {{ batch.direct_rate }}%: <b>{{ totals.direct_commission }} PLN</b></span><span>В комиссию работника не входят.</span></div>{% endif %}
 <p>Фирма: {{ batch.supplier }} · Фактура: {{ batch.invoice_number|default:"номер пока не указан" }} · Получено: {{ batch.received }} PLN · Выплачено работнику: {{ batch.employee_paid }} PLN</p>
 {% if batch.state == 'DRAFT' %}
@@ -17,7 +23,7 @@
 <p>Последние настройки столбцов: <a href="?upload_kind=OWN">Мои записи</a> · <a href="?upload_kind=SUPPLIER">Поставщик</a> · <a href="?upload_kind=EMPLOYEE">Работник</a></p>
 <p>Сначала проверьте буквы столбцов. Новый отчёт поставщика заменяет прежний целиком. Оригиналы и предыдущие версии сохраняются.</p>
 <p>Мои записи One Rent / Kaizen: номер I, имя A, сумма E, получение B, возврат C, email H, телефон G.<br>
-Поставщик One Rent: номер C, имя E, брутто F, нетто G, получение D.<br>
+В отчёте One Rent «Stepnet» за 10.2026: A — ID фактуры, C — номер фактуры, D — имя, E — начало аренды, F — брутто, G — нетто. <b>Номера заказа в этом формате нет: нельзя импортировать A или C как номер заказа.</b> Требуется сопоставление с моими записями по имени и дате; неоднозначные строки остаются на проверке.<br>
 Поставщик Kaizen: номер B, имя F, нетто I, получение D, возврат E, счёт J.<br>
 Неиспользуемые столбцы очистите. Для списка работника укажите его столбцы.</p>
 <form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="upload">{{ upload_form.as_p }}<button class="recon-action">Загрузить для проверки</button></form></details>
@@ -25,7 +31,7 @@
 {% endif %}
 <form method="get"><input name="q" placeholder="Номер заказа" value="{{ request.GET.q }}"><select name="status"><option value="">Все статусы</option>{% for value,label in decisions %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button>Показать</button></form>
 <div style="overflow:auto"><table class="recon-table"><thead><tr><th>Заказ / клиент</th><th>Мои записи</th><th>Поставщик нетто</th><th>Работник</th><th>Решение</th></tr></thead><tbody>
-{% for row in page %}<tr><td><b>{{ row.number }}</b><br>{{ row.own.name }}{% if row.booking %}<br><a href="{% url 'admin:bookings_booking_change' row.booking.pk %}">Заказ в базе</a>{% endif %}</td><td>{{ row.own.amount|default:"—" }}{% if row.own.cancelled %}<br>В исходнике отмена{% endif %}</td><td>{{ row.net_display|default_if_none:"—" }}</td><td>{% if row.employee_data %}Да{% else %}—{% endif %}</td><td>
+{% for row in page %}<tr><td>{% if row.unmatched_invoice %}<b>Номер заказа не установлен</b>{% else %}<b>{{ row.number }}</b>{% endif %}<br>{{ row.display_name }}{% if row.invoice_numbers %}<br><small>Фактуры фирмы: {{ row.invoice_numbers }}</small>{% endif %}{% if row.booking %}<br><a href="{% url 'admin:bookings_booking_change' row.booking.pk %}">Заказ в базе</a>{% endif %}</td><td>{{ row.own.amount|default:"—" }}{% if row.own.cancelled %}<br>В исходнике отмена{% endif %}</td><td>{{ row.net_display|default_if_none:"—" }}</td><td>{% if row.employee_data %}Да{% else %}—{% endif %}</td><td>
 {% for issue in row.issues %}<div class="recon-warning">{{ issue }}</div>{% endfor %}
 {% if batch.state == 'DRAFT' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="decide"><input type="hidden" name="row" value="{{ row.pk }}"><select name="decision">{% for value,label in decisions %}<option value="{{ value }}" {% if row.decision == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input name="note" value="{{ row.note }}" placeholder="Пояснение"><input name="corrected_number" placeholder="Correct reservation number"><input type="number" name="booking" placeholder="ID заказа для связи"><button>Сохранить</button></form>{% else %}{{ row.get_decision_display }} — {{ row.note }}{% endif %}</td></tr>{% empty %}<tr><td colspan="5">Нет строк. Загрузите файлы.</td></tr>{% endfor %}</tbody></table></div>
 <p>Страница {{ page.number }} / {{ page.paginator.num_pages }} {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&status={{ request.GET.status|urlencode }}&q={{ request.GET.q|urlencode }}">Назад</a>{% endif %} {% if page.has_next %}<a href="?page={{ page.next_page_number }}&status={{ request.GET.status|urlencode }}&q={{ request.GET.q|urlencode }}">Далее</a>{% endif %}</p>

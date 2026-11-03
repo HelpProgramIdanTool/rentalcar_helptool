@@ -30,6 +30,19 @@ def money(value):
     return Decimal(value).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
 
 
+def statement_summary(rows):
+    """The complete supplier report, independently of employee attribution and decisions."""
+    rows = list(rows)
+    lines = [line for row in rows for line in row.supplier_lines]
+    def total(field):
+        values = [line.get(field) for line in lines]
+        return money(sum((Decimal(value) for value in values), Decimal(0))) if all(
+            value not in (None, '') for value in values) else None
+    return {'lines': len(lines), 'gross': total('gross'), 'net': total('net'),
+            'matched_lines': sum(len(row.supplier_lines) for row in rows if row.own),
+            'unmatched_lines': sum(len(row.supplier_lines) for row in rows if not row.own)}
+
+
 def row_net(row, vat, rounded=True):
     if not row.supplier_lines:
         return None
