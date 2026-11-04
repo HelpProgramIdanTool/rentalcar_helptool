@@ -7,6 +7,7 @@
 <strong>{{ batch.get_state_display }}</strong><span>Проверить: {{ review_count }}</span>
 {% if has_employee_file %}
 <span>Работник: {{ totals.employee_orders }} заказов · Нетто {{ totals.net }} PLN · {{ batch.rate }}% = <b>{{ totals.commission }} PLN</b></span>
+{% if totals.arrears_orders %}<span>Включено доначисление за прошлые периоды: {{ totals.arrears_orders }} заказов · {{ totals.arrears_net }} PLN нетто. В оборот фирмы текущего месяца повторно не включается.</span>{% endif %}
 {% else %}<span>Список работника ещё не получен. Его заказы и выплаты пока не определены.</span>{% endif %}
 {% if versions %}<a class="button" href="{% url 'admin:reconciliation_excel' batch.pk %}">Скачать Excel</a>
 <a class="button" href="{% url 'admin:reconciliation_excel' batch.pk %}?own=1">Моя таблица с отметками прошлых месяцев</a>

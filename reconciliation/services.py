@@ -69,9 +69,30 @@ def totals(batch):
             if value is not None:
                 net += value
                 count += 1
+    arrears_net = Decimal(0)
+    arrears_count = 0
+    for row in batch.rows.filter(decision='PREVIOUS').exclude(employee_data={}).select_related('previous_row__reconciliation'):
+        previous = row.previous_row
+        if not (row.employee_data.get('commission_from_previous') and previous
+                and previous.reconciliation.supplier_id == batch.supplier_id
+                and previous.reconciliation.month < batch.month
+                and previous.number == row.number and previous.decision == 'INCLUDE'
+                and not previous.employee_data):
+            continue
+        already_allocated = Row.objects.filter(previous_row=previous,
+            reconciliation__month__lt=batch.month,
+            employee_data__commission_from_previous=True).exists()
+        if already_allocated:
+            continue
+        value = row_net(previous, previous.reconciliation.vat, rounded=False)
+        if value is not None:
+            arrears_net += value
+            arrears_count += 1
+    net += arrears_net
+    count += arrears_count
     direct = [r for r in batch.rows.filter(decision='DIRECT') if identifier(r.number) not in earlier]
     direct_net = money(sum((row_net(r, batch.vat, rounded=False) or Decimal(0) for r in direct), Decimal(0)))
-    return {'employee_orders': count, 'net': money(net), 'commission': money(money(net) * batch.rate / 100), 'direct_orders':len(direct), 'direct_net':direct_net, 'direct_commission':money(direct_net * batch.direct_rate / 100)}
+    return {'employee_orders': count, 'net': money(net), 'commission': money(money(net) * batch.rate / 100), 'direct_orders':len(direct), 'direct_net':direct_net, 'direct_commission':money(direct_net * batch.direct_rate / 100), 'arrears_orders':arrears_count,'arrears_net':money(arrears_net)}
 
 
 def is_direct(batch, lines):

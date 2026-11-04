@@ -283,6 +283,24 @@ class WorkflowTests(TestCase):
         self.assertEqual(totals(october)['commission'],0)
         with self.assertRaises(ValidationError):close(october,self.actor)
 
+    def test_explicit_employee_arrears_do_not_duplicate_supplier_turnover(self):
+        prior=self.row(decision='INCLUDE',employee_data={},supplier_lines=[{'gross':'123','net':'100'}])
+        october=Reconciliation.objects.create(month=date(2026,10,1),supplier=self.supplier,vat=23)
+        row=Row.objects.create(reconciliation=october,number=prior.number,booking=self.booking,
+            previous_row=prior,decision='PREVIOUS',employee_data={'commission_from_previous':True})
+        result=totals(october)
+        self.assertEqual(result['net'],Decimal('100'))
+        self.assertEqual(result['commission'],Decimal('4'))
+        self.assertEqual(result['arrears_orders'],1)
+        self.assertEqual(october.rows.get().supplier_lines,[])
+        november=Reconciliation.objects.create(month=date(2026,11,1),supplier=self.supplier,vat=23)
+        Row.objects.create(reconciliation=november,number=prior.number,previous_row=prior,
+            decision='PREVIOUS',employee_data={'commission_from_previous':True})
+        self.assertEqual(totals(november)['commission'],0)
+        self.assertEqual(totals(october)['commission'],Decimal('4'))
+        prior.employee_data={'number':prior.number};prior.save()
+        self.assertEqual(totals(october)['commission'],0)
+
     def test_history_does_not_cross_suppliers_or_mark_carry_as_counted(self):
         self.row(decision='CARRY')
         october=Reconciliation.objects.create(month=date(2026,10,1),supplier=self.supplier)
