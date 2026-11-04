@@ -241,22 +241,32 @@ def fingerprint(snapshot):
     return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
 
 
-def create_draft(option, data, result, snapshot, user):
+def create_draft(option, data, result, snapshot, user, *, existing=None):
     """Called only inside the locked review transaction, after signed confirmation."""
-    booking = Booking(customer=option.quote.customer, source_quote=option.quote if option.quote.pk else None,
+    values = dict(customer=option.quote.customer,
                       source_quote_snapshot=snapshot, supplier=result["supplier"],
                       vehicle_group=result["group"], currency=result["currency"],
                       pickup_datetime=data["pickup_datetime"], return_datetime=data["return_datetime"],
                       sub_agent=data.get("sub_agent"),
                       order_source="SUBAGENT" if data.get("sub_agent") else "SELF")
+    if existing is None:
+        booking = Booking(source_quote=option.quote if option.quote.pk else None, **values)
+    else:
+        booking = existing
+        values.pop("order_source")
+        for name, value in values.items():
+            setattr(booking, name, value)
+        booking.manual_vehicle_price_gross = None
+        booking.manual_price_override_reason = ""
     labels = dict(FirstInquiryForm.SERVICE_CHOICES)
     for side in ("pickup", "return"):
         setattr(booking, f"{side}_location", result["locations"][side])
         setattr(booking, f"{side}_location_text", f"{data[side + '_city']} — {labels[data[side + '_service']]}")
         setattr(booking, f"{side}_address", data[f"{side}_address"])
     actor = Employee.objects.filter(login_user=user).first()
-    booking.created_by_employee = actor
-    booking.created_by_user = user
+    if existing is None:
+        booking.created_by_employee = actor
+        booking.created_by_user = user
     booking._history_actor = actor
     booking.save()
     # The reviewed calculation is authoritative. Native save creates mandatory
@@ -301,20 +311,28 @@ def create_draft(option, data, result, snapshot, user):
     booking.refresh_from_db()
     booking.recalculate_totals()
     if "driver_1_name" in data:
+        previous_drivers = list(booking.drivers.all()) if existing else []
+        if existing:
+            booking.drivers.all().delete()
         drivers = []
         for index in range(1, data["driver_count"] + 1):
             full_name = data.get(f"driver_{index}_name", "").strip()
             if full_name:
                 parts = full_name.split(maxsplit=1)
+                previous_driver = next((driver for driver in previous_drivers
+                    if f"{driver.first_name} {driver.last_name}".strip().casefold() == full_name.casefold()), None)
                 drivers.append(BookingDriver(
                     booking=booking, first_name=parts[0],
                     last_name=parts[1] if len(parts) > 1 else "",
                     role="MAIN" if index == 1 else "ADDITIONAL", display_order=index,
                     young_driver_status=bool(data.get(f"driver_{index}_young")),
+                    phone_snapshot=previous_driver.phone_snapshot if previous_driver else "",
+                    customer=previous_driver.customer if previous_driver else None,
                 ))
         BookingDriver.objects.bulk_create(drivers)
     booking.log_history(BookingHistoryEvent.EventType.DETAILS_CHANGED,
-                        f"Created from {option.quote.quote_number}; current price confirmed",
+                        ("Updated existing booking; current price confirmed" if existing else
+                         f"Created from {option.quote.quote_number}; current price confirmed"),
                         changes={**snapshot, "operator_user_id": user.pk}, created_by=actor)
     return booking
 

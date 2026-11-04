@@ -5,3 +5,4 @@
 <link rel="stylesheet" href="{% static 'quotes/admin_compact.css' %}">
 {% endblock %}
 {% block nav-global %}<a href="{% url 'quotes:home' %}" style="color:var(--header-link-color);font-size:14px;padding:8px">← Рабочий экран</a>{% endblock %}
+{% block footer %}{{ block.super }}<p style="padding:12px"><a href="{% url 'quotes:version_history' %}">Версия {{ app_version }} · Журнал изменений</a></p>{% endblock %}

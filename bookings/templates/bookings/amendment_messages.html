@@ -1,0 +1,16 @@
+{% extends 'customers/base.html' %}
+{% block title %}Изменения {{ booking.booking_number }}{% endblock %}
+{% block content %}
+<a href="{% url 'quotes:booking_detail' booking.pk %}">← {{ booking.booking_number }}</a>
+<h1>Изменения заказа — письма поставщикам</h1>
+{% for notice in messages %}<p role="status">{{ notice }}</p>{% endfor %}
+<p>Проверьте каждое письмо и получателя перед отправкой. Синим подчёркнутым жирным текстом выделены изменённые строки UPDATE.</p>
+{% if can_revise %}<p><a href="{% url 'quotes:edit_booking' booking.pk %}">Вернуться к данным и исправить до отправки</a></p>{% endif %}
+{% if amendment.messages|length == 2 %}<p role="alert" style="padding:14px;background:#fff3cd"><strong>Смена поставщика: подготовлены два письма.</strong> Их отправки учитываются отдельно. Отправка просьбы об отмене ещё не означает подтверждения отмены старой фирмой. Проверьте её ответ и возможные расходы.</p>{% endif %}
+{% for item in amendment.messages %}<section style="border:1px solid #ccd5e0;border-radius:12px;padding:20px;margin:20px 0;overflow-wrap:anywhere">
+<h2>{{ item.kind }} — {{ item.subject }}</h2>
+<p>Состояние: {% if item.status == 'SENT' %}передано почтовому серверу{% elif item.status == 'FAILED' %}отправка не подтверждена — проверьте почту{% elif item.status == 'SENDING' %}отправка начата, результат ещё не подтверждён{% else %}черновик, не отправлено{% endif %}</p>
+<div style="padding:16px;background:white;border:1px solid #e5e7eb" dir="ltr">{{ item.html|safe }}</div>
+{% if item.status == 'DRAFT' or item.status == 'FAILED' %}<form method="post">{% csrf_token %}<input type="hidden" name="message_index" value="{{ forloop.counter0 }}"><p><label>Получатель <input name="recipient" value="{{ item.recipient }}" style="width:min(95%,650px);padding:10px" required></label></p>{% if item.status == 'FAILED' %}<p><label><input type="checkbox" name="confirm_retry" value="yes" required> Проверил почту: письмо не ушло. Подтверждаю повторную отправку только этого письма.</label></p>{% endif %}<button type="submit" style="padding:12px 20px">Выслать {{ item.kind }}</button></form>{% else %}<p>Получатель: {{ item.recipient }}</p>{% endif %}
+</section>{% endfor %}
+{% endblock %}

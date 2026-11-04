@@ -26,6 +26,15 @@ class SupplierEmailDelivery(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True)
 
 
+class BookingAmendment(models.Model):
+    booking = models.ForeignKey("Booking", on_delete=models.PROTECT, related_name="amendments")
+    before = models.JSONField()
+    after = models.JSONField()
+    messages = models.JSONField(default=list)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class BookingNumberSequence(models.Model):
     year = models.PositiveIntegerField(unique=True)
     last_number = models.PositiveIntegerField(default=0)

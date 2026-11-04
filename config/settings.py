@@ -70,6 +70,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'bookings.attention.attention_count',
+                'config.version.app_version',
             ],
         },
     },

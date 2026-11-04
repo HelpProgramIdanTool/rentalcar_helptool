@@ -4,6 +4,8 @@ from . import views
 from bookings import quote_conversion
 from bookings import workspace
 from bookings import manual
+from bookings import amendments
+from config.version import version_history
 from .inquiry_import import import_inquiry
 from .price_preview import preview_prices
 from bookings.paste_entry import paste_booking
@@ -11,6 +13,7 @@ from bookings.paste_entry import paste_booking
 app_name = "quotes"
 
 urlpatterns = [
+    path("version-history/", version_history, name="version_history"),
     path("offer-price-preview/", preview_prices, name="preview_prices"),
     path("bookings/paste/", paste_booking, name="paste_booking"),
     path("inquiry-import/", import_inquiry, name="import_inquiry"),
@@ -19,6 +22,8 @@ urlpatterns = [
     path("bookings/", workspace.booking_list, name="booking_list"),
     path("bookings/attention/", workspace.attention_queue, name="attention_queue"),
     path("bookings/new/", manual.new_booking, name="new_booking"),
+    path("bookings/<int:pk>/edit/", amendments.edit_booking, name="edit_booking"),
+    path("bookings/<int:pk>/amendments/<int:amendment_id>/", amendments.amendment_messages, name="booking_amendment"),
     path("bookings/<int:pk>/supplier-message/", workspace.supplier_message, name="supplier_message"),
     path("bookings/<int:pk>/vouchers/", workspace.upload_voucher, name="upload_voucher"),
     path("bookings/<int:pk>/vouchers/<int:voucher_id>/download/", workspace.download_voucher, name="download_voucher"),
