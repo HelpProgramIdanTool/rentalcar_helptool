@@ -1,4 +1,5 @@
 {% extends 'customers/base.html' %}
+{% load static %}
 {% block title %}{% if edit_mode %}Изменить заказ{% else %}Создать заказ{% endif %}{% endblock %}
 {% block content %}
 <style>.booking-form{max-width:1000px}.booking-fields,.driver-name-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.booking-fields label,.driver-name-fields label{display:block;font-weight:600;margin-bottom:5px}.booking-fields input:not([type=checkbox]),.booking-fields select,.booking-fields textarea,.driver-name-fields input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:8px;font:inherit}.booking-fields textarea{height:75px}.location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start}.location-zone h2{margin:0;font-size:20px}.driver-section,.child-seat-section{margin:20px 0}.driver-section h2,.child-seat-section h2{font-size:20px;margin:0 0 12px}.driver-count-box{width:130px;margin-bottom:14px}.driver-count-box input{width:80px!important}.driver-name-fields p{display:flex;align-items:center;gap:8px;margin:10px 0 0}.driver-name-fields p label{display:inline;margin:0}.child-seat-list{display:grid;gap:12px}.child-seat-row{padding:14px;border:1px solid #d5dfec;border-radius:10px;background:#f8fafc}.child-seat-row h3{margin:0 0 10px}.child-seat-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.child-seat-fields label{display:block;font-weight:600}.child-seat-fields input{box-sizing:border-box;width:100%;padding:8px;font:inherit}@media(max-width:700px){.child-seat-fields{grid-template-columns:1fr}}.errorlist{color:#b42318}.review{margin:22px 0;padding:20px;background:#eef5ff;border:1px solid #b5c9ed;border-radius:8px}.price-change{background:#fff4df;border-color:#e6a540}.booking-form button{padding:12px 18px;background:#155eef;color:white;border:0;border-radius:8px;font:inherit}</style>
@@ -145,6 +146,7 @@ document.getElementById('cancel-deposit').onclick=()=>depositDialog.close();
 </script>
 {% if manual_entry %}
 {{ group_suppliers|json_script:'group-suppliers' }}
+<script src="{% static 'quotes/booking_paste.js' %}?v=20261105-6"></script>
 <script>
 const groupSuppliers=JSON.parse(document.getElementById('group-suppliers').textContent);
 const supplierSelect=document.getElementById('id_supplier'),groupSelect=document.getElementById('id_vehicle_group');
@@ -155,9 +157,13 @@ document.getElementById('parse-booking').addEventListener('click',async function
   const response=await fetch('{% url "quotes:paste_booking" %}',{method:'POST',body});const data=await response.json();
   if(!response.ok)throw new Error(data.error||'Не удалось разобрать текст.');
   Object.entries(data.fields).forEach(([name,value])=>bookingForm.querySelectorAll('[name="'+name+'"]').forEach(el=>{if(el.type==='checkbox')el.checked=Array.isArray(value)?value.includes(el.value):Boolean(value);else el.value=value;}));
+  bookingForm.querySelector('.review')?.remove();
+  const matchedGroup=BookingPaste.matchCategory(data.fields.vehicle_note,groupSelect.options,supplierSelect.value,groupSuppliers);
+  if(matchedGroup)groupSelect.value=matchedGroup;
+  syncChildSeatFields();
   bookingForm.querySelectorAll('input[name^="deposit-"]').forEach(el=>el.value='');
   const pasted=(data.fields.driver_names||'').split(/\r?\n/).filter(Boolean);if(pasted.length){document.getElementById('id_driver_count').value=pasted.length;syncDriverFields();pasted.forEach((value,index)=>{const field=document.getElementById(`id_driver_${index+1}_name`);if(field)field.value=value;});}
-  status.textContent='Заполнено. Выберите фирму и группу автомобиля. Проверьте места, дополнительные услуги и цену: сумма из текста сохранена в заметке, расчёт выполняется по тарифам.';
+  status.textContent=(matchedGroup?'Заполнено. Группа подобрана у выбранной фирмы.':'Заполнено. Выберите фирму и группу автомобиля.')+' Проверьте места, дополнительные услуги и цену: сумма из текста сохранена в заметке, расчёт выполняется по тарифам.'+(data.fields.pasted_total_gross?' Цена в письме: '+data.fields.pasted_total_gross+'.':'')+(data.fields.pasted_deposit?' Депозит в письме: '+data.fields.pasted_deposit+'.':'');
  }catch(error){status.textContent=error.message;}finally{this.disabled=false;}
 });
 function filterGroups(){for(const option of groupSelect.options){if(option.value){option.hidden=groupSuppliers[option.value]!==supplierSelect.value;option.disabled=option.hidden;}}if(groupSelect.selectedOptions[0]?.disabled)groupSelect.value='';}
