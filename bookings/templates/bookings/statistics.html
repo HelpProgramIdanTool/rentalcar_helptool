@@ -1,0 +1,40 @@
+{% extends 'customers/base.html' %}
+{% block title %}Статистика и подсчёты{% endblock %}
+{% block content %}
+<h1>Статистика и подсчёты</h1>
+<form method="get"><label>Год <input name="year" type="number" min="2000" max="9998" value="{{ year }}" required></label> <button>Показать</button></form>
+<p>Обновлено: {{ updated|date:"d.m.Y H:i:s" }}. Страница обновляется каждую минуту. <button type="button" onclick="location.reload()">Обновить сейчас</button></p>
+<h2>Оборот по заказам до 31.12.{{ year }}</h2>
+<p>Предварительные суммы с НДС, включая восстановленные и предполагаемые даты возврата. Месяц определяется датой возврата. Включены отправленные и подтверждённые заказы, в том числе будущие аренды. Черновики ({{ drafts }}), отменённые, неявки и архив исключены. Это оборот аренды, а не доход агентства и не полученная оплата.</p>
+{% for total in totals %}<div class="customer-info" style="background:#eef5ff;border-radius:12px">
+<p>За год, включая будущие заказы<br><strong>{{ total.gross|floatformat:2 }} {{ total.currency }}</strong></p>
+<p>Возврат до сегодняшней даты<br><strong>{{ total.elapsed|floatformat:2 }} {{ total.currency }}</strong></p>
+<p>Будущие возвраты до конца года<br><strong>{{ total.future|floatformat:2 }} {{ total.currency }}</strong></p>
+<p>Заказов: <strong>{{ total.count }}</strong><br>Средний чек: {{ total.average|floatformat:2 }} {{ total.currency }}<br>С нулевой ценой: {{ total.zero }}</p>
+</div>{% empty %}<p>За выбранный год подходящих заказов нет.</p>{% endfor %}
+{% if missing_dates %}
+<p class="customer-warning">В карточках {{ missing_dates }} заказов отсутствует дата возврата (все годы). В итог выбранного года дополнительно включено {{ recovered|length }} по исходным записям или оценке. Оценка может изменить месяц или год; даты карточек не изменены.</p>
+{% for total in documented %}<p>Только заказы с датой возврата в карточке: {{ total.gross|floatformat:2 }} {{ total.currency }} ({{ total.count }}).</p>{% endfor %}
+<details><summary>Дополнительно включённые заказы — {{ recovered|length }}</summary>
+<div style="overflow-x:auto"><table class="offer-table"><thead><tr><th>Заказ</th><th>Сумма с НДС</th><th>Дата возврата для статистики</th><th>Основание</th></tr></thead><tbody>
+{% for item in recovered %}<tr><td><a href="{% url 'quotes:booking_detail' item.booking.pk %}">{{ item.booking.booking_number }}</a></td><td>{{ item.booking.total_price_gross|floatformat:2 }} {{ item.booking.currency }}</td><td>{{ item.return_date|date:"d.m.Y" }}{% if item.estimated %} ≈{% endif %}</td><td>{{ item.basis }}</td></tr>{% endfor %}
+</tbody></table></div></details>
+{% if unresolved %}<details><summary>Год пока не определён — {{ unresolved|length }} заказов (все годы)</summary>
+{% for total in unresolved_amounts %}<p>Сумма вне годового итога: {{ total.gross|floatformat:2 }} {{ total.currency }}.</p>{% endfor %}
+{% for item in unresolved %}<p><a href="{% url 'quotes:booking_detail' item.booking.pk %}">{{ item.booking.booking_number }}</a> · {{ item.booking.total_price_gross|floatformat:2 }} {{ item.booking.currency }} · {{ item.basis }}</p>{% endfor %}
+</details>{% endif %}{% endif %}
+<h2>За год по поставщикам</h2>
+<div style="overflow-x:auto"><table class="offer-table"><thead><tr><th>Фирма</th><th>Заказов</th><th>С НДС</th><th>Возврат до сегодня</th><th>Будущие возвраты</th><th>Валюта</th></tr></thead><tbody>
+{% for row in suppliers %}<tr><td>{{ row.supplier }}</td><td>{{ row.count }}</td><td>{{ row.gross|floatformat:2 }}</td><td>{{ row.elapsed|floatformat:2 }}</td><td>{{ row.future|floatformat:2 }}</td><td>{{ row.currency }}</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>Месячный оборот по фирмам</h2>
+<div style="overflow-x:auto"><table class="offer-table"><thead><tr><th>Месяц</th><th>Фирма</th><th>Заказов</th><th>С НДС</th><th>Средний чек</th><th>Валюта</th></tr></thead><tbody>
+{% for row in months %}<tr><td>{{ row.month|stringformat:"02d" }}.{{ year }}</td><td>{{ row.supplier }}</td><td>{{ row.count }}</td><td>{{ row.gross|floatformat:2 }}</td><td>{{ row.average|floatformat:2 }}</td><td>{{ row.currency }}</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>Отчёты поставщиков — отдельно от заказов</h2>
+<p>PLN. Суммы из загруженных отчётов, включая ещё проверяемые строки. Поправки из писем и переписки попадут сюда после сохранения в сверке. Нетто берётся из отчёта; если его нет — используется НДС, указанный в сверке. Неполная сумма показана прочерком. Эти суммы не прибавляются к обороту заказов. Месяц здесь — месяц сверки, в нём могут быть заказы прошлых периодов.</p>
+<div style="overflow-x:auto"><table class="offer-table"><thead><tr><th>Сверка</th><th>Фирма</th><th>Строк</th><th>С НДС</th><th>Нетто</th><th>Состояние</th></tr></thead><tbody>
+{% for row in reports %}<tr><td><a href="{% url 'admin:reconciliation_reconciliation_change' row.batch.pk %}">{{ row.batch.month|date:"m.Y" }}</a></td><td>{{ row.batch.supplier }}</td><td>{{ row.lines }}</td><td>{{ row.gross|floatformat:2|default_if_none:"—" }}</td><td>{{ row.net|floatformat:2|default_if_none:"—" }}{% if row.missing_net %} — нет данных{% endif %}</td><td>{{ row.batch.get_state_display }}</td></tr>{% empty %}<tr><td colspan="6">Нет загруженных отчётов за этот год.</td></tr>{% endfor %}
+</tbody></table></div>
+<script>setTimeout(()=>{if(!document.querySelector('input:focus'))location.reload();},60000);</script>
+{% endblock %}

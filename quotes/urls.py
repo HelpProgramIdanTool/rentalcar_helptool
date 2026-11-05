@@ -6,6 +6,7 @@ from bookings import workspace
 from bookings import manual
 from bookings import amendments
 from config.version import version_history
+from bookings.statistics import statistics
 from .inquiry_import import import_inquiry
 from .price_preview import preview_prices
 from bookings.paste_entry import paste_booking
@@ -13,6 +14,7 @@ from bookings.paste_entry import paste_booking
 app_name = "quotes"
 
 urlpatterns = [
+    path("statistics/", statistics, name="statistics"),
     path("version-history/", version_history, name="version_history"),
     path("offer-price-preview/", preview_prices, name="preview_prices"),
     path("bookings/paste/", paste_booking, name="paste_booking"),

@@ -2,11 +2,12 @@ from pathlib import Path
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
-APP_VERSION = '2026.11.04.2'
+APP_VERSION = '2026.11.05.3'
 
 
 def app_version(request):
-    return {'app_version': APP_VERSION}
+    from bookings.statistics import can_view_statistics
+    return {'app_version': APP_VERSION, 'can_view_statistics': can_view_statistics(request.user)}
 
 
 @login_required
