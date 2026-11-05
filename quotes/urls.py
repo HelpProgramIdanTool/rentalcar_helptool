@@ -7,6 +7,7 @@ from bookings import manual
 from bookings import amendments
 from config.version import version_history
 from bookings.statistics import statistics
+from bookings.geography import geography
 from bookings import order_file_views
 from .inquiry_import import import_inquiry
 from .price_preview import preview_prices
@@ -15,6 +16,7 @@ from bookings.paste_entry import paste_booking
 app_name = "quotes"
 
 urlpatterns = [
+    path("statistics/geography/", geography, name="geography"),
     path("order-file/", order_file_views.order_file, name="order_file"),
     path("order-file/<uuid:pk>/download/", order_file_views.download, name="order_file_download"),
     path("statistics/", statistics, name="statistics"),

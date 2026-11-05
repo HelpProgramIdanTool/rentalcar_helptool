@@ -141,6 +141,21 @@ class OfferCity(models.Model):
         return self.label
 
 
+class AnalyticsCity(models.Model):
+    name = models.CharField('Город', max_length=120, unique=True)
+    label = models.CharField('Название в статистике', max_length=120)
+    country = models.CharField('Страна', max_length=100)
+    aliases = models.JSONField('Другие написания', default=list, blank=True)
+
+    class Meta:
+        ordering = ['label']
+        verbose_name = 'Город для статистики'
+        verbose_name_plural = 'Города для статистики'
+
+    def __str__(self):
+        return self.label
+
+
 class CityServiceRule(models.Model):
     supports_pickup = models.BooleanField(default=True)
     supports_return = models.BooleanField(default=True)

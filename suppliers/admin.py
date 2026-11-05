@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (
-    OfferCity, CityServiceRule,
+    OfferCity, CityServiceRule, AnalyticsCity,
     Supplier,
     SupplierExtra,
     SupplierExtraRate,
@@ -20,6 +20,12 @@ from .models import (
 @admin.register(OfferCity)
 class OfferCityAdmin(admin.ModelAdmin):
     list_display = ("label", "name", "country", "cross_border_required", "is_active")
+
+
+@admin.register(AnalyticsCity)
+class AnalyticsCityAdmin(admin.ModelAdmin):
+    list_display = ('label', 'name', 'country')
+    search_fields = ('name', 'label', 'country')
 
 
 @admin.register(CityServiceRule)

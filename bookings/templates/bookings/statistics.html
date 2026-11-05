@@ -2,6 +2,7 @@
 {% block title %}Статистика и подсчёты{% endblock %}
 {% block content %}
 <h1>Статистика и подсчёты</h1>
+<p><a href="{% url 'quotes:geography' %}?year={{ year }}">География заказов и календарь будущих выдач →</a></p>
 <form method="get"><label>Год <input name="year" type="number" min="2000" max="9998" value="{{ year }}" required></label> <button>Показать</button></form>
 <p>Обновлено: {{ updated|date:"d.m.Y H:i:s" }}. Страница обновляется каждую минуту. <button type="button" onclick="location.reload()">Обновить сейчас</button></p>
 <h2>Оборот по заказам до 31.12.{{ year }}</h2>

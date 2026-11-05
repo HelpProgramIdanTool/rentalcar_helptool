@@ -2,7 +2,7 @@ from pathlib import Path
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
-APP_VERSION = '2026.11.05.4'
+APP_VERSION = '2026.11.05.5'
 
 
 def app_version(request):
