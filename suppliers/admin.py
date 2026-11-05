@@ -32,6 +32,7 @@ class SupplierAdmin(admin.ModelAdmin):
     list_display = (
         "supplier_name",
         "supplier_code",
+        "working_file_code",
         "show_in_introduction",
         "status",
         "default_currency",

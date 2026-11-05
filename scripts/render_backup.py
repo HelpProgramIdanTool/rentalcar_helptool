@@ -110,6 +110,9 @@ def run_backup():
                 run_command(['pg_dump', '--format=custom', '--no-owner', '--no-acl', '--file', str(database)],
                             log, database_environment(settings.DATABASES['default']))
                 run_command(['pg_restore', '--list', str(database)], log)
+                # Human-readable order snapshot is additional to the complete DB dump.
+                from bookings.order_file import create_snapshot
+                create_snapshot(folder / 'All_orders.xlsx')
                 # Database first, then immutable voucher files referenced by that snapshot.
                 # A consistent final migration still requires pausing application writes.
                 with tarfile.open(folder / 'private_uploads.tar.gz', 'w:gz') as archive:

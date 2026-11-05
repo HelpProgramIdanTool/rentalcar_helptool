@@ -1012,3 +1012,20 @@ class BookingVoucher(models.Model):
 
     class Meta:
         ordering = ["-received_at", "-id"]
+
+
+class OrderFileSync(models.Model):
+    """Private, reviewable exchange; original uploads and results are immutable."""
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    source = models.FileField(upload_to='order-sync/originals/', blank=True)
+    result = models.FileField(upload_to='order-sync/results/', blank=True)
+    plan = models.JSONField(default=dict)
+    baseline = models.JSONField(default=dict)
+    database_digest = models.CharField(max_length=64)
+    applied = models.BooleanField(default=False)
+    database_backup = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']

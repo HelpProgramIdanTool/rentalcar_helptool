@@ -18,6 +18,8 @@ class Supplier(models.Model):
         PERCENT_TOTAL = "PERCENT_TOTAL", "Процент к общей сумме"
 
     supplier_code = models.CharField(max_length=30, unique=True)
+    working_file_code = models.CharField('Код фирмы в общей таблице', max_length=12,
+        unique=True, null=True, blank=True)
     supplier_name = models.CharField(max_length=120)
     show_in_introduction = models.BooleanField("Показывать в представлении агентства", default=False)
     legal_name = models.CharField(max_length=200, blank=True)

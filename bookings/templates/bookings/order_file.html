@@ -1,0 +1,23 @@
+{% extends 'customers/base.html' %}
+{% block title %}Синхронизация Excel{% endblock %}
+{% block content %}
+<h1>Синхронизация Excel и резервные копии</h1>
+<p>По команде владельца. Письма не отправляются, отсутствующие строки не удаляются. Перед применением сохраняется полная копия базы. Все загрузки и результаты хранятся приватно.</p>
+{% if error %}<p role="alert" class="customer-warning">{{ error }}</p>{% endif %}
+<h2>Получить актуальную копию</h2>
+<p>Если вы редактировали Excel, сначала загрузите его ниже. Скачивание не читает несохранённые изменения на вашем компьютере. На сервере браузер скачивает файл — замените им рабочую копию после закрытия Excel.</p>
+<form method="post">{% csrf_token %}<button name="action" value="export">Скачать актуальный Excel и сохранить копию</button></form>
+<h2>Сверить изменения из Excel</h2>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button name="action" value="preview">Загрузить и проверить</button></form>
+<p>Статус «Учтён» означает завершённую реализованную аренду, не получение денег. Изменяйте статус в столбце, а не только цвет. Фирму, класс и состав услуг изменяйте через карточку заказа, если они расходятся. Имена в Excel не заменяют список отдельных водителей в карточке.</p>
+{% if current and not current.applied %}
+<h2>Результат проверки</h2>
+<p>Новых: {{ counts.create|default:0 }} · Изменённых: {{ counts.update|default:0 }} · Без изменений: {{ counts.same|default:0 }} · Требуют решения: {{ counts.conflict|default:0 }}.</p>
+<p>Строки с расхождениями останутся в Excel с пояснением, в базу их изменения не попадут. Решите их в карточке или файле и повторите проверку. Даже если в файле уже есть номер карточки, при расхождении фирмы смена поставщика не выполняется.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="run" value="{{ current.pk }}"><label><input type="checkbox" name="confirm" value="yes" required>Проверил список. Применить строки без конфликтов и сохранить обновлённый Excel.</label><button name="action" value="apply">Применить синхронизацию</button></form>
+<div style="overflow-x:auto"><table class="offer-table"><thead><tr><th>Строка</th><th>Заказ</th><th>Действие</th><th>Excel</th><th>Программа</th><th>Проверить</th></tr></thead><tbody>
+{% for row in rows %}{% if row.action != 'same' %}<tr><td>{{ row.source }}</td><td>{% if row.database %}<a href="{% url 'quotes:booking_detail' row.booking %}">{{ row.values.firm }} {{ row.values.number }}</a>{% else %}{{ row.values.firm }} {{ row.values.number }}{% endif %}</td><td>{{ row.action }}</td><td>{{ row.values.name }}<br>{{ row.values.pickup }} → {{ row.values.return }}<br>{{ row.values.gross }} {{ row.currency }} · {{ row.values.status }}<br>{{ row.values.email }} · {{ row.values.phone }}</td><td>{{ row.database.name }}<br>{{ row.database.pickup }} → {{ row.database.return }}<br>{{ row.database.gross }} · {{ row.database.status }}<br>{{ row.database.email }} · {{ row.database.phone }}</td><td>{{ row.errors|join:'; ' }}</td></tr>{% endif %}{% endfor %}
+</tbody></table></div>{% endif %}
+<h2>Предыдущие копии</h2>
+<ul>{% for run in runs %}<li>{{ run.created_at|date:'d.m.Y H:i' }} · {{ run.created_by }} · {% if run.applied %}<a href="{% url 'quotes:order_file_download' run.pk %}">Скачать сохранённый Excel</a>{% else %}Предварительная проверка{% endif %}</li>{% empty %}<li>Копий пока нет.</li>{% endfor %}</ul>
+{% endblock %}
