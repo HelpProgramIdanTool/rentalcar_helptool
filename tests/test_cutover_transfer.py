@@ -9,6 +9,77 @@ from scripts.cutover_transfer import safe_name, unpack_bundle, local_rehearsal, 
 
 
 class CutoverPackageTests(SimpleTestCase):
+    def test_restore_reports_progress_until_worker_finishes(self):
+        from unittest.mock import patch, MagicMock
+        import subprocess
+        from scripts.cutover_transfer import isolated_restore
+        worker = MagicMock()
+        worker.wait.side_effect = [subprocess.TimeoutExpired('test', 60), 0]
+        with tempfile.TemporaryDirectory() as work, patch('scripts.cutover_transfer.subprocess.Popen', return_value=worker), patch('builtins.print') as output:
+            isolated_restore({}, work)
+            self.assertTrue(any('1 minute(s)' in str(call) for call in output.call_args_list))
+            worker.terminate.assert_not_called()
+
+    def test_interruption_stops_restore_worker(self):
+        from unittest.mock import patch, MagicMock
+        from scripts.cutover_transfer import isolated_restore
+        worker = MagicMock()
+        worker.wait.side_effect = [KeyboardInterrupt(), 0]
+        with tempfile.TemporaryDirectory() as work, patch('scripts.cutover_transfer.subprocess.Popen', return_value=worker), patch('builtins.print'):
+            with self.assertRaises(KeyboardInterrupt):
+                isolated_restore({}, work)
+            worker.terminate.assert_called_once()
+
+    def test_activation_refuses_local_application(self):
+        from scripts.cutover_transfer import activate_primary
+        with self.assertRaisesMessage(ValueError, 'only in Render'):
+            activate_primary('cutover_trial_' + 'a' * 32, '0' * 64)
+
+    def test_conflicting_media_is_never_replaced(self):
+        from scripts.cutover_transfer import install_verified_media
+        with tempfile.TemporaryDirectory() as work:
+            package = self.make_package(work)
+            staged = Path(work) / 'staged'
+            manifest = unpack_bundle(package, staged)
+            media = Path(work) / 'live'; media.mkdir()
+            (media / 'test.pdf').write_bytes(b'KEEP-ORIGINAL')
+            with self.assertRaisesMessage(ValueError, 'conflicts'):
+                install_verified_media(staged, media, manifest)
+            self.assertEqual((media / 'test.pdf').read_bytes(), b'KEEP-ORIGINAL')
+
+    def test_media_install_preserves_exact_content_and_is_repeatable(self):
+        from scripts.cutover_transfer import install_verified_media
+        with tempfile.TemporaryDirectory() as work:
+            package = self.make_package(work)
+            staged = Path(work) / 'staged'
+            manifest = unpack_bundle(package, staged)
+            media = Path(work) / 'live'
+            install_verified_media(staged, media, manifest)
+            install_verified_media(staged, media, manifest)
+            self.assertEqual((media / 'test.pdf').read_bytes(), b'TEST-ATTACHMENT')
+
+    def test_primary_with_existing_orders_is_never_replaced(self):
+        from unittest.mock import MagicMock
+        from scripts.cutover_transfer import require_empty_primary
+        connection = MagicMock()
+        connection.cursor.return_value.__enter__.return_value.fetchone.return_value = (1,)
+        with self.assertRaisesMessage(ValueError, 'already contains bookings'):
+            require_empty_primary(connection)
+
+    def test_empty_primary_passes_read_only_guard(self):
+        from unittest.mock import MagicMock
+        from scripts.cutover_transfer import require_empty_primary
+        connection = MagicMock()
+        cursor = connection.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = (0,)
+        require_empty_primary(connection)
+        cursor.execute.assert_called_once_with('SELECT count(*) FROM public.bookings_booking')
+
+    def test_primary_staging_refuses_local_application(self):
+        from scripts.cutover_transfer import stage_primary
+        with self.assertRaisesMessage(ValueError, 'only in Render'):
+            stage_primary('unused.zip', '0' * 64)
+
     def test_timestamp_microseconds_survive_serialization(self):
         from datetime import datetime, timezone
         from customers.models import Customer

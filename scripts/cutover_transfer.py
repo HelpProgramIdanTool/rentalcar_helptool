@@ -248,16 +248,35 @@ def load_into_new_database(alias, folder, manifest):
     return inventory
 
 
-def isolated_restore(configuration, folder):
+def isolated_restore(configuration, folder, verify_only=False):
     import os
     environment = os.environ.copy()
     environment['CUTOVER_ISOLATED_DATABASE'] = json.dumps(configuration)
     environment['CUTOVER_ISOLATED_DIRECTORY'] = str(Path(folder).resolve())
     environment['DJANGO_SETTINGS_MODULE'] = 'config.cutover_settings'
-    process = subprocess.run([sys.executable, str(Path(__file__).resolve()), '_restore-worker', str(Path(folder).resolve())],
-                             env=environment, capture_output=True, timeout=1800)
-    (Path(folder) / 'restore-worker.log').write_bytes(process.stdout + process.stderr)
-    if process.returncode:
+    print('Restoring isolated copy and verifying every record; this may take several minutes...', flush=True)
+    with (Path(folder) / 'restore-worker.log').open('wb') as log:
+        operation = '_verify-worker' if verify_only else '_restore-worker'
+        process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), operation, str(Path(folder).resolve())],
+                                   env=environment, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            for minute in range(30):
+                try:
+                    result = process.wait(timeout=60)
+                    break
+                except subprocess.TimeoutExpired:
+                    print(f'Restore still running: {minute + 1} minute(s).', flush=True)
+            else:
+                raise TimeoutError('Restore exceeded 30 minutes')
+        except BaseException:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            raise
+    if result:
         raise RuntimeError('Isolated restore failed; see the private restore-worker.log')
 
 
@@ -300,12 +319,119 @@ def postgres_rehearsal(package):
     return report
 
 
+def require_empty_primary(connection):
+    """This first cutover must never replace orders already entered online."""
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT count(*) FROM public.bookings_booking')
+        if cursor.fetchone()[0]:
+            raise ValueError('Server already contains bookings; cutover stopped')
+
+
+def stage_primary(package, expected_sha256):
+    """Prepare a verified new schema on Render; do not switch the live app."""
+    import os
+    from psycopg import sql
+    from django.conf import settings
+    from scripts.test_render_restore import connect
+    from scripts.render_backup import database_environment
+    if os.environ.get('DJANGO_SETTINGS_MODULE') != 'config.render_settings' or not os.path.ismount('/var/data'):
+        raise ValueError('Run staging only in Render Shell with its persistent disk')
+    if not re.fullmatch('[a-f0-9]{64}', expected_sha256) or digest_file(package) != expected_sha256:
+        raise ValueError('Final package checksum does not match')
+    target = deepcopy(settings.DATABASES['default'])
+    if target['ENGINE'] != 'django.db.backends.postgresql':
+        raise ValueError('Render PostgreSQL required')
+    schema = 'cutover_trial_' + uuid.uuid4().hex
+    private = Path('/var/data/backup-private') / schema
+    private.mkdir(parents=True, exist_ok=False, mode=0o700)
+    manifest = unpack_bundle(package, private)
+    with connect(target) as control:
+        require_empty_primary(control)
+    print('Saving current server database before staging...', flush=True)
+    backup = private / 'server-before-staging.dump'
+    with (private / 'pg-dump.log').open('wb') as log:
+        subprocess.run(['pg_dump', '--format=custom', '--no-owner', '--no-acl', '--file', str(backup)],
+                       env=database_environment(target), stdout=log, stderr=log, check=True, timeout=600)
+    backup.chmod(0o600)
+    with connect(target) as control:
+        require_empty_primary(control)
+        control.execute(sql.SQL('CREATE SCHEMA {}').format(sql.Identifier(schema)))
+    target.setdefault('OPTIONS', {})['options'] = '-c search_path=' + schema
+    isolated_restore(target, private)
+    report = {'result': 'staged-not-live', 'schema': schema, 'package_sha256': expected_sha256,
+              'server_backup_sha256': digest_file(backup), 'models': len(manifest['models']),
+              'records': sum(v['count'] for v in manifest['models'].values()), 'attachments': len(manifest['files'])}
+    (private / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf8')
+    return report
+
+
+def install_verified_media(folder, media_root, manifest):
+    """Copy only declared attachments; conflicting existing files are preserved."""
+    root = Path(media_root).resolve()
+    for name, evidence in manifest['files'].items():
+        safe_name(name)
+        source = Path(folder) / 'media' / name
+        destination = (root / name).resolve()
+        if not destination.is_relative_to(root):
+            raise ValueError('Attachment escapes media directory')
+        if source.stat().st_size != evidence['bytes'] or digest_file(source) != evidence['sha256']:
+            raise ValueError('Staged attachment checksum mismatch')
+        if destination.exists() and digest_file(destination) != evidence['sha256']:
+            raise ValueError('Existing attachment conflicts; nothing will be overwritten')
+    for name in manifest['files']:
+        destination = root / name
+        if destination.exists():
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with (Path(folder) / 'media' / name).open('rb') as source, destination.open('xb') as output:
+            shutil.copyfileobj(source, output)
+        destination.chmod(0o600)
+        if digest_file(destination) != manifest['files'][name]['sha256']:
+            raise ValueError('Installed attachment verification failed')
+
+
+def activate_primary(schema, expected_sha256):
+    """Switch only a verified first-cutover schema; retain the old public schema."""
+    import os
+    from psycopg import sql
+    from django.conf import settings
+    from scripts.test_render_restore import connect
+    if os.environ.get('DJANGO_SETTINGS_MODULE') != 'config.render_settings' or not os.path.ismount('/var/data'):
+        raise ValueError('Activate only in Render Shell with its persistent disk')
+    if not re.fullmatch(r'cutover_trial_[a-f0-9]{32}', schema):
+        raise ValueError('Invalid staged schema')
+    private = Path('/var/data/backup-private') / schema
+    report = json.loads((private / 'report.json').read_text(encoding='utf8'))
+    if report.get('result') != 'staged-not-live' or report.get('schema') != schema or report.get('package_sha256') != expected_sha256:
+        raise ValueError('A matching verified primary staging report is required')
+    if digest_file(private / 'server-before-staging.dump') != report['server_backup_sha256']:
+        raise ValueError('Original server backup checksum mismatch')
+    manifest = json.loads((private / 'manifest.json').read_text(encoding='utf8'))
+    if digest_file(private / 'records.jsonl') != manifest['records_sha256']:
+        raise ValueError('Staged fixture checksum mismatch')
+    target = deepcopy(settings.DATABASES['default'])
+    target.setdefault('OPTIONS', {})['options'] = '-c search_path=' + schema
+    isolated_restore(target, private, verify_only=True)
+    install_verified_media(private, settings.MEDIA_ROOT, manifest)
+    previous = 'cutover_previous_' + uuid.uuid4().hex
+    # Both renames commit together. Existing database objects are retained by OID.
+    with connect(settings.DATABASES['default']) as control:
+        control.execute("SET LOCAL lock_timeout = '15s'")
+        control.execute('LOCK TABLE public.bookings_booking IN ACCESS EXCLUSIVE MODE')
+        require_empty_primary(control)
+        control.execute(sql.SQL('ALTER SCHEMA public RENAME TO {}').format(sql.Identifier(previous)))
+        control.execute(sql.SQL('ALTER SCHEMA {} RENAME TO public').format(sql.Identifier(schema)))
+    report.update(result='activated-restart-required', previous_schema=previous)
+    (private / 'activation.json').write_text(json.dumps(report, indent=2), encoding='utf8')
+    return report
+
+
 def main():
     import os
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
     import django
     django.setup()
-    if len(sys.argv) == 3 and sys.argv[1] == '_restore-worker':
+    if len(sys.argv) == 3 and sys.argv[1] in ('_restore-worker', '_verify-worker'):
         from django.conf import settings
         if not getattr(settings, 'CUTOVER_ISOLATED_WORKER', False):
             raise ValueError('Isolated settings required')
@@ -313,7 +439,10 @@ def main():
         manifest = json.loads((folder / 'manifest.json').read_text(encoding='utf8'))
         if digest_file(folder / 'records.jsonl') != manifest['records_sha256']:
             raise ValueError('Fixture changed before restore')
-        load_into_new_database('default', folder, manifest)
+        if sys.argv[1] == '_restore-worker':
+            load_into_new_database('default', folder, manifest)
+        elif model_inventory('default') != manifest['models']:
+            raise ValueError('Staged database verification failed before activation')
         print('ISOLATED RESTORE VERIFIED')
         return
     parser = argparse.ArgumentParser(description=__doc__)
@@ -321,10 +450,14 @@ def main():
     export = sub.add_parser('export'); export.add_argument('destination')
     local = sub.add_parser('local-test'); local.add_argument('package'); local.add_argument('destination')
     trial = sub.add_parser('postgres-test'); trial.add_argument('package')
+    stage = sub.add_parser('stage-primary'); stage.add_argument('package'); stage.add_argument('--sha256', required=True)
+    activate = sub.add_parser('activate-primary'); activate.add_argument('schema'); activate.add_argument('--sha256', required=True)
     args = parser.parse_args()
     if args.operation == 'export': result = export_bundle(args.destination)
     elif args.operation == 'local-test': result = local_rehearsal(args.package, args.destination)
-    else: result = postgres_rehearsal(args.package)
+    elif args.operation == 'postgres-test': result = postgres_rehearsal(args.package)
+    elif args.operation == 'stage-primary': result = stage_primary(args.package, args.sha256)
+    else: result = activate_primary(args.schema, args.sha256)
     print(json.dumps(result, ensure_ascii=True))
 
 
