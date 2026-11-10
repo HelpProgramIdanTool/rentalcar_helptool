@@ -1,0 +1,17 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<h1>Пробный перенос данных — загрузка пакета</h1>
+<p>Только владелец может загрузить пакет. Загрузка не меняет базу и не отправляет письма.</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if result %}
+<p>Пакет сохранён. Сравните SHA-256 с результатом локального экспорта.</p>
+<pre style="white-space:pre-wrap">{{ result.sha256 }}</pre>
+<p>Для пробного переноса выполните в Render Shell:</p>
+<pre style="white-space:pre-wrap">uv run python scripts/cutover_transfer.py postgres-test '{{ result.path }}'</pre>
+{% else %}
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+<input type="file" name="package" accept=".zip" required>
+<button type="submit">Загрузить пакет для проверки</button>
+</form>
+{% endif %}
+{% endblock %}

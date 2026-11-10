@@ -16,9 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from .cutover_upload import upload_package
 
 urlpatterns = [
     path('customers/', include('customers.urls')),
     path('', include('quotes.urls')),
+    path('admin/cutover-upload/', upload_package, name='cutover_upload'),
     path('admin/', admin.site.urls),
 ]
