@@ -15,6 +15,29 @@ from .models import Booking, BookingHistoryEvent, BookingVoucher
 
 @override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}})
 class BookingWorkspaceTests(TestCase):
+    def test_manual_booking_detail_locks_only_booking_not_optional_relations(self):
+        from unittest.mock import patch
+        from django.shortcuts import get_object_or_404
+        from django.db.backends.postgresql.base import DatabaseWrapper
+        captured = []
+
+        def inspect_query(queryset, **kwargs):
+            if getattr(queryset, 'model', None) is Booking:
+                captured.append(queryset)
+            return get_object_or_404(queryset, **kwargs)
+
+        self.assertIsNone(self.booking.vehicle_group_id)
+        self.assertIsNone(self.booking.source_quote_id)
+        with patch('bookings.workspace.get_object_or_404', side_effect=inspect_query):
+            self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.assertEqual(len(captured), 1)
+        # Compile with the real PostgreSQL backend, without connecting to a server.
+        connection = DatabaseWrapper({'ENGINE': 'django.db.backends.postgresql'}, alias='compile_only')
+        with patch.object(connection, 'get_autocommit', return_value=False):
+            sql, _ = captured[0].query.get_compiler(connection=connection).as_sql()
+        self.assertIn('LEFT OUTER JOIN', sql)
+        self.assertTrue(sql.endswith('FOR UPDATE OF "bookings_booking"'), sql)
+
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="operator")
         self.client.force_login(self.user)

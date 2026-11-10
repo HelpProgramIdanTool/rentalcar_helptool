@@ -218,7 +218,8 @@ def booking_list(request):
 def booking_detail(request, pk):
     if Booking.all_objects.filter(pk=pk, is_archived=True).exists():
         return redirect("quotes:archive_booking", pk=pk)
-    booking = get_object_or_404(Booking.objects.select_for_update().select_related("supplier", "vehicle_group", "source_quote"), pk=pk)
+    # PostgreSQL cannot lock the nullable side of the vehicle/quote outer joins.
+    booking = get_object_or_404(Booking.objects.select_for_update(of=("self",)).select_related("supplier", "vehicle_group", "source_quote"), pk=pk)
     form = ReservationForm(request.POST or None, booking=booking, initial={
         "supplier_booking_number": booking.supplier_booking_number, "status": booking.status,
         "flight_number": booking.flight_number,
