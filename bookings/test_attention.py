@@ -59,7 +59,7 @@ class AttentionQueueTests(TestCase):
         self.assertEqual(attention_bookings(self.user).count(), 0)
         self.assertTrue(booking.history_events.filter(changes__operator_user_id=self.user.pk).exists())
 
-    def test_change_requires_checked_new_voucher_not_old_file(self):
+    def test_change_requires_confirmation_but_voucher_is_optional(self):
         booking = self.pending()
         # A previous voucher must not count as confirmation of a later request.
         from .models import BookingVoucher
@@ -67,18 +67,17 @@ class AttentionQueueTests(TestCase):
             file=SimpleUploadedFile('old.pdf', b'%PDF-1.4 old'), original_filename='old.pdf')
         BookingVoucher.objects.filter(pk=voucher.pk).update(received_at=timezone.now()-timezone.timedelta(days=1))
         data = {'booking_id': booking.pk, 'supplier_booking_number': 'TEST-123', 'verified': 'yes'}
-        self.assertContains(self.client.post(self.url, data), 'Загрузите новый ваучер')
-        data['file'] = SimpleUploadedFile('new.pdf', b'%PDF-1.4 new')
         data.pop('verified')
-        self.assertContains(self.client.post(self.url, data), 'Отметьте, что новый ваучер проверен')
+        self.assertContains(self.client.post(self.url, data), 'Отметьте, что поставщик подтвердил изменения')
         booking.refresh_from_db()
         self.assertEqual(booking.status, Booking.Status.UPDATE_PENDING)
         self.assertEqual(booking.vouchers.count(), 1)
-        data.update(verified='yes', file=SimpleUploadedFile('new.pdf', b'%PDF-1.4 new'))
+        data.update(verified='yes')
         self.assertRedirects(self.client.post(self.url, data), self.url)
         booking.refresh_from_db()
         self.assertEqual(booking.status, Booking.Status.CONFIRMED)
-        self.assertEqual(booking.vouchers.count(), 2)
+        self.assertEqual(booking.vouchers.count(), 1)
+        self.assertTrue(booking.history_events.filter(changes__supplier_changes_confirmed=True).exists())
         self.assertEqual(booking.total_price_gross, Decimal('100'))
 
     def test_duplicate_number_and_invalid_file_leave_order_pending(self):

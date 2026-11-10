@@ -2,6 +2,7 @@
 {% block title %}{{ booking.booking_number }}{% endblock %}
 {% block content %}
 <h1>{{ booking.booking_number }}</h1>
+{% if booking.status != 'CANCELLED' %}<p><a class="button" style="background:#b42318;color:white" href="{% url 'quotes:cancel_booking' booking.pk %}">Отменить заказ — письмо поставщику</a></p>{% endif %}
 <p><a class="button" href="{% url 'quotes:new_booking' %}?clone={{ booking.pk }}">Клонировать и редактировать</a></p>
 <p><a href="{% url 'quotes:archive_booking' booking.pk %}">Стереть ошибочный заказ из истории</a></p>
 {% if booking.source_quote_snapshot.reconciliation.note %}<p role="status" style="background:#fff3b0;padding:10px">{{ booking.source_quote_snapshot.reconciliation.note }}</p>{% endif %}

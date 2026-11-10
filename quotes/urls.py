@@ -30,6 +30,7 @@ urlpatterns = [
     path("bookings/attention/", workspace.attention_queue, name="attention_queue"),
     path("bookings/new/", manual.new_booking, name="new_booking"),
     path("bookings/<int:pk>/edit/", amendments.edit_booking, name="edit_booking"),
+    path("bookings/<int:pk>/cancel/", amendments.cancel_booking, name="cancel_booking"),
     path("bookings/<int:pk>/amendments/<int:amendment_id>/", amendments.amendment_messages, name="booking_amendment"),
     path("bookings/<int:pk>/supplier-message/", workspace.supplier_message, name="supplier_message"),
     path("bookings/<int:pk>/vouchers/", workspace.upload_voucher, name="upload_voucher"),

@@ -23,6 +23,40 @@ class AmendmentMessageTests(SimpleTestCase):
 
 
 class AmendmentTests(TestCase):
+    def test_cancellation_draft_then_send_cancels_once(self):
+        url = reverse('quotes:cancel_booking', args=[self.booking.pk])
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertFalse(BookingAmendment.objects.exists())
+        response = self.client.post(url)
+        amendment = BookingAmendment.objects.get()
+        self.assertEqual(amendment.messages[0]['subject'], 'CANCEL ORDER OLD-123')
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CONFIRMED')
+        self.assertEqual(len(mail.outbox), 0)
+        payload={'message_index':'0','recipient':'test@example.test'}
+        self.client.post(response.url, payload)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+        self.assertEqual(len(mail.outbox), 1)
+        self.client.post(response.url, payload)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_manual_cancellation_does_not_send_mail(self):
+        url = self.client.post(reverse('quotes:cancel_booking', args=[self.booking.pk])).url
+        self.client.post(url, {'message_index':'0','action':'manual','recipient':'test@example.test'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertTrue(self.booking.supplier_deliveries.filter(status='MANUAL').exists())
+
+    @patch('bookings.amendments.EmailMultiAlternatives.send', side_effect=OSError('test failure'))
+    def test_failed_cancellation_keeps_order_confirmed(self, send):
+        url = self.client.post(reverse('quotes:cancel_booking', args=[self.booking.pk])).url
+        self.client.post(url, {'message_index':'0','recipient':'test@example.test'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CONFIRMED')
+        self.assertTrue(self.booking.supplier_deliveries.filter(status='FAILED').exists())
+
     def setUp(self):
         manual_tests.ManualBookingTests.setUp(self)
         response = self.client.post(self.url, self.data)

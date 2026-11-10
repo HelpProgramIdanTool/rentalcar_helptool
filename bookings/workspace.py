@@ -106,22 +106,8 @@ def attention_queue(request):
         elif has_upload and not upload_form.is_valid():
             error = " ".join(str(e) for errors in upload_form.errors.values() for e in errors)
         elif old_status == Booking.Status.UPDATE_PENDING:
-            last_delivery = booking.supplier_deliveries.filter(
-                status__in=["SENT", "MANUAL"], sent_at__isnull=False,
-            ).order_by("-sent_at").first()
-            last_event = booking.history_events.filter(
-                event_type=BookingHistoryEvent.EventType.STATUS_CHANGED,
-                new_status=Booking.Status.UPDATE_PENDING,
-            ).order_by("-created_at").first()
-            cutoff = max((value for value in (
-                last_delivery.sent_at if last_delivery else None,
-                last_event.created_at if last_event else None,
-            ) if value), default=None)
-            has_new_voucher = cutoff and booking.vouchers.filter(received_at__gte=cutoff).exists()
             if request.POST.get("verified") != "yes":
-                error = "Отметьте, что новый ваучер проверен и изменения подтверждены поставщиком."
-            elif not has_upload and not has_new_voucher:
-                error = "Загрузите новый ваучер, полученный после отправки изменений."
+                error = "Отметьте, что поставщик подтвердил изменения."
         if not error:
             voucher = None
             if has_upload:
@@ -140,7 +126,7 @@ def attention_queue(request):
                 changes={"supplier_booking_number": {"old": booking.supplier_booking_number, "new": number},
                          "operator_user_id": request.user.pk,
                          "voucher_id": voucher.pk if voucher else None,
-                         "voucher_verified": old_status == Booking.Status.UPDATE_PENDING}, created_by=actor)
+                         "supplier_changes_confirmed": old_status == Booking.Status.UPDATE_PENDING}, created_by=actor)
             booking.log_history(BookingHistoryEvent.EventType.STATUS_CHANGED,
                 "Подтверждено оператором в очереди внимания", old_status=old_status,
                 new_status=Booking.Status.CONFIRMED,

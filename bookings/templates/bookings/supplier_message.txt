@@ -12,6 +12,6 @@
 {% endfor %}{% for seat in booking.child_seat_details %}Child seat {{ forloop.counter }}:{% if seat.age %} age {{ seat.age }}{% endif %}{% if seat.height %}, height {{ seat.height }} cm{% endif %}{% if seat.type_number %}, type/number {{ seat.type_number }}{% endif %}
 {% endfor %}{{ price_breakdown }} // Deposit: {% if booking.source_quote_snapshot.deposit and booking.source_quote_snapshot.deposit != 'None' %}{{ booking.source_quote_snapshot.deposit }} {{ booking.source_quote_snapshot.deposit_currency }}{% else %}[please specify]{% endif %}
 {{ booking.customer_address_snapshot }}{% if booking.customer_postal_code_snapshot %}, {{ booking.customer_postal_code_snapshot }}{% endif %}{% if booking.customer_city_snapshot %} - {{ booking.customer_city_snapshot }}{% endif %}{% if booking.customer_country_snapshot %}, {{ booking.customer_country_snapshot }}{% endif %}
-{% if booking.hotel_name %}Pickup hotel: {{ booking.hotel_name }}
-{% endif %}{% if booking.return_hotel_name %}Return hotel: {{ booking.return_hotel_name }}
+{% if booking.hotel_name and booking.source_quote_snapshot.request.pickup_service != 'ADDRESS' %}Pickup hotel: {{ booking.hotel_name }}
+{% endif %}{% if booking.return_hotel_name and booking.source_quote_snapshot.request.return_service != 'ADDRESS' %}Return hotel: {{ booking.return_hotel_name }}
 {% endif %}{% endautoescape %}

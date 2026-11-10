@@ -157,6 +157,7 @@ document.getElementById('parse-booking').addEventListener('click',async function
   const response=await fetch('{% url "quotes:paste_booking" %}',{method:'POST',body});const data=await response.json();
   if(!response.ok)throw new Error(data.error||'Не удалось разобрать текст.');
   Object.entries(data.fields).forEach(([name,value])=>bookingForm.querySelectorAll('[name="'+name+'"]').forEach(el=>{if(el.type==='checkbox')el.checked=Array.isArray(value)?value.includes(el.value):Boolean(value);else el.value=value;}));
+  extraPhones.forEach(box=>box.hidden=!box.querySelector('input').value);
   bookingForm.querySelector('.review')?.remove();
   const matchedGroup=BookingPaste.matchCategory(data.fields.vehicle_note,groupSelect.options,supplierSelect.value,groupSuppliers);
   if(matchedGroup)groupSelect.value=matchedGroup;

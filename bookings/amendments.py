@@ -184,6 +184,31 @@ def edit_booking(request, pk):
 @login_required
 @never_cache
 @require_http_methods(['GET', 'POST'])
+def cancel_booking(request, pk):
+    booking = get_object_or_404(visible_bookings(request.user), pk=pk)
+    if request.method == 'POST':
+        with transaction.atomic():
+            booking = visible_bookings(request.user).select_for_update().get(pk=pk)
+            if booking.status == Booking.Status.CANCELLED:
+                messages.info(request, 'Заказ уже отменён.')
+                return redirect('quotes:booking_detail', pk=pk)
+            pending = next((a for a in booking.amendments.order_by('-pk')
+                            if any(m['kind']=='CANCEL_BOOKING' and m['status'] in ('DRAFT','FAILED','SENDING') for m in a.messages)), None)
+            if pending:
+                return redirect('quotes:booking_amendment', pk=pk, amendment_id=pending.pk)
+            number = booking.supplier_booking_number or booking.booking_number
+            item = message('CANCEL_BOOKING', booking.supplier.changes_email or booking.supplier.booking_email,
+                           f'CANCEL ORDER {number}',
+                           f'Please cancel reservation {number}. The customer has requested cancellation.\n\n{order_body(booking)}')
+            amendment = BookingAmendment.objects.create(booking=booking, before=current_snapshot(booking),
+                after=current_snapshot(booking), messages=[item], created_by=request.user)
+        return redirect('quotes:booking_amendment', pk=pk, amendment_id=amendment.pk)
+    return render(request, 'bookings/cancel.html', {'booking':booking, 'active_menu':'orders'})
+
+
+@login_required
+@never_cache
+@require_http_methods(['GET', 'POST'])
 def amendment_messages(request, pk, amendment_id):
     booking = get_object_or_404(visible_bookings(request.user), pk=pk)
     amendment = get_object_or_404(BookingAmendment, pk=amendment_id, booking=booking)
@@ -208,6 +233,7 @@ def amendment_messages(request, pk, amendment_id):
             except (ValueError, forms.ValidationError):
                 messages.error(request, 'Укажите корректный адрес получателя.')
                 return redirect('quotes:booking_amendment', pk=pk, amendment_id=amendment_id)
+            manual = request.POST.get('action') == 'manual' and item['kind'] == 'CANCEL_BOOKING'
             item.update(recipient='; '.join(recipients), status='SENDING')
             if retry:
                 item['token'] = str(uuid4())
@@ -217,19 +243,28 @@ def amendment_messages(request, pk, amendment_id):
                 recipient=item['recipient'], subject=item['subject'], body=item['body'], created_by=request.user)
         error = ''
         try:
-            email = EmailMultiAlternatives(subject=item['subject'], body=item['body'], to=recipients)
-            email.attach_alternative(item['html'], 'text/html')
-            if email.send() != 1:
-                raise OSError('Mail was not accepted')
+            if not manual:
+                email = EmailMultiAlternatives(subject=item['subject'], body=item['body'], to=recipients)
+                email.attach_alternative(item['html'], 'text/html')
+                if email.send() != 1:
+                    raise OSError('Mail was not accepted')
         except (OSError, ValueError):
             error = 'Отправка не подтверждена. Проверьте почту перед повторной отправкой.'
         with transaction.atomic():
             amendment = BookingAmendment.objects.select_for_update().get(pk=amendment.pk)
             amendment.messages[index]['status'] = 'FAILED' if error else 'SENT'
             amendment.save(update_fields=['messages'])
-            delivery.status = 'FAILED' if error else 'SENT'
+            delivery.status = 'FAILED' if error else ('MANUAL' if manual else 'SENT')
             delivery.sent_at = None if error else timezone.now()
             delivery.save(update_fields=['status', 'sent_at'])
+            if not error and item['kind'] == 'CANCEL_BOOKING':
+                locked = Booking.objects.select_for_update().get(pk=pk)
+                old_status = locked.status
+                Booking.objects.filter(pk=pk).update(status=Booking.Status.CANCELLED, updated_at=timezone.now())
+                locked.log_history(BookingHistoryEvent.EventType.CANCELLED,
+                    'Cancellation message sent manually' if manual else 'Cancellation message accepted by mail server',
+                    old_status=old_status, new_status=Booking.Status.CANCELLED,
+                    changes={'amendment_id':amendment.pk,'delivery_id':delivery.pk,'operator_user_id':request.user.pk})
             if not error and item['kind'] in ('NEW', 'UPDATE'):
                 new_status = Booking.Status.WAITING_CONFIRMATION if item['kind']=='NEW' else Booking.Status.UPDATE_PENDING
                 old_status = booking.status
@@ -239,8 +274,8 @@ def amendment_messages(request, pk, amendment_id):
                     new_status=new_status, changes={'amendment_id': amendment.pk, 'delivery_id': delivery.pk})
             booking.log_history(BookingHistoryEvent.EventType.NOTE, 'Amendment supplier mail result',
                 changes={'amendment_id': amendment.pk, 'kind': item['kind'], 'status': delivery.status})
-        (messages.error if error else messages.success)(request, error or 'Письмо передано почтовому серверу.')
+        (messages.error if error else messages.success)(request, error or ('Ручная отправка отмечена. Заказ отменён.' if manual else 'Письмо передано почтовому серверу.'))
         return redirect('quotes:booking_amendment', pk=pk, amendment_id=amendment_id)
     return render(request, 'bookings/amendment_messages.html', {
         'booking': booking, 'amendment': amendment, 'active_menu': 'orders',
-        'can_revise': all(m['status']=='DRAFT' for m in amendment.messages)})
+        'can_revise': all(m['status']=='DRAFT' and m['kind']!='CANCEL_BOOKING' for m in amendment.messages)})

@@ -1,0 +1,9 @@
+{% extends 'customers/base.html' %}
+{% block title %}Отмена {{ booking.booking_number }}{% endblock %}
+{% block content %}
+<a href="{% url 'quotes:booking_detail' booking.pk %}">← {{ booking.booking_number }}</a>
+<h1>Отменить заказ {{ booking.booking_number }}</h1>
+<p>{{ booking.customer_name_snapshot }} · {{ booking.supplier }} · {{ booking.supplier_booking_number }}</p>
+<p>Сначала подготовим письмо поставщику для проверки. Заказ станет отменённым после успешной отправки или отметки о ручной отправке. Ответ фирмы не требуется.</p>
+<form method="post">{% csrf_token %}<button type="submit">Подготовить письмо об отмене</button></form>
+{% endblock %}

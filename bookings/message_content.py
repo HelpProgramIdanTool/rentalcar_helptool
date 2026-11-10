@@ -33,5 +33,10 @@ def supplier_location(booking, side):
     if city and service == "CITY_BRANCH":
         return f"{city} city branch"
     if city and service == "ADDRESS":
-        return f"{address or '[street address]'}, {city}"
+        hotel_field = 'hotel_name' if side == 'pickup' else 'return_hotel_name'
+        hotel = getattr(booking, hotel_field, '') or ''
+        parts = list(dict.fromkeys(part.strip() for part in (hotel, address, city) if part and part.strip()))
+        if not hotel and not address:
+            parts.insert(0, '[street address]')
+        return ', '.join(parts)
     return ", ".join(filter(None, [getattr(booking, f"{side}_location_text"), address]))

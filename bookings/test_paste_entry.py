@@ -29,6 +29,19 @@ Final price:** 2x100 = 200 || 500**
 
 
 class ParseBookingTests(SimpleTestCase):
+    def test_multiple_phones_with_common_separators_and_separate_lines(self):
+        for separator in (' | ', ' // ', '; ', '\n'):
+            with self.subTest(separator=separator):
+                text=LABELED.replace('48000111222', separator.join(['+48000111222','48000333444','(48) 000 555 666']))
+                data=parse_booking_text(text)
+                self.assertEqual([data[f'phone_{i}'] for i in range(1,4)],
+                                 ['+48000111222','48000333444','(48) 000 555 666'])
+
+    def test_too_many_phones_are_not_silently_dropped(self):
+        text=LABELED.replace('48000111222','48000111222 | 48000333444 | 48000555666 | 48000777888')
+        with self.assertRaisesMessage(ValueError,'больше трёх телефонов'):
+            parse_booking_text(text)
+
     def test_labeled_markdown_request_prefills_manual_customer_and_trip(self):
         data=parse_booking_text(LABELED.replace('Customer name:', 'Customer name:&#xA0;'))
         self.assertEqual(data['customer_name'],'TEST DRIVER')

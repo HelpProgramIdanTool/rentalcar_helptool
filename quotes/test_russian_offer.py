@@ -22,6 +22,16 @@ class TranslationTests(SimpleTestCase):
 
 @override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}})
 class RussianOfferTests(TestCase):
+    def test_winter_service_is_translated_using_template_data(self):
+        source = QuoteTemplate.objects.filter(language='Hebrew', is_active=True).first()
+        rule = next(r for r in source.presentation['seasonal_included_items'] if r['code']=='winter_tyres')
+        for language in ('Russian', 'English', 'Polish'):
+            with self.subTest(language=language):
+                template = QuoteTemplate.objects.filter(language=language, is_active=True).first()
+                translated = translate_text(rule['text'], template.presentation)
+                self.assertNotRegex(translated, r'[\u0590-\u05ff]')
+                self.assertTrue(translated)
+
     def setUp(self):
         self.client.force_login(get_user_model().objects.create_user(username="russian-test"))
         pickup = timezone.now() + timedelta(days=5)

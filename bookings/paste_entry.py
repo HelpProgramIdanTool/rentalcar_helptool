@@ -70,15 +70,23 @@ def parse_booking_text(raw):
         raise ValueError('Укажите имя клиента.')
     first, _, last = names[0].partition(' ')
     data = {'driver_names': '\n'.join(names), 'driver_count': len(names), 'first_name': first,
-            'last_name': last, 'customer_notes': raw, 'email': '', 'phone_1': '',
+            'last_name': last, 'customer_notes': raw, 'email': '', 'phone_1': '', 'phone_2': '', 'phone_3': '',
             'vehicle_group': '', 'existing_customer': '', 'vehicle_note': '', 'address': '',
             'customer_name': names[0], 'flight_number': '',
             'cross_border_requested': False, 'extra_choices': [], 'child_seat_quantity': ''}
+    phones = []
     for line in lines[1:dates[0][0]]:
         if re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', line):
             data['email'] = line
-        elif re.fullmatch(r'[+\d() -]+', line):
-            data['phone_1'] = line
+        else:
+            parts = [part.strip() for part in re.split(r'//|\||;', line) if part.strip()]
+            if parts and all(re.fullmatch(r'[+\d() .-]+', part) and 7 <= len(re.sub(r'\D', '', part)) <= 15 for part in parts):
+                for part in parts:
+                    if part not in phones:
+                        phones.append(part)
+    if len(phones) > 3:
+        raise ValueError('В тексте больше трёх телефонов. Выберите до трёх контактных номеров.')
+    data.update({f'phone_{index}': value for index, value in enumerate(phones, 1)})
     for side, (_, match) in zip(('pickup', 'return'), dates):
         value, time, location = match.groups()
         try:
