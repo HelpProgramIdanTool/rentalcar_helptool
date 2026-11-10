@@ -11,6 +11,20 @@ from scripts.test_render_restore import extract_uploads, validate_target, verify
 
 
 class RestoreSafetyTests(SimpleTestCase):
+    def test_excel_snapshot_is_verified_and_tampering_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            files = {}
+            for name in ('database.dump', 'private_uploads.tar.gz', 'All_orders.xlsx'):
+                content = ('TEST-' + name).encode()
+                (folder / name).write_bytes(content)
+                files[name] = {'bytes': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+            (folder / 'manifest.json').write_text(json.dumps({'format': 1, 'files': files}))
+            verify_manifest(folder)
+            (folder / 'All_orders.xlsx').write_bytes(b'CHANGED')
+            with self.assertRaises(ValueError):
+                verify_manifest(folder)
+
     def test_original_server_and_external_alias_are_rejected(self):
         source = {'HOST': 'dpg-original', 'NAME': 'working'}
         for host in ('dpg-original', 'dpg-original.frankfurt-postgres.render.com'):

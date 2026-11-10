@@ -16,6 +16,12 @@ PREFIX = 'backupcrypt:scheduled/'
 FILES = {'database.dump', 'private_uploads.tar.gz', 'manifest.json', 'verified.json'}
 
 
+def known_backup_files(entries):
+    names = {entry['Path'] for entry in entries}
+    return (len(names) == len(entries) and not any(entry.get('IsDir') for entry in entries)
+            and names in (FILES, FILES | {'All_orders.xlsx'}))
+
+
 def stamp_for(name):
     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{6}Z-[a-f0-9]{8}', name):
         return None
@@ -84,7 +90,7 @@ def prune_backups(apply=False):
         verified = False
         if stamp_for(name) is not None:
             entries = json.loads(command('lsjson', PREFIX + name, '--files-only'))
-            if {entry['Path'] for entry in entries} == FILES and len(entries) == len(FILES):
+            if known_backup_files(entries):
                 marker = json.loads(command('cat', PREFIX + name + '/verified.json'))
                 verified = marker.get('format') == 1 and marker.get('backup') == name
         records.append({'name': name, 'verified': verified})
@@ -101,10 +107,11 @@ def prune_backups(apply=False):
             raise RuntimeError('Unsafe retention candidate.')
         # Recheck immediately before deleting only the four known files.
         entries = json.loads(command('lsjson', PREFIX + name))
-        if len(entries) != 4 or {entry['Path'] for entry in entries} != FILES or any(entry.get('IsDir') for entry in entries):
+        if not known_backup_files(entries):
             raise RuntimeError('Backup directory changed; deletion stopped.')
         # Removing the marker first ensures an interrupted prune is never a verified backup.
-        for filename in ('verified.json', 'database.dump', 'private_uploads.tar.gz', 'manifest.json'):
+        names = {entry['Path'] for entry in entries}
+        for filename in ['verified.json', *sorted(names - {'verified.json'})]:
             command('deletefile', PREFIX + name + '/' + filename)
         command('rmdir', PREFIX + name)
     print('RETENTION COMPLETE. Latest verified backup preserved.', flush=True)

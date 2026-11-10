@@ -44,7 +44,8 @@ def ensure_empty(connection):
 
 def verify_manifest(folder):
     manifest = json.loads((folder / 'manifest.json').read_text())
-    if manifest.get('format') != 1 or set(manifest.get('files', {})) != {'database.dump', 'private_uploads.tar.gz'}:
+    allowed = {'database.dump', 'private_uploads.tar.gz'}
+    if manifest.get('format') != 1 or set(manifest.get('files', {})) not in (allowed, allowed | {'All_orders.xlsx'}):
         raise ValueError('Unexpected backup manifest.')
     for name, details in manifest['files'].items():
         path = folder / name

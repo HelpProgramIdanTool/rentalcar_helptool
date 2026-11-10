@@ -16,6 +16,16 @@ def record(day, suffix='00000000', verified=True):
 
 
 class BackupRetentionTests(SimpleTestCase):
+    def test_old_and_excel_backup_formats_are_recognized(self):
+        from scripts.backup_retention import known_backup_files
+        for names in (FILES, FILES | {'All_orders.xlsx'}):
+            self.assertTrue(known_backup_files([{'Path': name, 'IsDir': False} for name in names]))
+
+    def test_unknown_extra_file_and_directory_are_never_pruned(self):
+        from scripts.backup_retention import known_backup_files
+        self.assertFalse(known_backup_files([{'Path': name} for name in FILES | {'unknown.txt'}]))
+        self.assertFalse(known_backup_files([{'Path': name, 'IsDir': name == 'database.dump'} for name in FILES]))
+
     now = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
 
     def plan(self, records):
