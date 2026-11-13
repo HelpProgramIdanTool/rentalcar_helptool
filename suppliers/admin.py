@@ -1,4 +1,12 @@
 from django.contrib import admin
+from .models import FormVehicleCategory
+
+
+@admin.register(FormVehicleCategory)
+class FormVehicleCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active')
+    filter_horizontal = ('vehicle_groups',)
+    search_fields = ('name',)
 
 from .models import (
     OfferCity, CityServiceRule, AnalyticsCity,

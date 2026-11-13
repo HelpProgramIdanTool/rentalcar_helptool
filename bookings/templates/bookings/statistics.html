@@ -30,7 +30,8 @@
 </tbody></table></div>
 <h2>Месячный оборот по фирмам</h2>
 <div style="overflow-x:auto"><table class="offer-table"><thead><tr><th>Месяц</th><th>Фирма</th><th>Заказов</th><th>С НДС</th><th>Средний чек</th><th>Валюта</th></tr></thead><tbody>
-{% for row in months %}<tr><td>{{ row.month|stringformat:"02d" }}.{{ year }}</td><td>{{ row.supplier }}</td><td>{{ row.count }}</td><td>{{ row.gross|floatformat:2 }}</td><td>{{ row.average|floatformat:2 }}</td><td>{{ row.currency }}</td></tr>{% endfor %}
+{% for section in month_sections %}{% for row in section.rows %}<tr><td>{{ section.month|stringformat:"02d" }}.{{ year }}</td><td>{{ row.supplier }}</td><td>{{ row.count }}</td><td>{{ row.gross|floatformat:2 }}</td><td>{{ row.average|floatformat:2 }}</td><td>{{ row.currency }}</td></tr>{% endfor %}
+{% for row in section.totals %}<tr style="background:#dbeafe;font-weight:700;border-top:2px solid #2563eb"><td>{{ section.month|stringformat:"02d" }}.{{ year }}</td><td>Итого за месяц</td><td>{{ row.count }}</td><td>{{ row.gross|floatformat:2 }}</td><td>{{ row.average|floatformat:2 }}</td><td>{{ row.currency }}</td></tr>{% endfor %}{% endfor %}
 </tbody></table></div>
 <h2>Отчёты поставщиков — отдельно от заказов</h2>
 <p>PLN. Суммы из загруженных отчётов, включая ещё проверяемые строки. Поправки из писем и переписки попадут сюда после сохранения в сверке. Нетто берётся из отчёта; если его нет — используется НДС, указанный в сверке. Неполная сумма показана прочерком. Эти суммы не прибавляются к обороту заказов. Месяц здесь — месяц сверки, в нём могут быть заказы прошлых периодов.</p>

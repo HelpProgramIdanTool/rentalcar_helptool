@@ -288,7 +288,7 @@ def parse_inquiry(raw):
     return data, requirements, warnings
 
 
-def suitable_group(group, requirements):
+def suitable_group(group, requirements, category_map=None):
     seats = requirements["passengers"]
     if not seats or (group.seats is not None and group.seats < seats):
         return False
@@ -297,6 +297,8 @@ def suitable_group(group, requirements):
     if requirements.get("manual") and group.transmission != "MANUAL":
         return False
     categories = requirements.get("categories", [])
+    if category_map is not None and categories:
+        return any(group.pk in category_map.get(category, set()) for category in categories)
     codes = {c.code for c in group.comparison_classes.all()} if hasattr(group, 'comparison_classes') else set()
     if categories:
         matches = []
@@ -374,7 +376,9 @@ def import_inquiry(request):
     form = FirstInquiryForm()
     groups = []
     if structured:
-        groups = [g for g in form.fields["vehicle_groups"].queryset if suitable_group(g, requirements)]
+        from suppliers.form_categories import category_map
+        approved = category_map()
+        groups = [g for g in form.fields["vehicle_groups"].queryset if suitable_group(g, requirements, approved)]
         data["vehicle_groups"] = [g.pk for g in groups]
         data["suppliers"] = sorted({g.supplier_id for g in groups})
         if any(g.seats is None for g in groups):

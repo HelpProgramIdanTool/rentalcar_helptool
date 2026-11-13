@@ -33,12 +33,12 @@ def booking_summary(records, today):
     """Records are already restricted to the selected return year."""
     def empty():
         return dict(count=0, gross=Decimal(0), elapsed=Decimal(0), future=Decimal(0), zero=0)
-    suppliers, months, totals = defaultdict(empty), defaultdict(empty), defaultdict(empty)
+    suppliers, months, totals, monthly_totals = defaultdict(empty), defaultdict(empty), defaultdict(empty), defaultdict(empty)
     for item in records:
         amount = Decimal(item['gross'])
         currency = item['currency']
         keys = (totals[currency], suppliers[(item['supplier'], currency)],
-                months[(item['month'], item['supplier'], currency)])
+                months[(item['month'], item['supplier'], currency)], monthly_totals[(item['month'], currency)])
         for value in keys:
             value['count'] += 1
             value['gross'] += amount
@@ -52,6 +52,10 @@ def booking_summary(records, today):
                       for key, value in sorted(suppliers.items())],
         'months': [dict(month=key[0], supplier=key[1], currency=key[2], **finish(value))
                    for key, value in sorted(months.items())],
+        'month_totals': [dict(month=key[0], currency=key[1], **finish(value)) for key,value in sorted(monthly_totals.items())],
+        'month_sections': [dict(month=month, rows=[dict(supplier=k[1],currency=k[2],**finish(v)) for k,v in sorted(months.items()) if k[0]==month],
+                              totals=[dict(currency=k[1],**finish(v)) for k,v in sorted(monthly_totals.items()) if k[0]==month])
+                           for month in sorted({k[0] for k in months})],
     }
 
 

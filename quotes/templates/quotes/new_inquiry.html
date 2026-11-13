@@ -65,7 +65,7 @@
   @media(max-width:800px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%;position:sticky;top:0}.app .message-panel textarea{height:clamp(168.48px,32.4dvh,362.88px)}.app .message-panel small{display:none}.inquiry-header h1{font-size:20px}}
   @media(max-width:700px){.rental-locations{grid-template-columns:1fr}}
 </style>
-<style>.vehicle-price{font-weight:700;color:#155eef;white-space:nowrap}.vehicle-supplier label{flex-wrap:wrap}.vehicle-supplier label input{flex-shrink:0}#price-preview-status{margin:4px 0;font-size:12px;color:#475467}</style></head>
+<style>.vehicle-price{font-weight:700;color:#155eef;white-space:nowrap}.vehicle-supplier label{flex-wrap:wrap}.vehicle-supplier label input{flex-shrink:0}#price-preview-status{margin:4px 0;font-size:12px;color:#475467}</style>{% if not is_email %}{% include 'application_meta.html' %}{% endif %}</head>
 <body><div class="app">{% include 'quotes/sidebar.html' %}<main>
   <div class="inquiry-header"><h1>Новое обращение</h1><a class="icon-button" href="{% url 'quotes:home' %}" title="На главную" aria-label="На главную"><span aria-hidden="true">⌂</span></a></div>
   {% if selected_customer %}<p>Оферта для: <strong>{{ selected_customer }}</strong></p>{% endif %}

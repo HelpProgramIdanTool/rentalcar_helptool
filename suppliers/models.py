@@ -279,6 +279,15 @@ class VehicleGroup(models.Model):
         return f"{self.supplier.supplier_name} — {self.group_name} ({self.group_code})"
 
 
+class FormVehicleCategory(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    is_active = models.BooleanField(default=True)
+    vehicle_groups = models.ManyToManyField(VehicleGroup, blank=True, related_name='form_categories')
+
+    def __str__(self):
+        return self.name
+
+
 class VehicleModel(models.Model):
     vehicle_group = models.ForeignKey(
         VehicleGroup,

@@ -1,0 +1,8 @@
+{% extends 'admin/base_site.html' %}{% block content %}
+<h1>Категории формы — утверждённые соответствия</h1>
+<p>Меняется только выбор групп при распознавании заявки. Заказы, история, цены и отправленные оферты не изменяются.</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if result %}<p>Категорий: {{ result.categories }}. Соответствий: {{ result.memberships }}. {% if result.applied %}<strong>Применено.</strong>{% else %}Только проверка, ничего не изменено.{% endif %}</p>{% endif %}
+<form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="file" name="mapping" accept=".json" required>
+<p><label><input type="checkbox" name="apply" value="yes"> Применить утверждённый файл целиком (только «Да» включает группу)</label></p><button>Проверить / применить</button></form>
+{% endblock %}

@@ -142,7 +142,7 @@ def prepare_amendment(booking, data, result, snapshot, user, pending=None):
 @transaction.atomic
 def edit_booking(request, pk):
     booking = get_object_or_404(visible_bookings(request.user).select_for_update(), pk=pk)
-    pending = next((a for a in booking.amendments.order_by('-pk') if any(m['status'] != 'SENT' for m in a.messages)), None)
+    pending = next((a for a in booking.amendments.order_by('-pk') if any(m['status'] not in ('SENT', 'MANUAL') for m in a.messages)), None)
     if pending and any(m['status'] != 'DRAFT' for m in pending.messages):
         return redirect('quotes:booking_amendment', pk=pk, amendment_id=pending.pk)
     form = AmendmentForm(request.POST or None, initial=initial_data(booking))
@@ -226,14 +226,18 @@ def amendment_messages(request, pk, amendment_id):
             if item['status'] != 'DRAFT' and not retry:
                 messages.error(request, 'Это письмо уже обработано. Проверьте его состояние; повторная отправка заблокирована.')
                 return redirect('quotes:booking_amendment', pk=pk, amendment_id=amendment_id)
+            manual = request.POST.get('action') == 'manual'
             try:
                 recipients = parse_email_addresses(request.POST.get('recipient', item['recipient']))
-                if not recipients:
+                if not recipients and not manual:
                     raise ValueError('Укажите адрес получателя.')
             except (ValueError, forms.ValidationError):
                 messages.error(request, 'Укажите корректный адрес получателя.')
                 return redirect('quotes:booking_amendment', pk=pk, amendment_id=amendment_id)
-            manual = request.POST.get('action') == 'manual' and item['kind'] == 'CANCEL_BOOKING'
+            confirmed = manual and request.POST.get('supplier_confirmed') == 'yes' and item['kind'] in ('NEW', 'UPDATE')
+            contact_method = request.POST.get('contact_method', 'MANUAL') if manual else 'EMAIL'
+            if contact_method not in ('MANUAL', 'PHONE', 'EMAIL'):
+                raise Http404
             item.update(recipient='; '.join(recipients), status='SENDING')
             if retry:
                 item['token'] = str(uuid4())
@@ -252,7 +256,10 @@ def amendment_messages(request, pk, amendment_id):
             error = 'Отправка не подтверждена. Проверьте почту перед повторной отправкой.'
         with transaction.atomic():
             amendment = BookingAmendment.objects.select_for_update().get(pk=amendment.pk)
-            amendment.messages[index]['status'] = 'FAILED' if error else 'SENT'
+            amendment.messages[index]['status'] = 'FAILED' if error else ('MANUAL' if manual else 'SENT')
+            if not error:
+                amendment.messages[index].update(contact_method=contact_method, operator_user_id=request.user.pk,
+                    recorded_at=timezone.now().isoformat(), supplier_confirmed=confirmed)
             amendment.save(update_fields=['messages'])
             delivery.status = 'FAILED' if error else ('MANUAL' if manual else 'SENT')
             delivery.sent_at = None if error else timezone.now()
@@ -267,14 +274,17 @@ def amendment_messages(request, pk, amendment_id):
                     changes={'amendment_id':amendment.pk,'delivery_id':delivery.pk,'operator_user_id':request.user.pk})
             if not error and item['kind'] in ('NEW', 'UPDATE'):
                 new_status = Booking.Status.WAITING_CONFIRMATION if item['kind']=='NEW' else Booking.Status.UPDATE_PENDING
+                if confirmed:
+                    new_status = Booking.Status.CONFIRMED
                 old_status = booking.status
                 Booking.objects.filter(pk=pk).update(status=new_status, updated_at=timezone.now())
                 booking.log_history(BookingHistoryEvent.EventType.STATUS_CHANGED,
                     'Supplier amendment message sent; waiting for confirmation', old_status=old_status,
-                    new_status=new_status, changes={'amendment_id': amendment.pk, 'delivery_id': delivery.pk})
+                    new_status=new_status, changes={'amendment_id': amendment.pk, 'delivery_id': delivery.pk,
+                        'operator_user_id':request.user.pk,'contact_method':contact_method,'supplier_confirmed':confirmed})
             booking.log_history(BookingHistoryEvent.EventType.NOTE, 'Amendment supplier mail result',
                 changes={'amendment_id': amendment.pk, 'kind': item['kind'], 'status': delivery.status})
-        (messages.error if error else messages.success)(request, error or ('Ручная отправка отмечена. Заказ отменён.' if manual else 'Письмо передано почтовому серверу.'))
+        (messages.error if error else messages.success)(request, error or ('Передача вручную отмечена; письмо не отправлялось.' if manual else 'Письмо передано почтовому серверу.'))
         return redirect('quotes:booking_amendment', pk=pk, amendment_id=amendment_id)
     return render(request, 'bookings/amendment_messages.html', {
         'booking': booking, 'amendment': amendment, 'active_menu': 'orders',

@@ -5,7 +5,7 @@ body{font:16px Arial;background:#eef2f7;color:#172033;margin:0}.page{max-width:1
 </style><style>
 body{font-size:13px;line-height:1.4}.page{max-width:1500px;margin:16px auto;padding:0 14px}.card{padding:12px;margin-bottom:8px;border-radius:9px}.card h1{font-size:21px;margin:0 0 8px}.card h2{font-size:17px;margin:4px 0}.card p{margin:6px 0}.offers{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.line{padding:4px 0;gap:8px}.price{font-size:20px}.pick{padding:7px}.pick input{width:17px;height:17px}.manual-fee{grid-template-columns:1fr 85px}.manual-fee input{padding:6px;font-size:12px}.steps{margin-bottom:10px}.steps a,.steps .current{padding:5px 7px}
 @media(max-width:1150px){.offers{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:850px){.offers{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:550px){.offers{grid-template-columns:1fr}}
-</style></head><body><main class="page">
+</style>{% if not is_email %}{% include 'application_meta.html' %}{% endif %}</head><body><main class="page">
 {% for message in messages %}<div class="card" role="status" style="background:#fff7e8;border:1px solid #e9c67b">{{ message }}</div>{% endfor %}
 <nav class="steps" aria-label="Этапы оферты">
   <a href="{% url 'quotes:home' %}">← На главную</a><span class="arrow">·</span>

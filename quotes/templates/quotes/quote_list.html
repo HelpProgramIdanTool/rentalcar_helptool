@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оферты — Idan Rent a Car</title><link rel="stylesheet" href="{% static 'quotes/workspace.css' %}?v=20261001-scroll4"></head>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оферты — Idan Rent a Car</title><link rel="stylesheet" href="{% static 'quotes/workspace.css' %}?v=20261001-scroll4">{% if not is_email %}{% include 'application_meta.html' %}{% endif %}</head>
 <body class="workspace-body quote-list-page"><div class="workspace">
 {% include 'quotes/sidebar.html' %}
 <main class="workspace-main">

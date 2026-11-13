@@ -12,6 +12,38 @@ from . import test_quote_conversion as conversion_test_data
 
 
 class ManualBookingTests(TestCase):
+    def test_clone_chain_preserves_offer_without_creating_more_offers(self):
+        data,response=self.review()
+        self.confirm(data,response)
+        original=Booking.objects.get()
+        quote=Quote.objects.create(customer=self.customer,pickup_datetime=original.pickup_datetime,
+            return_datetime=original.return_datetime)
+        Booking.objects.filter(pk=original.pk).update(source_quote=quote)
+        parent=original
+        for index in range(3):
+            url=self.url+f'?clone={parent.pk}'
+            form=self.client.get(url).context['form']
+            payload={name:form[name].value() for name in form.fields if form[name].value() is not None and form[name].value() is not False}
+            payload.update(customer_name='TEST CLONE',driver_1_name='TEST DRIVER')
+            reviewed=self.client.post(url,payload)
+            self.assertIsNotNone(reviewed.context['review_token'],reviewed.context['form'].errors)
+            self.client.post(url,{**payload,'action':'create','confirm_price':'yes','review_token':reviewed.context['review_token']})
+            clone=Booking.objects.latest('pk')
+            self.assertEqual(clone.source_quote_id,quote.pk)
+            self.assertEqual(clone.source_quote_snapshot['cloned_from_booking_id'],parent.pk)
+            parent=clone
+        self.assertEqual(Quote.objects.count(),1)
+        self.assertEqual(quote.bookings.count(),4)
+        self.assertEqual(len(mail.outbox),0)
+
+    def test_manual_form_contains_one_name_and_reuses_entered_value_on_error(self):
+        response=self.client.get(self.url)
+        self.assertContains(response,'name="customer_name"',count=1)
+        self.assertNotContains(response,'name="full_name"')
+        response=self.client.post(self.url,{**self.data,'customer_name':'TEST-ENTERED-NAME','pickup_time':'bad'})
+        self.assertEqual(response.context['form']['customer_name'].value(),'TEST-ENTERED-NAME')
+        self.assertNotIn('customer_name',response.context['form'].errors)
+
     def setUp(self):
         # Reuse invented tariff data, then remove the offer entirely.
         conversion_test_data.QuoteConversionTests.setUp(self)

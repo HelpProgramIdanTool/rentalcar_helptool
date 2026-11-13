@@ -35,6 +35,7 @@ class ManualBookingForm(BookingFromOfferForm):
         super().__init__(*args, **kwargs)
         self.fields.pop("first_name", None)
         self.fields.pop("last_name", None)
+        self.fields.pop("full_name", None)
         self.order_fields(["entry_token", "existing_customer", "customer_name", "email", "phone_1", "phone_2", "phone_3"])
 
     def clean(self):
@@ -164,6 +165,9 @@ def new_booking(request):
                 snapshot = review_snapshot(option, data, result)
                 snapshot.update(origin="manual", sub_agent_name=str(data["sub_agent"]) if data["sub_agent"] else "",
                     sub_agent_phone=data["sub_agent"].phone if data["sub_agent"] else "")
+                if clone_source:
+                    snapshot['cloned_from_booking_id'] = clone_source.pk
+                    snapshot['source_quote_id'] = clone_source.source_quote_id
                 if deposit_once:
                     snapshot["deposit_usage"] = "once"
                 stamp = {"fingerprint": fingerprint(snapshot), "user": request.user.pk, "key": entry["key"]}
@@ -182,6 +186,7 @@ def new_booking(request):
                         booking = create_draft(option, data, result, snapshot, request.user)
                         actor = Employee.objects.filter(login_user=request.user).first()
                         Booking.objects.filter(pk=booking.pk).update(manual_entry_key=entry["key"], order_source=data["order_source"],
+                            source_quote_id=clone_source.source_quote_id if clone_source else None,
                             salesperson_employee=actor if data["order_source"] == "SELF" else data["responsible"],
                             sub_agent=data["sub_agent"], flight_number=data["flight_number"], hotel_name=data["hotel_name"],
                             return_hotel_name=data["return_hotel_name"],

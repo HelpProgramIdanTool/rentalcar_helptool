@@ -17,10 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from .cutover_upload import upload_package
+from .category_upload import category_upload
 
 urlpatterns = [
     path('customers/', include('customers.urls')),
     path('', include('quotes.urls')),
     path('admin/cutover-upload/', upload_package, name='cutover_upload'),
+    path('admin/vehicle-category-map/', category_upload, name='category_upload'),
     path('admin/', admin.site.urls),
 ]

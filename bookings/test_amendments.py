@@ -23,6 +23,25 @@ class AmendmentMessageTests(SimpleTestCase):
 
 
 class AmendmentTests(TestCase):
+    def test_manual_update_phone_does_not_send_and_confirmation_is_explicit(self):
+        amendment,url=self.prepare(flight_number='TEST-PHONE-UPDATE')
+        response=self.client.get(url)
+        self.assertContains(response,'value="manual"')
+        payload={'message_index':'0','recipient':'test@example.test','action':'manual','contact_method':'PHONE'}
+        self.client.post(url,payload)
+        self.booking.refresh_from_db(); amendment.refresh_from_db()
+        self.assertEqual(self.booking.status,'UPDATE_PENDING')
+        self.assertEqual(amendment.messages[0]['status'],'MANUAL')
+        self.assertEqual(amendment.messages[0]['contact_method'],'PHONE')
+        self.assertEqual(len(mail.outbox),0)
+        self.client.post(url,payload)
+        self.assertEqual(self.booking.supplier_deliveries.count(),1)
+        second,url=self.prepare(flight_number='TEST-PHONE-CONFIRMED')
+        self.client.post(url,{**payload,'supplier_confirmed':'yes'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status,'CONFIRMED')
+        self.assertEqual(len(mail.outbox),0)
+
     def test_cancellation_draft_then_send_cancels_once(self):
         url = reverse('quotes:cancel_booking', args=[self.booking.pk])
         self.assertEqual(self.client.get(url).status_code, 200)
