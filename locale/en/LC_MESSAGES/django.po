@@ -220,6 +220,9 @@ msgstr "Pickup city"
 msgid "Группа"
 msgstr "Group"
 
+msgid "ДД.ММ.ГГГГ"
+msgstr "DD.MM.YYYY"
+
 msgid "Далее"
 msgstr "Next"
 
@@ -345,6 +348,12 @@ msgstr "Name / company"
 
 msgid "Имя и фамилия"
 msgstr "Full name"
+
+msgid "Имя из заказа"
+msgstr "Name from reservation"
+
+msgid "Имя из исходной записи"
+msgstr "Name from original record"
 
 msgid "Имя клиента"
 msgstr "Customer name"

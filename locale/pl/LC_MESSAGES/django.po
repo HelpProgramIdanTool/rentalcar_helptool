@@ -220,6 +220,9 @@ msgstr "Miasto odbioru"
 msgid "Группа"
 msgstr "Grupa"
 
+msgid "ДД.ММ.ГГГГ"
+msgstr "DD.MM.RRRR"
+
 msgid "Далее"
 msgstr "Dalej"
 
@@ -345,6 +348,12 @@ msgstr "Imię / nazwa"
 
 msgid "Имя и фамилия"
 msgstr "Imię i nazwisko"
+
+msgid "Имя из заказа"
+msgstr "Nazwisko z rezerwacji"
+
+msgid "Имя из исходной записи"
+msgstr "Nazwisko z oryginalnego wpisu"
 
 msgid "Имя клиента"
 msgstr "Imię klienta"

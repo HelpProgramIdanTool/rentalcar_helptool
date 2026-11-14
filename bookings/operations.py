@@ -1,6 +1,7 @@
 """Count dated handovers and returns, without estimating dates from prices."""
 import calendar
 import re
+from datetime import datetime
 from collections import defaultdict
 
 from django import forms
@@ -20,8 +21,12 @@ from .statistics import can_view_statistics
 
 
 class OperationsFilterForm(forms.Form):
-    start = forms.DateField(label=_('С даты'), widget=forms.DateInput(attrs={'type': 'date'}))
-    end = forms.DateField(label=_('По дату'), widget=forms.DateInput(attrs={'type': 'date'}))
+    start = forms.DateField(label=_('С даты'), input_formats=['%d.%m.%Y', '%Y-%m-%d'],
+        widget=forms.DateInput(format='%d.%m.%Y', attrs={'placeholder':_('ДД.ММ.ГГГГ'), 'inputmode':'numeric',
+            'maxlength':10, 'pattern':r'[0-9]{2}\.[0-9]{2}\.[0-9]{4}'}))
+    end = forms.DateField(label=_('По дату'), input_formats=['%d.%m.%Y', '%Y-%m-%d'],
+        widget=forms.DateInput(format='%d.%m.%Y', attrs={'placeholder':_('ДД.ММ.ГГГГ'), 'inputmode':'numeric',
+            'maxlength':10, 'pattern':r'[0-9]{2}\.[0-9]{2}\.[0-9]{4}'}))
     operation = forms.ChoiceField(label=_('Операции'), choices=[
         ('', _('Выдачи и возвраты')), ('pickup', _('Выдачи')), ('return', _('Возвраты'))], required=False)
     supplier = forms.ModelChoiceField(label=_('Фирма'), queryset=Supplier.objects.order_by('supplier_name'),
@@ -31,6 +36,13 @@ class OperationsFilterForm(forms.Form):
 
     def __init__(self, *args, cities, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.is_bound:
+            self.data = self.data.copy()
+            for name in ('start', 'end'):
+                try:
+                    self.data[name] = datetime.strptime(self.data.get(name, ''), '%Y-%m-%d').strftime('%d.%m.%Y')
+                except (ValueError, TypeError):
+                    pass
         self.fields['city'].choices = [('', _('Все города')), ('unknown', _('Не указано'))] + [
             (str(city.pk), city.label) for city in cities]
 
@@ -62,7 +74,7 @@ def collect_events(bookings, places, start, end, *, operation='', city=''):
                 undated.append(event)
             elif start <= time.date() <= end:
                 events.append(event)
-    return sorted(events, key=lambda e: (e['time'], e['supplier'], e['booking'].pk, e['side'])), undated
+    return sorted(events, key=lambda e: (e['time'].timestamp(), e['supplier'], e['booking'].pk, e['side'])), undated
 
 
 def summarize_events(events, *, daily=False):
@@ -77,6 +89,22 @@ def summarize_events(events, *, daily=False):
             for key, counts in sorted(groups.items(), key=lambda pair: (pair[0][0] or '', pair[0][2], pair[0][4]))]
 
 
+def booking_details(booking):
+    names = [' '.join(filter(None, (driver.first_name, driver.last_name))).strip()
+             for driver in booking.drivers.all()]
+    names = [name for name in names if name]
+    raw = (booking.source_quote_snapshot or {}).get('historical_import', {}).get('raw', {})
+    source_label = ''
+    if not names:
+        original = str(raw.get('A') or '').strip()
+        fallback = original or booking.customer_name_snapshot
+        names = [fallback] if fallback else []
+        source_label = _('Имя из исходной записи') if original else _('Имя из заказа') if fallback else ''
+    group = booking.vehicle_group
+    vehicle_class = (f'{group.group_name} ({group.group_code})' if group else str(raw.get('D') or '').strip())
+    return dict(driver_names=names, driver_source=source_label, vehicle_class=vehicle_class)
+
+
 @login_required
 @never_cache
 def operations(request):
@@ -89,6 +117,7 @@ def operations(request):
                     end=today.replace(day=calendar.monthrange(today.year, today.month)[1]).isoformat())
     cities = list(AnalyticsCity.objects.all())
     form = OperationsFilterForm(data, cities=cities)
+    data = form.data
     events, undated, rows, daily = [], [], [], []
     totals = dict(pickup=0, returns=0, operations=0, bookings=0)
     if form.is_valid():
@@ -104,19 +133,25 @@ def operations(request):
             date_scope |= Q(**{field+'__date__range': (filters['start'], filters['end'])}) | Q(**{field+'__isnull': True})
         bookings = bookings.filter(date_scope)
         places = Places(cities, SupplierLocation.objects.filter(location_type='AIRPORT'))
-        events, undated = collect_events(bookings.select_related('supplier', 'pickup_location', 'return_location'),
+        events, undated = collect_events(bookings.select_related('supplier', 'pickup_location', 'return_location', 'vehicle_group').prefetch_related('drivers'),
             places, filters['start'], filters['end'], operation=filters['operation'], city=filters['city'])
         rows, daily = summarize_events(events), summarize_events(events, daily=True)
         totals = dict(pickup=sum(e['side']=='pickup' for e in events),
                       returns=sum(e['side']=='return' for e in events), operations=len(events),
                       bookings=len({e['booking'].pk for e in events}))
+        details_by_booking = {}
+        for event in events:
+            booking = event['booking']
+            if booking.pk not in details_by_booking:
+                details_by_booking[booking.pk] = booking_details(booking)
+            event.update(details_by_booking[booking.pk])
 
         def detail_url(row, side):
             query = data.copy()
             for key, value in dict(supplier=row['supplier_id'], city=row['city_key'], operation=side, details='1').items():
                 query[key] = value
             if row['day']:
-                query['start'] = query['end'] = row['day'].isoformat()
+                query['start'] = query['end'] = row['day'].strftime('%d.%m.%Y')
             return reverse('quotes:operations') + '?' + query.urlencode() + '#operations-details'
 
         for row in rows + daily:

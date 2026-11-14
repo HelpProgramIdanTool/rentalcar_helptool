@@ -7,14 +7,25 @@ from django.urls import reverse
 from django.utils import timezone
 
 from customers.models import Customer
-from suppliers.models import AnalyticsCity, Supplier, SupplierLocation
+from suppliers.models import AnalyticsCity, Supplier, SupplierLocation, VehicleGroup
 from .geography import Places, operation_time
-from .models import Booking
-from .operations import collect_events, summarize_events
+from .models import Booking, BookingDriver
+from .operations import collect_events, summarize_events, OperationsFilterForm
 
 
 @override_settings(TIME_ZONE='Europe/Warsaw')
 class OperationsSmallTests(SimpleTestCase):
+    def test_dates_display_dots_including_legacy_links_and_invalid_dates_are_rejected(self):
+        for start, end in [('01.11.2026','03.11.2026'), ('2026-11-01','2026-11-03')]:
+            form = OperationsFilterForm({'start':start,'end':end},cities=[])
+            self.assertTrue(form.is_valid(),form.errors)
+            self.assertEqual(form.cleaned_data['start'],date(2026,11,1))
+            self.assertIn('value="01.11.2026"',str(form['start']))
+            self.assertIn('value="03.11.2026"',str(form['end']))
+            self.assertNotIn('type="date"',str(form['start']))
+        form = OperationsFilterForm({'start':'31.02.2026','end':'03.03.2026'},cities=[])
+        self.assertFalse(form.is_valid())
+
     def booking(self, **changes):
         values = dict(pk=1, supplier_id=1, supplier='TEST-FIRM', source_quote_snapshot={},
             pickup_datetime=timezone.make_aware(datetime(2026,11,1,10)),
@@ -62,6 +73,36 @@ class OperationsSmallTests(SimpleTestCase):
 
 
 class OperationsPageTests(TestCase):
+    def test_table_always_shows_supplier_numbers_all_drivers_and_class(self):
+        group = VehicleGroup.objects.create(supplier=self.supplier,group_code='TEST-CODE',group_name='TEST-VEHICLE-CLASS')
+        Booking.objects.filter(pk=self.booking.pk).update(vehicle_group=group)
+        for index, role in [(1,'MAIN'),(2,'ADDITIONAL')]:
+            BookingDriver.objects.create(booking=self.booking,first_name=f'TEST-DRIVER-{index}',last_name=f'TEST-SURNAME-{index}',role=role,display_order=index)
+        response = self.client.get(self.url,{'start':'01.11.2026','end':'03.11.2026'})
+        for text in ['id="operations-details"','TEST-RESERVATION','TEST-DRIVER-1 TEST-SURNAME-1',
+                     'TEST-DRIVER-2 TEST-SURNAME-2','TEST-VEHICLE-CLASS (TEST-CODE)',self.booking.booking_number]:
+            self.assertContains(response,text)
+        self.assertContains(response,'value="01.11.2026"')
+        self.assertContains(response,'value="03.11.2026"')
+
+    def test_bottom_table_is_chronological_and_preserves_period_filters(self):
+        later = self.make_booking(supplier_booking_number='TEST-LATER',
+            pickup_datetime=timezone.make_aware(datetime(2026,11,2,12)),
+            return_datetime=timezone.make_aware(datetime(2026,11,5,12)))
+        response = self.client.get(self.url,{'start':'01.11.2026','end':'03.11.2026'})
+        self.assertEqual([(e['booking'].pk,e['side']) for e in response.context['events']],
+            [(self.booking.pk,'pickup'),(later.pk,'pickup'),(self.booking.pk,'return')])
+        response = self.client.get(self.url,{'start':'03.11.2026','end':'03.11.2026','operation':'return'})
+        self.assertEqual([e['booking'].pk for e in response.context['events']],[self.booking.pk])
+
+    def test_historical_names_and_class_are_shown_when_driver_profiles_are_missing(self):
+        Booking.objects.filter(pk=self.booking.pk).update(source_quote_snapshot={'historical_import':{
+            'raw':{'A':'TEST ORIGINAL FULL DRIVER NAME','D':'TEST IMPORTED CLASS'}}})
+        response = self.client.get(self.url,self.query)
+        self.assertContains(response,'TEST ORIGINAL FULL DRIVER NAME')
+        self.assertContains(response,'TEST IMPORTED CLASS')
+        self.assertContains(response,'Имя из исходной записи')
+
     def setUp(self):
         self.owner = get_user_model().objects.create_superuser(username='operations-owner',email='test@example.invalid',password='test-only')
         self.client.force_login(self.owner)
