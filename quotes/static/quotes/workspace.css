@@ -1,4 +1,9 @@
 *{box-sizing:border-box}
+.app-menu-bottom .app-language{display:grid;gap:8px;min-width:0;margin:0 0 12px;padding:0 13px 18px;border-bottom:1px solid #304158}
+.app-language label{font-size:12px;line-height:1.4;color:#a9b9d1}
+.app-language select{display:block;width:100%;max-width:100%;min-width:0;min-height:36px;padding:7px 9px;border:1px solid #526781;border-radius:6px;background:#1e314b;color:#fff;font:inherit;line-height:1.4;cursor:pointer}
+.app-language select:focus-visible{outline:2px solid #90baff;outline-offset:2px}
+@media(max-width:600px){.app-menu .app-menu-bottom{flex-wrap:wrap;gap:4px}.app-menu-bottom .app-language{flex:1 1 100%;margin:12px 0 8px}.app-language select{max-width:240px}}
 .table-scroll-controls[hidden]{display:none}
 /* Keep order columns readable; scroll the table instead of crushing its cells. */
 .table-scroll .booking-list-table{min-width:1100px;table-layout:auto}
