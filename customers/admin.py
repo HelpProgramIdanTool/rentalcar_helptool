@@ -4,7 +4,18 @@ from django.utils.html import format_html
 
 from bookings.models import Booking
 
-from .models import Customer, CustomerEvent
+from .models import Customer, CustomerEvent, ReferralContact, ReferralEmail
+
+
+class ReferralEmailInline(admin.TabularInline):
+    model = ReferralEmail
+    extra = 1
+
+
+@admin.register(ReferralContact)
+class ReferralContactAdmin(admin.ModelAdmin):
+    search_fields = ['name', 'emails__email']
+    inlines = [ReferralEmailInline]
 
 
 class CustomerEventInline(admin.TabularInline):

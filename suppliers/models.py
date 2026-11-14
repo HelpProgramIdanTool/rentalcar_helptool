@@ -141,6 +141,30 @@ class OfferCity(models.Model):
         return self.label
 
 
+class RentalCountry(models.Model):
+    code = models.CharField(max_length=2,unique=True)
+    name = models.CharField(max_length=100)
+    localized_names = models.JSONField(default=dict, blank=True)
+    aliases = models.JSONField(default=list,blank=True)
+    wording = models.JSONField(default=dict,blank=True)
+    prepayment_text = models.JSONField(default=dict,blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class SupplierLocalBranch(models.Model):
+    supplier = models.ForeignKey(Supplier,on_delete=models.PROTECT,related_name='local_branches')
+    city = models.ForeignKey(OfferCity,on_delete=models.PROTECT)
+    country = models.ForeignKey(RentalCountry,on_delete=models.PROTECT)
+    waive_foreign_delivery = models.BooleanField(default=True)
+    waive_prepayment = models.BooleanField(default=True)
+
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=['supplier','city'],name='unique_supplier_local_branch_city')]
+
+
 class AnalyticsCity(models.Model):
     name = models.CharField('Город', max_length=120, unique=True)
     label = models.CharField('Название в статистике', max_length=120)
@@ -331,12 +355,18 @@ class VehicleComparisonClass(models.Model):
 
 
 class SupplierExtra(models.Model):
+    class AutomaticRule(models.TextChoices):
+        MANUAL = '', 'Без автоматического правила'
+        DOMESTIC_ONE_WAY = 'DOMESTIC_ONE_WAY', 'Разные города Польши'
+
     supplier = models.ForeignKey(
         Supplier,
         on_delete=models.PROTECT,
         related_name="extras",
     )
     extra_code = models.CharField(max_length=40)
+    automatic_rule = models.CharField(max_length=40, blank=True, default='', choices=AutomaticRule.choices)
+    customer_name_he = models.CharField(max_length=150, blank=True)
     name = models.CharField(max_length=150)
     category = models.CharField(max_length=80, blank=True)
     description = models.TextField(blank=True)

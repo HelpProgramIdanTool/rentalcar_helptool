@@ -1,26 +1,26 @@
-{% extends 'customers/base.html' %}
-{% block title %}Требуют внимания{% endblock %}
+{% extends 'customers/base.html' %}{% load i18n %}
+{% block title %}{% translate "Требуют внимания" %}{% endblock %}
 {% block content %}
-<h1>Требуют внимания — {{ page_obj.paginator.count }}</h1>
+<h1>{% translate "Требуют внимания" %} — {{ page_obj.paginator.count }}</h1>
 <p>Отправленные заказы без номера поставщика и изменения без подтверждения. Ближайшие даты получения машины — сверху.</p>
 {% for message in messages %}<p role="status">{{ message }}</p>{% endfor %}
-{% if error %}<p role="alert" style="color:#b91c1c"><a href="#booking-{{ edited_booking_id }}">Не сохранён заказ {{ edited_booking_number }} — см. объяснение в его карточке ниже.</a></p>{% endif %}
+{% if error %}<p role="alert" style="color:#b91c1c"><a href="#booking-{{ edited_booking_id }}">{% translate "Не сохранён заказ" %} {{ edited_booking_number }} — {% translate "см" %}. объяснение в его карточке ниже.</a></p>{% endif %}
 {% for booking in page_obj %}
 <section id="booking-{{ booking.pk }}" class="customer-info" style="display:block;background:white;border:1px solid #d7dfeb;border-radius:12px">
   <h2><a href="{% url 'quotes:booking_detail' booking.pk %}">{{ booking.booking_number }}</a> · {{ booking.customer_name_snapshot }}</h2>
-  <p><strong>Email в заказе:</strong> <bdi>{{ booking.customer_email_snapshot|default:'не указан' }}</bdi></p>
-  <p><strong>Водители:</strong> {% for driver in booking.drivers.all %}<bdi>{{ driver.first_name }} {{ driver.last_name }}</bdi>{% if not forloop.last %}; {% endif %}{% empty %}не указаны{% endfor %}</p>
+  <p><strong>{% translate "Email" %} в заказе:</strong> <bdi>{{ booking.customer_email_snapshot|default:'не указан' }}</bdi></p>
+  <p><strong>{% translate "Водители" %}:</strong> {% for driver in booking.drivers.all %}<bdi>{{ driver.first_name }} {{ driver.last_name }}</bdi>{% if not forloop.last %}; {% endif %}{% empty %}{% translate "не указаны" %}{% endfor %}</p>
   <p>{{ booking.supplier }} · {{ booking.pickup_datetime|date:'d.m.Y H:i' }} — {{ booking.return_datetime|date:'d.m.Y H:i' }}</p>
   <p><strong>{% if booking.status == 'UPDATE_PENDING' %}Ожидает подтверждения изменений{% else %}Нет номера поставщика{% endif %}</strong></p>
-  <p>Ожидание с {{ booking.waiting_since|date:'d.m.Y H:i' }} · прошло {{ booking.waiting_since|timesince }}</p>
-  <p><a href="{% url 'quotes:supplier_message' booking.pk %}{% if booking.status == 'UPDATE_PENDING' %}?change=1{% endif %}">Письмо и история отправок</a></p>
+  <p>{% translate "Ожидание с" %} {{ booking.waiting_since|date:'d.m.Y H:i' }} · прошло {{ booking.waiting_since|timesince }}</p>
+  <p><a href="{% url 'quotes:supplier_message' booking.pk %}{% if booking.status == 'UPDATE_PENDING' %}?change=1{% endif %}">{% translate "Письмо" %} и история отправок</a></p>
   {% if error and booking.pk == edited_booking_id %}
   <div role="alert" style="border:2px solid #b91c1c;padding:12px;margin:12px 0">
     <p>{{ error }}</p>
     {% for existing in conflicts %}
-    <p><strong>Уже записано:</strong> <a href="{% url 'quotes:booking_detail' existing.pk %}" target="_blank" rel="noopener">{{ existing.booking_number }}</a> · <bdi>{{ existing.customer_name_snapshot }}</bdi></p>
-    <p>Email: <bdi>{{ existing.customer_email_snapshot|default:'не указан' }}</bdi> · Номер поставщика: <bdi>{{ existing.supplier_booking_number }}</bdi></p>
-    <p>Водители: {% for driver in existing.drivers.all %}<bdi>{{ driver.first_name }} {{ driver.last_name }}</bdi>{% if not forloop.last %}; {% endif %}{% empty %}не указаны{% endfor %}</p>
+    <p><strong>{% translate "Уже записано" %}:</strong> <a href="{% url 'quotes:booking_detail' existing.pk %}" target="_blank" rel="noopener">{{ existing.booking_number }}</a> · <bdi>{{ existing.customer_name_snapshot }}</bdi></p>
+    <p>{% translate "Email" %}: <bdi>{{ existing.customer_email_snapshot|default:'не указан' }}</bdi> · {% translate "Номер" %} поставщика: <bdi>{{ existing.supplier_booking_number }}</bdi></p>
+    <p>{% translate "Водители" %}: {% for driver in existing.drivers.all %}<bdi>{{ driver.first_name }} {{ driver.last_name }}</bdi>{% if not forloop.last %}; {% endif %}{% empty %}{% translate "не указаны" %}{% endfor %}</p>
     <p>{{ existing.pickup_datetime|date:'d.m.Y H:i' }} — {{ existing.return_datetime|date:'d.m.Y H:i' }} · {{ existing.get_status_display }}</p>
     {% endfor %}
     {% if hidden_conflicts %}<p>Есть совпадение в карточке, к которой у вас нет доступа. Обратитесь к администратору.</p>{% endif %}
@@ -30,17 +30,17 @@
   {% endif %}
   <form method="post" action="?page={{ page_obj.number }}#booking-{{ booking.pk }}" enctype="multipart/form-data">
     {% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.pk }}">
-    <p><label>Номер поставщика <input name="supplier_booking_number" value="{{ booking.queue_number }}" maxlength="100" required></label></p>
+    <p><label>{% translate "Номер" %} поставщика <input name="supplier_booking_number" value="{{ booking.queue_number }}" maxlength="100" required></label></p>
     <p><label>Ваучер — необязательно (PDF, JPG, PNG) <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png"></label></p>
     {% if booking.status == 'UPDATE_PENDING' %}
-    <p><label><input type="checkbox" name="verified" value="yes" required> Поставщик подтвердил изменения.</label></p>
+    <p><label><input type="checkbox" name="verified" value="yes" required> {% translate "Поставщик" %} подтвердил изменения.</label></p>
     <p>Можно подтвердить по письму или сообщению поставщика. Загружать ваучер не требуется.</p>
     {% endif %}
-    <button type="submit">{% if booking.status == 'UPDATE_PENDING' %}Изменения подтверждены{% else %}Сохранить номер и подтвердить{% endif %}</button>
+    <button type="submit">{% if booking.status == 'UPDATE_PENDING' %}{% translate "Изменения" %} подтверждены{% else %}{% translate "Сохранить" %} номер и подтвердить{% endif %}</button>
   </form>
 </section>
-{% empty %}<p>Заказов, требующих внимания, нет.</p>{% endfor %}
-{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+{% empty %}<p>{% translate "Заказов" %}, требующих внимания, нет.</p>{% endfor %}
+{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">{% translate "Назад" %}</a>{% endif %}
 <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Далее</a>{% endif %}
+{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">{% translate "Далее" %}</a>{% endif %}
 {% endblock %}

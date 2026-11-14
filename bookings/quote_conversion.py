@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 """Operator review of current prices before converting an offer into a draft."""
 import copy
 import hashlib
@@ -28,10 +29,10 @@ from .missing_data import MissingDepositForm, new_deposit_form, apply_deposit
 
 
 class BookingFromOfferForm(FirstInquiryForm):
-    vehicle_note = forms.CharField(label="Примечание к автомобилю (например, SEDAN)", max_length=200, required=False)
-    flight_number = forms.CharField(label="Номер рейса", max_length=50, required=False)
-    manual_adjustment_label = forms.CharField(label="Описание ручной доплаты", max_length=200, required=False)
-    manual_adjustment_amount = forms.DecimalField(label="Ручная доплата", min_value=0, max_digits=10, decimal_places=2, required=False)
+    vehicle_note = forms.CharField(label=_("Примечание к автомобилю (например, SEDAN)"), max_length=200, required=False)
+    flight_number = forms.CharField(label=_("Номер рейса"), max_length=50, required=False)
+    manual_adjustment_label = forms.CharField(label=_("Описание ручной доплаты"), max_length=200, required=False)
+    manual_adjustment_amount = forms.DecimalField(label=_("Ручная доплата"), min_value=0, max_digits=10, decimal_places=2, required=False)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         young_count = (self.initial.get("young_driver_quantity", 0)
@@ -63,7 +64,7 @@ class BookingFromOfferForm(FirstInquiryForm):
                 required=False,
             )
             self.fields[f"driver_{index}_young"] = forms.BooleanField(
-                label="Новый или молодой водитель — права менее 6 месяцев или возраст младше 24 лет",
+                label=_("Новый или молодой водитель — права менее 6 месяцев или возраст младше 24 лет"),
                 required=False,
                 initial=index <= young_count,
             )
@@ -108,7 +109,7 @@ class BookingFromOfferForm(FirstInquiryForm):
         self.fields.pop("vehicle_classes")
         self.fields.pop("suppliers")
         self.fields["vehicle_group"] = forms.ModelChoiceField(
-            label="Автомобиль и фирма", queryset=groups,
+            label=_("Автомобиль и фирма"), queryset=groups,
         )
         for name in ("pickup_date", "return_date"):
             self.fields[name].input_formats = ["%Y-%m-%d", "%d-%m-%Y"]
@@ -155,8 +156,8 @@ def calculate(option, data):
     inquiry.sub_agent_id = inquiry.sub_agent.pk if inquiry.sub_agent else None
     for field in ("pickup_datetime", "return_datetime", "pickup_city", "return_city",
                   "pickup_service", "return_service", "pickup_address", "return_address",
-                  "driver_count", "cross_border_requested"):
-        setattr(inquiry, field, data[field])
+                  "driver_count", "cross_border_requested", "rental_country"):
+        setattr(inquiry, field, data.get(field, getattr(inquiry, field, 'PL')))
     inquiry.rental_days = calculate_rental_days(inquiry.pickup_datetime, inquiry.return_datetime)
     inquiry.extra_requests = {
         code: data["child_seat_quantity"] if code == "CHILD_SEAT" else 1
@@ -173,6 +174,7 @@ def calculate(option, data):
     if not results or not results[0]["available"]:
         raise forms.ValidationError("Нет действующего тарифа для выбранной машины и дат. Заказ не создан.")
     result = results[0]
+    data['cross_border_requested'] = result.get('cross_border_requested', data['cross_border_requested'])
     manual_amount = data.get("manual_adjustment_amount") or Decimal("0.00")
     if manual_amount:
         result["manual_adjustment_label"] = data["manual_adjustment_label"]
@@ -227,6 +229,8 @@ def review_snapshot(option, data, result):
         "option_id": option.pk, "quote_number": option.quote.quote_number,
         "original_total": str(option.total_price_gross), "original_currency": option.currency,
         "request": values, "total": str(result["total"]), "currency": result["currency"],
+        "prepayment_notice": result.get('prepayment_notice', {}),
+        "rental_country": result.get('rental_country', 'PL'),
         "rate_id": result["vehicle_rate"].pk, "base": str(result["base"]),
         "deposit": str(result["deposit_amount"]), "deposit_currency": result["deposit_currency"],
         "locations": {side: location.pk if location else None for side, location in result["locations"].items()},
@@ -243,10 +247,15 @@ def fingerprint(snapshot):
 
 def create_draft(option, data, result, snapshot, user, *, existing=None):
     """Called only inside the locked review transaction, after signed confirmation."""
+    from quotes.country_rules import location_country_name
     values = dict(customer=option.quote.customer,
+                      pickup_country=location_country_name(data['pickup_city']),
+                      return_country=location_country_name(data['return_city']),
                       source_quote_snapshot=snapshot, supplier=result["supplier"],
                       vehicle_group=result["group"], currency=result["currency"],
                       pickup_datetime=data["pickup_datetime"], return_datetime=data["return_datetime"],
+                      rental_country=data.get('rental_country','PL'),
+                      referral_contact=data.get('referral_contact', getattr(option.quote, 'referral_contact', None)),
                       sub_agent=data.get("sub_agent"),
                       order_source="SUBAGENT" if data.get("sub_agent") else "SELF")
     if existing is None:
@@ -309,7 +318,7 @@ def create_draft(option, data, result, snapshot, user, *, existing=None):
         manual_adjustment_amount=data.get("manual_adjustment_amount") or Decimal("0.00"),
     )
     booking.refresh_from_db()
-    booking.recalculate_totals()
+    booking.recalculate_totals(confirmed_review=True)
     if "driver_1_name" in data:
         previous_drivers = list(booking.drivers.all()) if existing else []
         if existing:

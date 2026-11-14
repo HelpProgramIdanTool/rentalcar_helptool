@@ -1,19 +1,19 @@
-{% extends 'customers/base.html' %}
+{% extends 'customers/base.html' %}{% load i18n %}
 {% load static %}
-{% block title %}{% if edit_mode %}Изменить заказ{% else %}Создать заказ{% endif %}{% endblock %}
+{% block title %}{% if edit_mode %}{% translate "Изменить заказ" %}{% else %}{% translate "Создать заказ" %}{% endif %}{% endblock %}
 {% block content %}
 <style>.booking-form{max-width:1000px}.booking-fields,.driver-name-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.booking-fields label,.driver-name-fields label{display:block;font-weight:600;margin-bottom:5px}.booking-fields input:not([type=checkbox]),.booking-fields select,.booking-fields textarea,.driver-name-fields input:not([type=checkbox]){box-sizing:border-box;width:100%;padding:8px;font:inherit}.booking-fields textarea{height:75px}.location-zone{padding:16px;border:1px solid #d5dfec;border-radius:10px;display:grid;gap:12px;align-content:start}.location-zone h2{margin:0;font-size:20px}.driver-section,.child-seat-section{margin:20px 0}.driver-section h2,.child-seat-section h2{font-size:20px;margin:0 0 12px}.driver-count-box{width:130px;margin-bottom:14px}.driver-count-box input{width:80px!important}.driver-name-fields p{display:flex;align-items:center;gap:8px;margin:10px 0 0}.driver-name-fields p label{display:inline;margin:0}.child-seat-list{display:grid;gap:12px}.child-seat-row{padding:14px;border:1px solid #d5dfec;border-radius:10px;background:#f8fafc}.child-seat-row h3{margin:0 0 10px}.child-seat-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.child-seat-fields label{display:block;font-weight:600}.child-seat-fields input{box-sizing:border-box;width:100%;padding:8px;font:inherit}@media(max-width:700px){.child-seat-fields{grid-template-columns:1fr}}.errorlist{color:#b42318}.review{margin:22px 0;padding:20px;background:#eef5ff;border:1px solid #b5c9ed;border-radius:8px}.price-change{background:#fff4df;border-color:#e6a540}.booking-form button{padding:12px 18px;background:#155eef;color:white;border:0;border-radius:8px;font:inherit}</style>
 {% if manual_entry %}
-{% if edit_mode %}<a href="{% url 'quotes:booking_detail' booking.pk %}">← {{ booking.booking_number }}</a><h1>Изменить или дополнить {{ booking.booking_number }}</h1><p>Заполнены актуальные данные. Измените нужные поля, фирму или класс автомобиля и проверьте расчёт. При смене фирмы подготовятся два отдельных письма: отмена старому поставщику и новый заказ новому. Сохранение не отправляет письма.</p>{% else %}<a href="{% url 'quotes:booking_list' %}">← Все заказы</a><h1>Новый заказ вручную</h1>
+{% if edit_mode %}<a href="{% url 'quotes:booking_detail' booking.pk %}">← {{ booking.booking_number }}</a><h1>{% translate "Изменить или дополнить" %} {{ booking.booking_number }}</h1><p>Заполнены актуальные данные. Измените нужные поля, фирму или класс автомобиля и проверьте расчёт. При смене фирмы подготовятся два отдельных письма: отмена старому поставщику и новый заказ новому. Сохранение не отправляет письма.</p>{% else %}<a href="{% url 'quotes:booking_list' %}">← {% translate "Все заказы" %}</a><h1>{% translate "Новый заказ вручную" %}</h1>
 {% if clone_source %}<p role="status">Копия поездки из {{ clone_source.booking_number }}. Укажите нового клиента и водителей, измените нужные услуги и проверьте расчёт.</p>{% endif %}
-<p>Оферта не создаётся. Вносите данные клиента, выберите фирму и ответственного, затем проверьте расчёт.</p>
-{% if not clone_source %}<form method="get"><label>Заполнить из карточки клиента <select name="customer"><option value="">Новый клиент</option>{% for customer in customers %}<option value="{{ customer.pk }}">{{ customer }}</option>{% endfor %}</select></label> <button>Заполнить</button></form>
-<p>Для нового клиента оставьте выбор карточки пустым. Клиенты с общим email субагента не объединяются автоматически.</p>{% endif %}
-{% if request.user.is_staff %}<p>Справочники: <a href="{% url 'admin:employees_employee_changelist' %}" target="_blank" rel="noopener">Сотрудники</a> · <a href="{% url 'admin:employees_subagent_changelist' %}" target="_blank" rel="noopener">Субагенты</a></p>{% endif %}
+<p>{% translate "Оферта" %} не создаётся. Вносите данные клиента, выберите фирму и ответственного, затем проверьте расчёт.</p>
+{% if not clone_source %}<form method="get"><label>{% translate "Заполнить" %} из карточки клиента <select name="customer"><option value="">{% translate "Новый клиент" %}</option>{% for customer in customers %}<option value="{{ customer.pk }}">{{ customer }}</option>{% endfor %}</select></label> <button>{% translate "Заполнить" %}</button></form>
+<p>Для нового клиента оставьте выбор карточки пустым. {% translate "Клиенты" %} с общим email субагента не объединяются автоматически.</p>{% endif %}
+{% if request.user.is_staff %}<p>{% translate "Справочники" %}: <a href="{% url 'admin:employees_employee_changelist' %}" target="_blank" rel="noopener">{% translate "Сотрудники" %}</a> · <a href="{% url 'admin:employees_subagent_changelist' %}" target="_blank" rel="noopener">{% translate "Субагенты" %}</a></p>{% endif %}
 {% endif %}
 {% else %}<a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">← {{ quote.quote_number }}</a>
-<h1>Создать заказ из оферты</h1>
-<p>Измените нужные поля и пересчитайте стоимость. Данные клиента сохранятся в заказе; исходная оферта сохранится.</p>
+<h1>{% translate "Создать заказ из оферты" %}</h1>
+<p>Измените нужные поля и пересчитайте стоимость. {% translate "Данные клиента" %} сохранятся в заказе; исходная оферта сохранится.</p>
 <p>Выбранная оферта: {{ option.supplier_name_snapshot }} · {{ option.vehicle_group_name_snapshot }} — <strong>{{ option.total_price_gross }} {{ option.currency }}</strong></p>
 {% endif %}
 <form method="post" class="booking-form">{% csrf_token %}
@@ -21,43 +21,43 @@
 {% if manual_entry %}<section style="margin-bottom:22px">
 <label for="booking-paste"><strong>Вставить готовые данные заказа</strong></label>
 <textarea id="booking-paste" rows="9" style="display:block;width:100%;box-sizing:border-box;margin:10px 0" placeholder="Водитель // Второй водитель&#10;Телефон&#10;Email&#10;Д/М/ГГ, ЧЧ:ММ, место получения&#10;Д/М/ГГ, ЧЧ:ММ, место возврата"></textarea>
-<button type="button" id="parse-booking">Заполнить из текста</button>
+<button type="button" id="parse-booking">{% translate "Заполнить" %} из текста</button>
 <p id="paste-status" role="status"></p>
 </section>{% endif %}
 <div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% elif 'driver_' in field.name and field.name != 'driver_count' %}{% elif 'child_seat_' in field.name and field.name != 'child_seat_quantity' %}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
-<section class="driver-section"><h2>Водители</h2><div class="driver-name-fields">{% for name_field, young_field in form.driver_fields %}<div data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<p>{{ young_field }} {{ young_field.label_tag }}{{ young_field.errors }}</p></div>{% endfor %}</div><p>Впишите имя и фамилию каждого водителя в одно поле. Отметьте молодого водителя: если у фирмы есть такая доплата, она войдёт в расчёт.</p></section>
-<section class="child-seat-section" {% if not form.child_seat_fields %}hidden{% endif %}><h2>Данные детских кресел</h2><div class="child-seat-list">{% for fields in form.child_seat_fields %}<div class="child-seat-row" data-seat="{{ forloop.counter }}"><h3>Кресло {{ forloop.counter }}</h3><div class="child-seat-fields">{% for field in fields %}<label>{{ field.label }}{{ field }}{{ field.errors }}</label>{% endfor %}</div></div>{% endfor %}</div><p>Заполните известные данные: возраст, рост и выбранный тип или номер кресла.</p></section>
-<p><button name="action" value="calculate" formnovalidate>Пересчитать</button></p>
+<section class="driver-section"><h2>{% translate "Водители" %}</h2><div class="driver-name-fields">{% for name_field, young_field in form.driver_fields %}<div data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<p>{{ young_field }} {{ young_field.label_tag }}{{ young_field.errors }}</p></div>{% endfor %}</div><p>Впишите имя и фамилию каждого водителя в одно поле. Отметьте молодого водителя: если у фирмы есть такая доплата, она войдёт в расчёт.</p></section>
+<section class="child-seat-section" {% if not form.child_seat_fields %}hidden{% endif %}><h2>{% translate "Данные детских кресел" %}</h2><div class="child-seat-list">{% for fields in form.child_seat_fields %}<div class="child-seat-row" data-seat="{{ forloop.counter }}"><h3>{% translate "Кресло" %} {{ forloop.counter }}</h3><div class="child-seat-fields">{% for field in fields %}<label>{{ field.label }}{{ field }}{{ field.errors }}</label>{% endfor %}</div></div>{% endfor %}</div><p>Заполните известные данные: возраст, рост и выбранный тип или номер кресла.</p></section>
+<p><button name="action" value="calculate" formnovalidate>{% translate "Пересчитать" %}</button></p>
 {% if deposit_pending %}
-<p><button type="button" id="open-deposit">Заполнить отсутствующий депозит</button></p>
+<p><button type="button" id="open-deposit">{% translate "Заполнить" %} отсутствующий депозит</button></p>
 <dialog id="missing-deposit" open aria-labelledby="deposit-title" style="max-width:480px;width:calc(100% - 50px);border:1px solid #cbd5e1;border-radius:12px;padding:24px">
-<h2 id="deposit-title">Не указан депозит</h2>
+<h2 id="deposit-title">{% translate "Не указан депозит" %}</h2>
 <p>{{ result.supplier }} · {{ result.group }}</p>
-{% if result.group.rate_source_group_id %}<p>Общий тариф: {{ result.group.effective_rate_group }}. Сохранение в базе применяется ко всем группам, использующим этот тариф.</p>{% endif %}
+{% if result.group.rate_source_group_id %}<p>{% translate "Общий тариф" %}: {{ result.group.effective_rate_group }}. Сохранение в базе применяется ко всем группам, использующим этот тариф.</p>{% endif %}
 <p>Введите подтверждённую сумму. Ноль означает отсутствие депозита.</p>
 {{ deposit_form.as_p }}
 <button name="action" value="resolve_deposit">Применить и пересчитать</button>
-<button name="action" value="reset_deposit" formnovalidate>Начать ввод заново</button>
-<button type="button" id="cancel-deposit">Отмена</button>
+<button name="action" value="reset_deposit" formnovalidate>{% translate "Начать ввод заново" %}</button>
+<button type="button" id="cancel-deposit">{% translate "Отмена" %}</button>
 </dialog>
 {% elif deposit_once %}
 {% for field in deposit_form %}{{ field.as_hidden }}{% endfor %}
-<p>Депозит введён только для этого заказа. Общие настройки не изменены.</p>
-<button name="action" value="reset_deposit">Изменить введённый депозит</button>
+<p>{% translate "Депозит" %} введён только для этого заказа. Общие настройки не изменены.</p>
+<button name="action" value="reset_deposit">{% translate "Изменить" %} введённый депозит</button>
 {% endif %}
 {% if review_token %}
 <section class="review {% if changed %}price-change{% endif %}" role="alert" aria-live="polite">
-{% if edit_mode %}<h2>Новые условия заказа</h2><p>Прежняя сумма: {{ booking.total_price_gross }} {{ booking.currency }}</p>{% elif changed %}<h2>Цена отличается от оферты</h2>{% else %}<h2>Актуальный расчёт</h2>{% endif %}
+{% if edit_mode %}<h2>Новые условия заказа</h2><p>{% translate "Прежняя сумма" %}: {{ booking.total_price_gross }} {{ booking.currency }}</p>{% elif changed %}<h2>{% translate "Цена" %} отличается от оферты</h2>{% else %}<h2>{% translate "Актуальный расчёт" %}</h2>{% endif %}
 <p>{{ result.supplier }} · {{ result.group }}</p>
-{% if not manual_entry %}<p>Цена оферты: {{ option.total_price_gross }} {{ option.currency }}</p>{% endif %}
-<p>Аренда: {{ result.base }} {{ result.currency }} · {{ result.days }} дн.</p>
+{% if not manual_entry %}<p>{% translate "Цена оферты" %}: {{ option.total_price_gross }} {{ option.currency }}</p>{% endif %}
+<p>{% translate "Аренда" %}: {{ result.base }} {{ result.currency }} · {{ result.days }} {% translate "дн." %}</p>
 <ul>{% for line in result.extra_lines %}<li>{{ line.name }} — {{ line.price }} {{ result.currency }}</li>{% endfor %}</ul>
 {% if result.manual_adjustment_amount %}<p>{{ result.manual_adjustment_label }} — {{ result.manual_adjustment_amount }} {{ result.currency }}</p>{% endif %}
-<p><strong>Новая сумма: {{ result.total }} {{ result.currency }}</strong>{% if delta != None %} · Разница: {{ delta }} {{ result.currency }}{% endif %}</p>
-<p>Депозит: {{ result.deposit_amount|default_if_none:'уточняется' }} {{ result.deposit_currency }}</p>
+<p><strong>{% translate "Новая сумма" %}: {{ result.total }} {{ result.currency }}</strong>{% if delta != None %} · Разница: {{ delta }} {{ result.currency }}{% endif %}</p>
+<p>{% translate "Депозит" %}: {{ result.deposit_amount|default_if_none:'уточняется' }} {{ result.deposit_currency }}</p>
 <input type="hidden" name="review_token" value="{{ review_token }}">
 <p><label><input type="checkbox" name="confirm_price" value="yes"> Подтверждаю условия и актуальную сумму</label></p>
-<button name="action" value="create">{% if edit_mode %}Сохранить изменения и подготовить письма{% else %}Создать черновик заказа{% endif %}</button>
+<button name="action" value="create">{% if edit_mode %}{% translate "Сохранить" %} изменения и подготовить письма{% else %}Создать черновик заказа{% endif %}</button>
 <p>Отправка поставщику — отдельный шаг.</p></section>
 {% endif %}</form>
 <script>

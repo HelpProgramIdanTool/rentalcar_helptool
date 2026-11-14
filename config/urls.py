@@ -18,8 +18,11 @@ from django.contrib import admin
 from django.urls import include, path
 from .cutover_upload import upload_package
 from .category_upload import category_upload
+from .operator_language import set_operator_language
 
 urlpatterns = [
+    path('interface-language/', set_operator_language, name='operator_language'),
+    path('partners/', include('partners.urls')),
     path('customers/', include('customers.urls')),
     path('', include('quotes.urls')),
     path('admin/cutover-upload/', upload_package, name='cutover_upload'),

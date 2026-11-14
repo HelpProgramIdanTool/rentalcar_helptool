@@ -1,10 +1,11 @@
+{% load i18n %}
 {% load static %}
 <!doctype html>
-<html lang="ru">
+<html lang="{{ request.LANGUAGE_CODE|default:'ru' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Новое обращение</title>
+  <title>{% translate "Новое обращение" %}</title>
   <style>
     * { box-sizing:border-box; } :root { font-family: Arial, sans-serif; color: #172033; background: #eef2f7; }
     body { margin:0;overflow:hidden; } .app { display:grid;grid-template-columns:220px 1fr;height:100vh;min-height:0; }.side{background:#142238;color:white;padding:24px 14px}.brand{font-size:18px;font-weight:bold;margin:0 10px 25px}.step{padding:11px 10px;color:#cbd6e7}.step.active{background:#2e6ee6;border-radius:8px;color:white} main { max-width:1100px;width:100%;height:100vh;min-height:0;margin:0 auto;padding:28px;display:flex;flex-direction:column;overflow:hidden; }
@@ -67,8 +68,8 @@
 </style>
 <style>.vehicle-price{font-weight:700;color:#155eef;white-space:nowrap}.vehicle-supplier label{flex-wrap:wrap}.vehicle-supplier label input{flex-shrink:0}#price-preview-status{margin:4px 0;font-size:12px;color:#475467}</style>{% if not is_email %}{% include 'application_meta.html' %}{% endif %}</head>
 <body><div class="app">{% include 'quotes/sidebar.html' %}<main>
-  <div class="inquiry-header"><h1>Новое обращение</h1><a class="icon-button" href="{% url 'quotes:home' %}" title="На главную" aria-label="На главную"><span aria-hidden="true">⌂</span></a></div>
-  {% if selected_customer %}<p>Оферта для: <strong>{{ selected_customer }}</strong></p>{% endif %}
+  <div class="inquiry-header"><h1>{% translate "Новое обращение" %}</h1><a class="icon-button" href="{% url 'quotes:home' %}" title="На главную" aria-label="На главную"><span aria-hidden="true">⌂</span></a></div>
+  {% if selected_customer %}<p>{% translate "Оферта для" %}: <strong>{{ selected_customer }}</strong></p>{% endif %}
   <form method="post" novalidate autocomplete="off">
     {% csrf_token %}
     {{ form.non_field_errors }}
@@ -79,11 +80,11 @@
     </div>
     {% endif %}
     <div class="work-area">
-    <fieldset class="message-panel"><legend>Клиент написал</legend>
+    <fieldset class="message-panel"><legend>{% translate "Клиент написал" %}</legend>
       <label class="customer-message">{{ form.customer_notes }}{{ form.customer_notes.errors }}</label>
-      <button type="button" id="import-inquiry" title="Заполнить из заявки и подобрать машины">Подобрать авто</button>
+      <button type="button" id="import-inquiry" title="Заполнить из заявки и подобрать машины">{% translate "Подобрать авто" %}</button>
       <input type="hidden" name="imported_inquiry" id="imported-inquiry" value="{{ request.POST.imported_inquiry }}">
-      <button type="button" class="small-button" id="show-all-groups">Показать все категории</button>
+      <button type="button" class="small-button" id="show-all-groups">{% translate "Показать" %} все категории</button>
       <div id="import-result" role="status" style="white-space:pre-line"></div>
       <small class="hint">Вставь сюда исходный текст письма клиента. Для иврита текст выравнивается справа.</small>
     </fieldset>
@@ -92,7 +93,7 @@
       <strong>Не удалось перейти к расчёту. Исправьте поля:</strong>
       <ul>{% for field in form %}{% for error in field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}</a>: {{ error }}</li>{% endfor %}{% endfor %}{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>
     </section>{% endif %}
-    <fieldset><legend>1. Клиент</legend><div class="grid">
+    <fieldset><legend>1. {% translate "Клиент" %}</legend><div class="grid">
       <label>{{ form.full_name.label }}{{ form.full_name }}{{ form.full_name.errors }}</label>
       <label>{{ form.email.label }}{{ form.email }}{{ form.email.errors }}</label>
       <div class="phone-stack">
@@ -100,10 +101,10 @@
         <div class="phone-line optional-phone" id="phone-2-box" hidden><label>{{ form.phone_2.label }}{{ form.phone_2 }}{{ form.phone_2.errors }}</label></div>
         <div class="phone-line optional-phone" id="phone-3-box" hidden><label>{{ form.phone_3.label }}{{ form.phone_3 }}{{ form.phone_3.errors }}</label></div>
       </div>
-      {% for field in form %}{% if field.name in "country preferred_language sub_agent address" %}<label class="{% if field.name == 'address' %}full{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endif %}{% endfor %}
+      {% for field in form %}{% if field.name in "country preferred_language sub_agent address referral_contact" %}<label class="{% if field.name == 'address' %}full{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>{% endif %}{% endfor %}
       <div class="customer-history" id="customer-history" hidden></div>
     </div></fieldset>
-    <fieldset><legend>2. Инвойс</legend>
+    <fieldset><legend>{% translate "2. Инвойс" %}</legend>
       <label class="check">{{ form.wants_invoice }} {{ form.wants_invoice.label }}</label>
       <div id="invoice-fields" class="grid">
         <label>{{ form.invoice_name.label }}{{ form.invoice_name }}{{ form.invoice_name.errors }}</label>
@@ -112,23 +113,23 @@
         <label>{{ form.invoice_email.label }}{{ form.invoice_email }}{{ form.invoice_email.errors }}</label>
       </div>
     </fieldset>
-    <fieldset><legend>3. Запрос на аренду</legend><div class="grid">
+    <fieldset><legend>{% translate "3. Запрос на аренду" %}</legend><div class="grid">
       <div class="rental-locations">
         <section class="location-zone" data-location-zone="pickup">
-          <h2>Получение</h2>
+          <h2>{% translate "Получение" %}</h2>
           <div><label for="id_pickup_date">{{ form.pickup_date.label }}</label><div class="date-control">{{ form.pickup_date }}<input class="native-date-picker" id="pickup-calendar" type="date" aria-label="Открыть календарь даты получения" title="Выбрать дату получения"></div>{{ form.pickup_date.errors }}</div>
           <label>{{ form.pickup_time.label }}{{ form.pickup_time }}{{ form.pickup_time.errors }}</label>
-          <label>{{ form.pickup_city.label }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</label>
+          <label>{{ form.pickup_city.label }}{{ form.pickup_city }}{{ form.pickup_city.errors }}<small id="pickup-country-label"></small></label>
           <label class="other-location" data-other-side="pickup" hidden>{{ form.pickup_other_country.label }}{{ form.pickup_other_country }}{{ form.pickup_other_country.errors }}</label>
           <label class="other-location" data-other-side="pickup" hidden>{{ form.pickup_other_city.label }}{{ form.pickup_other_city }}{{ form.pickup_other_city.errors }}</label>
           <label>{{ form.pickup_service.label }}{{ form.pickup_service }}{{ form.pickup_service.errors }}</label>
           <label class="address-field" id="pickup-address-box" hidden>{{ form.pickup_address.label }}{{ form.pickup_address }}{{ form.pickup_address.errors }}</label>
         </section>
         <section class="location-zone" data-location-zone="return">
-          <h2>Возврат</h2>
+          <h2>{% translate "Возврат" %}</h2>
           <div><label for="id_return_date">{{ form.return_date.label }}</label><div class="date-control">{{ form.return_date }}<input class="native-date-picker" id="return-calendar" type="date" aria-label="Открыть календарь даты возврата" title="Выбрать дату возврата"></div>{{ form.return_date.errors }}</div>
           <label>{{ form.return_time.label }}{{ form.return_time }}{{ form.return_time.errors }}</label>
-          <label>{{ form.return_city.label }}{{ form.return_city }}{{ form.return_city.errors }}</label>
+          <label>{{ form.return_city.label }}{{ form.return_city }}{{ form.return_city.errors }}<small id="return-country-label"></small></label>
           <label class="other-location" data-other-side="return" hidden>{{ form.return_other_country.label }}{{ form.return_other_country }}{{ form.return_other_country.errors }}</label>
           <label class="other-location" data-other-side="return" hidden>{{ form.return_other_city.label }}{{ form.return_other_city }}{{ form.return_other_city.errors }}</label>
           <label>{{ form.return_service.label }}{{ form.return_service }}{{ form.return_service.errors }}</label>
@@ -137,21 +138,22 @@
       </div>
       <label>{{ form.driver_count.label }}{{ form.driver_count }}{{ form.driver_count.errors }}</label>
       <div class="extras-choice">{{ form.extra_choices.label }}
-        <div>{% for option in form.extra_choices %}<label for="{{ option.id_for_label }}" title="{{ option.choice_label }}">{{ option.tag }}<span>{% if option.data.value == 'YOUNG_DRIVER' %}Молодой / новый водитель{% elif option.data.value == 'CHILD_SEAT' %}Кресло / бустер{% elif option.data.value == 'SNOW_CHAINS' %}Цепи{% elif option.data.value == 'NAVIGATION' %}GPS{% elif option.data.value == 'WIFI_ROUTER' %}Wi-Fi{% else %}{{ option.choice_label }}{% endif %}</span></label>{% endfor %}</div>
+        <div>{% for option in form.extra_choices %}<label for="{{ option.id_for_label }}" title="{{ option.choice_label }}">{{ option.tag }}<span>{% if option.data.value == 'YOUNG_DRIVER' %}Молодой / новый водитель{% elif option.data.value == 'CHILD_SEAT' %}{% translate "Кресло" %} / бустер{% elif option.data.value == 'SNOW_CHAINS' %}{% translate "Цепи" %}{% elif option.data.value == 'NAVIGATION' %}GPS{% elif option.data.value == 'WIFI_ROUTER' %}Wi-Fi{% else %}{{ option.choice_label }}{% endif %}</span></label>{% endfor %}</div>
         {{ form.extra_choices.errors }}
       </div>
       <label>{{ form.young_driver_quantity.label }}{{ form.young_driver_quantity }}{{ form.young_driver_quantity.errors }}<small>{{ form.young_driver_quantity.help_text }}</small></label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
-      <label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
+      <label>{{ form.rental_country.label }}{{ form.rental_country }}{{ form.rental_country.help_text }}{{ form.rental_country.errors }}</label><label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
       <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
       <p id="price-preview-status" class="full" role="status" aria-live="polite" data-url="{% url 'quotes:preview_prices' %}">Заполните параметры аренды, чтобы увидеть цены.</p>
       <div class="vehicle-choice" role="group" aria-labelledby="vehicle-choice-title"><h2 id="vehicle-choice-title">{{ form.vehicle_groups.label }}</h2>{{ form.vehicle_groups }}{{ form.vehicle_groups.errors }}<small>При ручном заполнении показаны все категории. После разбора текста заявки останутся подходящие группы.</small></div>
       <label class="full">{{ form.internal_notes.label }}{{ form.internal_notes }}{{ form.internal_notes.errors }}</label>
     </div></fieldset>
-    <p class="next-note">После сохранения сразу перейдём к расчёту вариантов поставщиков.</p><div><button type="submit">Сохранить и перейти к расчёту →</button></div>
+    <p class="next-note">После сохранения сразу перейдём к расчёту вариантов поставщиков.</p><div><button type="submit">{% translate "Сохранить" %} и перейти к расчёту →</button></div>
     </div></div>
   </form>
 </main></div>
+{{ form.city_countries|json_script:"city-countries" }}
 {{ form.foreign_city_names|json_script:"foreign-city-names" }}
 {{ form.subagent_unavailable_supplier_ids|json_script:"subagent-unavailable-suppliers" }}
 <script>
@@ -232,8 +234,11 @@
   const pickupPlace = document.querySelector('#id_pickup_city');
   const returnPlace = document.querySelector('#id_return_city');
   const foreignCities=JSON.parse(document.querySelector('#foreign-city-names').textContent);
+  const countryLabels=JSON.parse(document.querySelector('#city-countries').textContent);
+  function syncCountryLabels(){for(const side of ['pickup','return']){const el=document.querySelector('#'+side+'-country-label');if(el)el.textContent=countryLabels[document.querySelector('#id_'+side+'_city').value]||'';}}
+  pickupPlace.addEventListener('change',syncCountryLabels);returnPlace.addEventListener('change',syncCountryLabels);syncCountryLabels();
   const crossBorder=document.querySelector('#id_cross_border_requested');
-  function syncCrossBorder(){if(foreignCities.includes(pickupPlace.value)||foreignCities.includes(returnPlace.value))crossBorder.checked=true;}
+  function syncCrossBorder(){if(document.querySelector('#id_rental_country').value!=='PL') return;if(foreignCities.includes(pickupPlace.value)||foreignCities.includes(returnPlace.value))crossBorder.checked=true;}
   pickupPlace.addEventListener('change',syncCrossBorder);
   returnPlace.addEventListener('change',syncCrossBorder);
   crossBorder.addEventListener('change',syncCrossBorder);

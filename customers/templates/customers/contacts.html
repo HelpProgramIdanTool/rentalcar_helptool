@@ -1,0 +1,11 @@
+{% extends 'customers/base.html' %}{% load i18n %}{% block content %}
+<h1>{% translate "Контакты обращений" %}</h1><p><a href="{% url 'customers:list' %}">{% translate "По клиенту" %}</a> · {% translate "По контакту" %}</p>
+<form method="get"><input name="q" value="{{ search }}" placeholder="Имя или email">{{ period.as_p }}<button>{% translate "Найти" %}</button></form>
+<p>{% translate "Период" %} относится к дате создания записи. {% translate "Заказы" %} и отмены считаются отдельно.</p>
+<table><tr><th>{% translate "Контакт" %}</th><th>{% translate "Email" %}</th><th>{% translate "Оферты" %}</th><th>{% translate "Заказы" %}</th><th>{% translate "Отмены" %}</th></tr>
+{% for row in rows %}<tr><td><a href="{% url 'customers:contact_detail' row.contact.pk %}">{{ row.contact }}</a></td><td>{% for email in row.contact.emails.all %}{{ email.email }}<br>{% endfor %}</td>
+<td><a href="{% url 'customers:contact_detail' row.contact.pk %}?{{ query }}&kind=offers">{{ row.offers }}</a></td>
+<td><a href="{% url 'customers:contact_detail' row.contact.pk %}?{{ query }}&kind=bookings">{{ row.bookings }}</a></td>
+<td><a href="{% url 'customers:contact_detail' row.contact.pk %}?{{ query }}&kind=cancelled">{{ row.cancelled }}</a></td></tr>{% endfor %}</table>
+<details><summary>{% translate "Создать контакт" %}</summary><form method="post">{% csrf_token %}{{ form.as_p }}<button>{% translate "Сохранить" %}</button></form></details>
+{% endblock %}

@@ -1,18 +1,19 @@
+{% load i18n %}
 {% load static %}
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Оферты — Idan Rent a Car</title><link rel="stylesheet" href="{% static 'quotes/workspace.css' %}?v=20261001-scroll4">{% if not is_email %}{% include 'application_meta.html' %}{% endif %}</head>
+<html lang="{{ request.LANGUAGE_CODE|default:'ru' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% translate "Оферты" %} — Idan Rent a Car</title><link rel="stylesheet" href="{% static 'quotes/workspace.css' %}?v=20261001-scroll4">{% if not is_email %}{% include 'application_meta.html' %}{% endif %}</head>
 <body class="workspace-body quote-list-page"><div class="workspace">
 {% include 'quotes/sidebar.html' %}
 <main class="workspace-main">
-  <header class="workspace-header"><div><h1>Оферты</h1><p>Предложения клиентам и история отправки</p></div><a class="primary-link" href="{% url 'quotes:new_inquiry' %}">＋ Дать оферту</a></header>
+  <header class="workspace-header"><div><h1>{% translate "Оферты" %}</h1><p>Предложения клиентам и история отправки</p></div><a class="primary-link" href="{% url 'quotes:new_inquiry' %}">＋ {% translate "Дать оферту" %}</a></header>
   <section aria-label="Статистика оферт" style="margin-bottom:16px">
     <div style="display:flex;flex-wrap:wrap;gap:12px">
-      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">Всего оферт<br><strong style="font-size:26px">{{ stats.total }}</strong></div>
-      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">Выдано<br><strong style="font-size:26px">{{ stats.issued }}</strong></div>
-      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">Перешли в заказы<br><strong style="font-size:26px">{{ stats.converted }}</strong></div>
-      <div style="background:#e8fff1;color:#104b32;border:1px solid #a7e8bf;border-radius:10px;padding:14px 20px">Конверсия в заказ<br><strong style="font-size:26px">{{ stats.conversion_percent|floatformat:1 }}%</strong></div>
+      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">{% translate "Всего оферт" %}<br><strong style="font-size:26px">{{ stats.total }}</strong></div>
+      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">{% translate "Выдано" %}<br><strong style="font-size:26px">{{ stats.issued }}</strong></div>
+      <div style="background:white;border:1px solid #d8e0eb;border-radius:10px;padding:14px 20px">{% translate "Перешли в заказы" %}<br><strong style="font-size:26px">{{ stats.converted }}</strong></div>
+      <div style="background:#e8fff1;color:#104b32;border:1px solid #a7e8bf;border-radius:10px;padding:14px 20px">{% translate "Конверсия в заказ" %}<br><strong style="font-size:26px">{{ stats.conversion_percent|floatformat:1 }}%</strong></div>
     </div>
-    <p style="font-size:13px;color:#667085;margin:8px 0">По текущим фильтрам, на всех страницах. Выдано — отмечено отправкой, принятием или созданием заказа. Конверсия — доля выданных оферт, по которым создан хотя бы один заказ, включая впоследствии отменённые. Одна оферта считается один раз.</p>
+    <p style="font-size:13px;color:#667085;margin:8px 0">По текущим фильтрам, на всех страницах. {% translate "Выдано" %} — отмечено отправкой, принятием или созданием заказа. Конверсия — доля выданных оферт, по которым создан хотя бы один заказ, включая впоследствии отменённые. Одна оферта считается один раз.</p>
   </section>
   <section class="list-panel" aria-label="Список оферт">
     <form class="list-filters" method="get">
@@ -20,23 +21,23 @@
       <label>{{ filters.status.label }}{{ filters.status }}{{ filters.status.errors }}</label>
       <label>{{ filters.pickup_from.label }}{{ filters.pickup_from }}{{ filters.pickup_from.errors }}</label>
       <label>{{ filters.pickup_to.label }}{{ filters.pickup_to }}{{ filters.pickup_to.errors }}</label>
-      <label>Сортировка<select name="sort"><option value="-created_at"{% if sort == '-created_at' %} selected{% endif %}>Сначала новые</option><option value="created_at"{% if sort == 'created_at' %} selected{% endif %}>Сначала старые</option><option value="pickup_datetime"{% if sort == 'pickup_datetime' %} selected{% endif %}>Ближайшее получение</option><option value="-pickup_datetime"{% if sort == '-pickup_datetime' %} selected{% endif %}>Позднее получение</option></select></label>
-      <button type="submit">Найти</button><a class="reset-filters" href="{% url 'quotes:quote_list' %}">Сбросить</a>
+      <label>{% translate "Сортировка" %}<select name="sort"><option value="-created_at"{% if sort == '-created_at' %} selected{% endif %}>{% translate "Сначала новые" %}</option><option value="created_at"{% if sort == 'created_at' %} selected{% endif %}>{% translate "Сначала старые" %}</option><option value="pickup_datetime"{% if sort == 'pickup_datetime' %} selected{% endif %}>{% translate "Ближайшее получение" %}</option><option value="-pickup_datetime"{% if sort == '-pickup_datetime' %} selected{% endif %}>{% translate "Позднее получение" %}</option></select></label>
+      <button type="submit">{% translate "Найти" %}</button><a class="reset-filters" href="{% url 'quotes:quote_list' %}">{% translate "Сбросить" %}</a>
     </form>
-    <div class="table-scroll"><table class="offer-table"><thead><tr><th scope="col">Оферта</th><th scope="col">Клиент</th><th scope="col">Получение</th><th scope="col">Возврат</th><th scope="col">Статус</th><th scope="col">Отправлена</th><th scope="col">Действие</th></tr></thead><tbody>
+    <div class="table-scroll"><table class="offer-table"><thead><tr><th scope="col">{% translate "Оферта" %}</th><th scope="col">{% translate "Клиент" %}</th><th scope="col">{% translate "Получение" %}</th><th scope="col">{% translate "Возврат" %}</th><th scope="col">{% translate "Статус" %}</th><th scope="col">{% translate "Отправлена" %}</th><th scope="col">{% translate "Действие" %}</th></tr></thead><tbody>
     {% for quote in page_obj %}
       <tr data-href="{% url 'quotes:inquiry_saved' quote.quote_number %}">
-        <td><a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">{{ quote.quote_number }}</a><span class="subline">Создана {{ quote.created_at|date:'d.m.Y' }}</span>{% if quote.created_by_user %}<span class="subline">Создал: {{ quote.created_by_user.get_full_name|default:quote.created_by_user.username }}</span>{% endif %}</td>
+        <td><a href="{% url 'quotes:inquiry_saved' quote.quote_number %}">{{ quote.quote_number }}</a><span class="subline">{% translate "Создана" %} {{ quote.created_at|date:'d.m.Y' }}</span>{% if quote.created_by_user %}<span class="subline">{% translate "Создал" %}: {{ quote.created_by_user.get_full_name|default:quote.created_by_user.username }}</span>{% endif %}</td>
         <td>{{ quote.customer }}<span class="subline">{{ quote.customer.email|default:quote.customer.phone_1 }}</span></td>
         <td>{{ quote.pickup_datetime|date:'d.m.Y H:i' }}<span class="subline">{{ quote.pickup_city|default:quote.pickup_location_text }}</span></td>
         <td>{{ quote.return_datetime|date:'d.m.Y H:i' }}<span class="subline">{{ quote.return_city|default:quote.return_location_text }}</span></td>
         <td><span class="status-badge status-{{ quote.status }}">{{ quote.status_label }}</span></td>
-        <td>{{ quote.sent_at|date:'d.m.Y H:i'|default:'—' }}{% if quote.sent_by_user %}<span class="subline">Отправил: {{ quote.sent_by_user.get_full_name|default:quote.sent_by_user.username }}</span>{% endif %}</td>
-        <td><a href="{% url 'quotes:edit_quote' quote.quote_number %}" aria-label="Изменить {{ quote.quote_number }}">Изменить</a></td>
+        <td>{{ quote.sent_at|date:'d.m.Y H:i'|default:'—' }}{% if quote.sent_by_user %}<span class="subline">{% translate "Отправил" %}: {{ quote.sent_by_user.get_full_name|default:quote.sent_by_user.username }}</span>{% endif %}</td>
+        <td><a href="{% url 'quotes:edit_quote' quote.quote_number %}" aria-label="Изменить {{ quote.quote_number }}">{% translate "Изменить" %}</a></td>
       </tr>
-    {% empty %}<tr><td colspan="7" class="empty-list"><strong>Оферты не найдены</strong>Измените фильтры или создайте новую оферту.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="7" class="empty-list"><strong>{% translate "Оферты" %} не найдены</strong>Измените фильтры или создайте новую оферту.</td></tr>{% endfor %}
     </tbody></table></div>
-    <footer class="list-footer"><span>Найдено: {{ page_obj.paginator.count }}{% if page_obj.paginator.count %} · Показаны {{ page_obj.start_index }}–{{ page_obj.end_index }}{% endif %}</span><nav aria-label="Страницы оферт">{% if page_obj.has_previous %}<a href="?{{ filter_query }}&amp;page={{ page_obj.previous_page_number }}">← Назад</a>{% endif %}<span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?{{ filter_query }}&amp;page={{ page_obj.next_page_number }}">Далее →</a>{% endif %}</nav></footer>
+    <footer class="list-footer"><span>{% translate "Найдено" %}: {{ page_obj.paginator.count }}{% if page_obj.paginator.count %} · Показаны {{ page_obj.start_index }}–{{ page_obj.end_index }}{% endif %}</span><nav aria-label="Страницы оферт">{% if page_obj.has_previous %}<a href="?{{ filter_query }}&amp;page={{ page_obj.previous_page_number }}">← {% translate "Назад" %}</a>{% endif %}<span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?{{ filter_query }}&amp;page={{ page_obj.next_page_number }}">{% translate "Далее" %} →</a>{% endif %}</nav></footer>
   </section>
 </main></div>
 <script>document.querySelectorAll('tr[data-href]').forEach(row=>row.addEventListener('click',event=>{if(!event.target.closest('a')&&!window.getSelection().toString())window.location.href=row.dataset.href;}));</script>

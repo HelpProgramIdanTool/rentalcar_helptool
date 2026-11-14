@@ -1,19 +1,22 @@
+{% load i18n %}
 <aside class="app-menu">
   <a class="app-brand" href="{% url 'quotes:home' %}">IDAN <span>RENT A CAR</span></a>
-  <a class="app-create" href="{% url 'quotes:new_inquiry' %}">＋ Дать оферту</a>
-  <a class="app-create" href="{% url 'quotes:new_booking' %}">＋ Новый заказ</a>
+  <a class="app-create" href="{% url 'quotes:new_inquiry' %}">＋ {% translate "Дать оферту" %}</a>
+  <a class="app-create" href="{% url 'quotes:new_booking' %}">＋ {% translate "Новый заказ" %}</a>
   <nav aria-label="Главное меню">
-    <a href="{% url 'quotes:home' %}">⌂ На главную</a>
-    <a href="{% url 'quotes:booking_list' %}"{% if active_menu == 'orders' %} aria-current="page"{% endif %}>Заказы</a>
-    <a href="{% url 'quotes:attention_queue' %}"{% if active_menu == 'attention' %} aria-current="page"{% endif %}>Требуют внимания <strong {% if booking_attention_count %}style="background:#b91c1c;color:white;padding:3px 9px;border-radius:16px"{% endif %}>{{ booking_attention_count|default:0 }}</strong></a>
-    <a href="{% url 'quotes:quote_list' %}"{% if active_menu == 'quotes' %} aria-current="page"{% endif %}>Оферты</a>
-    <a href="{% url 'customers:list' %}"{% if active_menu == 'customers' %} aria-current="page"{% endif %}>Клиенты</a>
+    <a href="{% url 'quotes:home' %}">⌂ {% translate "На главную" %}</a>
+    <a href="{% url 'quotes:booking_list' %}"{% if active_menu == 'orders' %} aria-current="page"{% endif %}>{% translate "Заказы" %}</a>
+    <a href="{% url 'quotes:attention_queue' %}"{% if active_menu == 'attention' %} aria-current="page"{% endif %}>{% translate "Требуют внимания" %} <strong {% if booking_attention_count %}style="background:#b91c1c;color:white;padding:3px 9px;border-radius:16px"{% endif %}>{{ booking_attention_count|default:0 }}</strong></a>
+    <a href="{% url 'quotes:quote_list' %}"{% if active_menu == 'quotes' %} aria-current="page"{% endif %}>{% translate "Оферты" %}</a>
+    <a href="{% url 'customers:list' %}"{% if active_menu == 'customers' %} aria-current="page"{% endif %}>{% translate "Клиенты" %}</a>
+    <a href="{% url 'customers:contacts' %}">{% translate "Контакты обращений" %}</a>
   </nav>
   <div class="app-menu-bottom">
-    {% if can_view_statistics %}<a href="{% url 'quotes:order_file' %}">Синхронизация Excel</a>{% endif %}
-    {% if can_view_statistics %}<a href="{% url 'quotes:statistics' %}"{% if active_menu == 'statistics' %} aria-current="page"{% endif %}>Статистика и подсчёты</a>{% endif %}
-    {% if request.user.is_staff %}{% url 'admin:reconciliation_reconciliation_changelist' as reconciliation_url %}{% if reconciliation_url %}<a href="{{ reconciliation_url }}">▤ Сверка за месяц</a>{% endif %}<a href="{% url 'admin:index' %}">⚙ Настройки</a>{% endif %}
+    <form method="post" action="{% url 'operator_language' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><label for="operator-language">RU / PL / EN</label><select id="operator-language" name="language" onchange="this.form.submit()"><option value="ru"{% if request.LANGUAGE_CODE == 'ru' %} selected{% endif %}>Русский</option><option value="pl"{% if request.LANGUAGE_CODE == 'pl' %} selected{% endif %}>Polski</option><option value="en"{% if request.LANGUAGE_CODE == 'en' %} selected{% endif %}>English</option></select><noscript><button>OK</button></noscript></form>
+    {% if can_view_statistics %}<a href="{% url 'quotes:order_file' %}">{% translate "Синхронизация Excel" %}</a>{% endif %}
+    {% if can_view_statistics %}<a href="{% url 'quotes:statistics' %}"{% if active_menu == 'statistics' %} aria-current="page"{% endif %}>{% translate "Статистика и подсчёты" %}</a>{% endif %}
+    {% if request.user.is_staff %}{% url 'admin:reconciliation_reconciliation_changelist' as reconciliation_url %}{% if reconciliation_url %}<a href="{{ reconciliation_url }}">▤ {% translate "Сверка за месяц" %}</a>{% endif %}<a href="{% url 'admin:index' %}">⚙ {% translate "Настройки" %}</a>{% endif %}
     <span>{{ request.user.get_short_name|default:request.user.username }}</span>
-    <a href="{% url 'quotes:version_history' %}">Версия {{ app_version }}</a>
+    <a href="{% url 'quotes:version_history' %}">{% translate "Версия" %} {{ app_version }}</a>
   </div>
 </aside>

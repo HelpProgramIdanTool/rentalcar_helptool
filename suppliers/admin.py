@@ -1,5 +1,8 @@
 from django.contrib import admin
 from .models import FormVehicleCategory
+from .models import RentalCountry, SupplierLocalBranch
+admin.site.register(RentalCountry)
+admin.site.register(SupplierLocalBranch)
 
 
 @admin.register(FormVehicleCategory)
@@ -169,6 +172,7 @@ class SupplierExtraAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "extra_code",
+        "automatic_rule",
         "supplier",
         "category",
         "is_mandatory",

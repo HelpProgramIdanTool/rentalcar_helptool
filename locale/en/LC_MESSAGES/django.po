@@ -1,0 +1,983 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\nLanguage: en\nPlural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "2. Инвойс"
+msgstr "2. Invoice"
+
+msgid "3. Запрос на аренду"
+msgstr "3. Rental request"
+
+msgid "Active"
+msgstr "Active"
+
+msgid "Cancelled"
+msgstr "Cancelled"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Confirmed"
+msgstr "Confirmed"
+
+msgid "Draft"
+msgstr "Draft"
+
+msgid "E-mail для инвойса"
+msgstr "Invoice email"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Email (по одному на строку)"
+msgstr "Email (one per line)"
+
+msgid "NIP / налоговый номер"
+msgstr "Tax identification number"
+
+msgid "Update pending"
+msgstr "Update pending"
+
+msgid "Waiting confirmation"
+msgstr "Waiting confirmation"
+
+msgid "Автомобиль и фирма"
+msgstr "Vehicle and supplier"
+
+msgid "Адрес"
+msgstr "Address"
+
+msgid "Адрес возврата"
+msgstr "Return address"
+
+msgid "Адрес для инвойса"
+msgstr "Invoice address"
+
+msgid "Адрес получения"
+msgstr "Pickup address"
+
+msgid "Адрес проживания"
+msgstr "Home address"
+
+msgid "Актуальный расчёт"
+msgstr "Current calculation"
+
+msgid "Аренда"
+msgstr "Rental"
+
+msgid "Архив"
+msgstr "Archive"
+
+msgid "Аэропорт"
+msgstr "Airport"
+
+msgid "Ближайшее получение"
+msgstr "Next pickup"
+
+msgid "Будущие возвраты"
+msgstr "Upcoming returns"
+
+msgid "Валюта"
+msgstr "Currency"
+
+msgid "Варианты без цены"
+msgstr "Options without prices"
+
+msgid "Ваучер поставщика"
+msgstr "Supplier voucher"
+
+msgid "Ваучеры поставщика"
+msgstr "Supplier vouchers"
+
+msgid "Версия"
+msgstr "Version"
+
+msgid "Включить черновики"
+msgstr "Include drafts"
+
+msgid "Внёс в систему"
+msgstr "Entered by"
+
+msgid "Водители"
+msgstr "Drivers"
+
+msgid "Водитель"
+msgstr "Driver"
+
+msgid "Возврат"
+msgstr "Return"
+
+msgid "Возраст"
+msgstr "Age"
+
+msgid "Восстановить"
+msgstr "Restore"
+
+msgid "Время возврата"
+msgstr "Return time"
+
+msgid "Время получения"
+msgstr "Pickup time"
+
+msgid "Вручную"
+msgstr "Manually"
+
+msgid "Вс"
+msgstr "Sun"
+
+msgid "Все"
+msgstr "All"
+
+msgid "Все города"
+msgstr "All cities"
+
+msgid "Все заказы"
+msgstr "All reservations"
+
+msgid "Все места"
+msgstr "All locations"
+
+msgid "Все оферты"
+msgstr "All offers"
+
+msgid "Все статусы"
+msgstr "All statuses"
+
+msgid "Все фирмы"
+msgstr "All suppliers"
+
+msgid "Всего"
+msgstr "Total"
+
+msgid "Всего оферт"
+msgstr "Total offers"
+
+msgid "Вт"
+msgstr "Tue"
+
+msgid "Выберите город"
+msgstr "Select city"
+
+msgid "Выдано"
+msgstr "Handed over"
+
+msgid "Выдача"
+msgstr "Handover"
+
+msgid "Выдачи"
+msgstr "Handovers"
+
+msgid "Выезд"
+msgstr "Departure"
+
+msgid "Выезд за границу"
+msgstr "Cross border travel"
+
+msgid "Выслать"
+msgstr "Send"
+
+msgid "Выслать из системы"
+msgstr "Send from system"
+
+msgid "Год"
+msgstr "Year"
+
+msgid "Город"
+msgstr "City"
+
+msgid "Город / место возврата"
+msgstr "Return city / location"
+
+msgid "Город / место получения"
+msgstr "Pickup city / location"
+
+msgid "Город возврата"
+msgstr "Return city"
+
+msgid "Город получения"
+msgstr "Pickup city"
+
+msgid "Группа"
+msgstr "Group"
+
+msgid "Далее"
+msgstr "Next"
+
+msgid "Дальше"
+msgstr "Next"
+
+msgid "Данные аренды"
+msgstr "Rental details"
+
+msgid "Данные детских кресел"
+msgstr "Child seat details"
+
+msgid "Данные клиента"
+msgstr "Customer details"
+
+msgid "Дата возврата"
+msgstr "Return date"
+
+msgid "Дата начала позже даты окончания."
+msgstr "The start date is after the end date."
+
+msgid "Дата получения"
+msgstr "Pickup date"
+
+msgid "Дать оферту"
+msgstr "Create offer"
+
+msgid "Действие"
+msgstr "Action"
+
+msgid "Действия"
+msgstr "Actions"
+
+msgid "Депозит"
+msgstr "Deposit"
+
+msgid "Детские кресла"
+msgstr "Child seats"
+
+msgid "Детское кресло"
+msgstr "Child seat"
+
+msgid "Добавить в оферту"
+msgstr "Add to offer"
+
+msgid "Дополнительные услуги"
+msgstr "Additional services"
+
+msgid "Дополнительный водитель"
+msgstr "Additional driver"
+
+msgid "Доставка по адресу клиента"
+msgstr "Delivery to customer address"
+
+msgid "Другой город / страна"
+msgstr "Other city / country"
+
+msgid "Журнал версий"
+msgstr "Version history"
+
+msgid "Заказ"
+msgstr "Reservation"
+
+msgid "Заказ сотрудника"
+msgstr "Employee reservation"
+
+msgid "Заказ субагента"
+msgstr "Subagent reservation"
+
+msgid "Заказов"
+msgstr "Reservations"
+
+msgid "Заказы"
+msgstr "Reservations"
+
+msgid "Закрыта"
+msgstr "Closed"
+
+msgid "Заметка"
+msgstr "Note"
+
+msgid "Заполните, если отмечен новый или молодой водитель. Каждый человек считается один раз."
+msgstr "Complete for new or young drivers. Each person is counted once."
+
+msgid "Заполнить"
+msgstr "Fill in"
+
+msgid "Запрошен"
+msgstr "Requested"
+
+msgid "Изменение заказа"
+msgstr "Reservation amendment"
+
+msgid "Изменения"
+msgstr "Changes"
+
+msgid "Изменить"
+msgstr "Edit"
+
+msgid "Изменить заказ"
+msgstr "Edit reservation"
+
+msgid "Изменить или дополнить"
+msgstr "Edit or complete"
+
+msgid "Изменить текст письма"
+msgstr "Edit email body"
+
+msgid "Имя"
+msgstr "First name"
+
+msgid "Имя / название"
+msgstr "Name / company"
+
+msgid "Имя и фамилия"
+msgstr "Full name"
+
+msgid "Имя клиента"
+msgstr "Customer name"
+
+msgid "История"
+msgstr "History"
+
+msgid "История изменений"
+msgstr "Change history"
+
+msgid "Исходная сумма"
+msgstr "Original total"
+
+msgid "Итого"
+msgstr "Total"
+
+msgid "Итого до ручной доплаты"
+msgstr "Total before manual surcharge"
+
+msgid "К расчёту"
+msgstr "Calculate"
+
+msgid "Карточка клиента"
+msgstr "Customer record"
+
+msgid "Карточка существующего клиента (или новый клиент)"
+msgstr "Existing customer (or new customer)"
+
+msgid "Категории автомобилей поставщиков"
+msgstr "Supplier vehicle categories"
+
+msgid "Класс"
+msgstr "Class"
+
+msgid "Классы автомобилей"
+msgstr "Vehicle classes"
+
+msgid "Клиент"
+msgstr "Customer"
+
+msgid "Клиент написал"
+msgstr "Customer message"
+
+msgid "Клиент хочет инвойс"
+msgstr "Customer requires invoice"
+
+msgid "Клиенты"
+msgstr "Customers"
+
+msgid "Количество водителей"
+msgstr "Number of drivers"
+
+msgid "Количество детских кресел"
+msgstr "Number of child seats"
+
+msgid "Количество новых или молодых водителей"
+msgstr "Number of new or young drivers"
+
+msgid "Комментарии"
+msgstr "Comments"
+
+msgid "Кому"
+msgstr "To"
+
+msgid "Конверсия в заказ"
+msgstr "Conversion to reservation"
+
+msgid "Контакт"
+msgstr "Contact"
+
+msgid "Контакт для учёта обращений. Комиссия не включается."
+msgstr "Contact for tracking inquiries. No commission is enabled."
+
+msgid "Контакты"
+msgstr "Contacts"
+
+msgid "Контакты обращений"
+msgstr "Referring contacts"
+
+msgid "Копий пока нет."
+msgstr "No copies yet."
+
+msgid "Кресло"
+msgstr "Child seat"
+
+msgid "Кто обратился"
+msgstr "Referring contact"
+
+msgid "Меняется вручную. Страны получения и возврата определяются по городам отдельно."
+msgstr "Change manually. Pickup and return countries are determined separately from the cities."
+
+msgid "Место получения"
+msgstr "Pickup location"
+
+msgid "Месяц"
+msgstr "Month"
+
+msgid "Модели"
+msgstr "Models"
+
+msgid "Мой заказ"
+msgstr "My reservation"
+
+msgid "Моя заметка"
+msgstr "My note"
+
+msgid "На главную"
+msgstr "Home"
+
+msgid "Навигация"
+msgstr "Navigation"
+
+msgid "Надбавка субагента"
+msgstr "Subagent markup"
+
+msgid "Назад"
+msgstr "Back"
+
+msgid "Название / имя для инвойса"
+msgstr "Invoice name"
+
+msgid "Найдено"
+msgstr "Found"
+
+msgid "Найти"
+msgstr "Find"
+
+msgid "Настройки"
+msgstr "Settings"
+
+msgid "Начать ввод заново"
+msgstr "Start again"
+
+msgid "Не запрошен"
+msgstr "Not requested"
+
+msgid "Не сохранён заказ"
+msgstr "Reservation not saved"
+
+msgid "Не указан депозит"
+msgstr "Deposit not specified"
+
+msgid "Не указано"
+msgstr "Not specified"
+
+msgid "Нельзя рассчитать"
+msgstr "Cannot calculate"
+
+msgid "Нет вариантов"
+msgstr "No options"
+
+msgid "Нет у поставщика"
+msgstr "Unavailable from supplier"
+
+msgid "Нетто"
+msgstr "Net"
+
+msgid "Новая сумма"
+msgstr "New total"
+
+msgid "Новое обращение"
+msgstr "New inquiry"
+
+msgid "Новый заказ"
+msgstr "New reservation"
+
+msgid "Новый заказ вручную"
+msgstr "New manual reservation"
+
+msgid "Новый или молодой водитель — права менее 6 месяцев или возраст младше 24 лет"
+msgstr "New or young driver — licence under 6 months or age under 24"
+
+msgid "Новый клиент"
+msgstr "New customer"
+
+msgid "Номер"
+msgstr "Number"
+
+msgid "Номер резервации поставщика"
+msgstr "Supplier reservation number"
+
+msgid "Номер рейса"
+msgstr "Flight number"
+
+msgid "Обновить сейчас"
+msgstr "Update now"
+
+msgid "Обновлено"
+msgstr "Updated"
+
+msgid "Обратите внимание"
+msgstr "Please note"
+
+msgid "Общий тариф"
+msgstr "General tariff"
+
+msgid "Ожидание с"
+msgstr "Waiting since"
+
+msgid "Описание"
+msgstr "Description"
+
+msgid "Описание ручной доплаты"
+msgstr "Manual surcharge description"
+
+msgid "Оплата"
+msgstr "Payment"
+
+msgid "Оплачено"
+msgstr "Paid"
+
+msgid "Основание"
+msgstr "Reason"
+
+msgid "Оставьте пустым для прямого клиента."
+msgstr "Leave blank for a direct customer."
+
+msgid "Остаток"
+msgstr "Outstanding"
+
+msgid "Ответственный"
+msgstr "Responsible person"
+
+msgid "Ответственный сотрудник"
+msgstr "Responsible employee"
+
+msgid "Отдел в городе"
+msgstr "City branch"
+
+msgid "Отель при возврате"
+msgstr "Return hotel"
+
+msgid "Отель при получении"
+msgstr "Pickup hotel"
+
+msgid "Отклонена"
+msgstr "Rejected"
+
+msgid "Открыть"
+msgstr "Open"
+
+msgid "Отмена"
+msgstr "Cancellation"
+
+msgid "Отменена"
+msgstr "Cancelled"
+
+msgid "Отменить заказ"
+msgstr "Cancel reservation"
+
+msgid "Отмены"
+msgstr "Cancellations"
+
+msgid "Отметить отправку вручную"
+msgstr "Mark as sent manually"
+
+msgid "Отправил"
+msgstr "Sent by"
+
+msgid "Отправитель"
+msgstr "Sender"
+
+msgid "Отправить"
+msgstr "Send"
+
+msgid "Отправить письмо"
+msgstr "Send email"
+
+msgid "Отправить поставщику"
+msgstr "Send to supplier"
+
+msgid "Отправлена"
+msgstr "Sent"
+
+msgid "Отправленные версии"
+msgstr "Sent versions"
+
+msgid "Отправлено"
+msgstr "Sent"
+
+msgid "Оферта"
+msgstr "Offer"
+
+msgid "Оферта для"
+msgstr "Offer for"
+
+msgid "Оферты"
+msgstr "Offers"
+
+msgid "Ошибка"
+msgstr "Error"
+
+msgid "Перейти к расчёту"
+msgstr "Proceed to calculation"
+
+msgid "Пересчитать"
+msgstr "Recalculate"
+
+msgid "Перешли в заказы"
+msgstr "Converted to reservations"
+
+msgid "Период"
+msgstr "Period"
+
+msgid "Письмо"
+msgstr "Email"
+
+msgid "Письмо поставщику"
+msgstr "Supplier email"
+
+msgid "Пн"
+msgstr "Mon"
+
+msgid "По клиенту"
+msgstr "By customer"
+
+msgid "По контакту"
+msgstr "By contact"
+
+msgid "По телефону"
+msgstr "By phone"
+
+msgid "Подготовить письмо"
+msgstr "Prepare email"
+
+msgid "Подобрать авто"
+msgstr "Find vehicles"
+
+msgid "Подтвердил"
+msgstr "Confirmed by"
+
+msgid "Позднее получение"
+msgstr "Late pickup"
+
+msgid "Поиск"
+msgstr "Search"
+
+msgid "Показать"
+msgstr "Show"
+
+msgid "Получатель"
+msgstr "Recipient"
+
+msgid "Получение"
+msgstr "Pickup"
+
+msgid "Получение до"
+msgstr "Pickup until"
+
+msgid "Получение с"
+msgstr "Pickup from"
+
+msgid "Польша"
+msgstr "Poland"
+
+msgid "Поставщик"
+msgstr "Supplier"
+
+msgid "Предыдущие копии"
+msgstr "Previous copies"
+
+msgid "Предыдущий"
+msgstr "Previous"
+
+msgid "Прежняя сумма"
+msgstr "Previous total"
+
+msgid "Примечание"
+msgstr "Note"
+
+msgid "Примечание к автомобилю (например, SEDAN)"
+msgstr "Vehicle note (for example SEDAN)"
+
+msgid "Принята"
+msgstr "Accepted"
+
+msgid "Проверить"
+msgstr "Review"
+
+msgid "Проверка"
+msgstr "Review"
+
+msgid "Программа"
+msgstr "Application"
+
+msgid "Пт"
+msgstr "Fri"
+
+msgid "Рабочие заказы"
+msgstr "Current reservations"
+
+msgid "Рассчитать предложения фирм"
+msgstr "Calculate supplier offers"
+
+msgid "Расчёт"
+msgstr "Calculation"
+
+msgid "Резервация фирмы"
+msgstr "Supplier reservation"
+
+msgid "Результат проверки"
+msgstr "Review result"
+
+msgid "Рост"
+msgstr "Height"
+
+msgid "Ручная доплата"
+msgstr "Manual surcharge"
+
+msgid "С НДС"
+msgstr "Including VAT"
+
+msgid "Сам клиент"
+msgstr "Customer directly"
+
+msgid "Сб"
+msgstr "Sat"
+
+msgid "Сбросить"
+msgstr "Reset"
+
+msgid "Сверка"
+msgstr "Reconciliation"
+
+msgid "Сверка за месяц"
+msgstr "Monthly reconciliation"
+
+msgid "Связать выбранные"
+msgstr "Link selected"
+
+msgid "Сезон"
+msgstr "Season"
+
+msgid "Синхронизация Excel"
+msgstr "Excel sync"
+
+msgid "Скопировать"
+msgstr "Copy"
+
+msgid "Скопировать письмо"
+msgstr "Copy email"
+
+msgid "Скрытые заказы"
+msgstr "Hidden reservations"
+
+msgid "Следующий"
+msgstr "Next"
+
+msgid "Словакия"
+msgstr "Slovakia"
+
+msgid "Сначала новые"
+msgstr "Newest first"
+
+msgid "Сначала старые"
+msgstr "Oldest first"
+
+msgid "Собрать оферту"
+msgstr "Build offer"
+
+msgid "Создал"
+msgstr "Created by"
+
+msgid "Создана"
+msgstr "Created"
+
+msgid "Создано"
+msgstr "Created"
+
+msgid "Создано до"
+msgstr "Created until"
+
+msgid "Создано с"
+msgstr "Created from"
+
+msgid "Создать заказ"
+msgstr "Create reservation"
+
+msgid "Создать заказ из оферты"
+msgstr "Create reservation from offer"
+
+msgid "Создать контакт"
+msgstr "Create contact"
+
+msgid "Создать копию"
+msgstr "Create copy"
+
+msgid "Сортировка"
+msgstr "Sort order"
+
+msgid "Состояние"
+msgstr "State"
+
+msgid "Сотрудники"
+msgstr "Employees"
+
+msgid "Сохранить"
+msgstr "Save"
+
+msgid "Сохранить текст"
+msgstr "Save text"
+
+msgid "Сохранить черновик"
+msgstr "Save draft"
+
+msgid "Способ возврата"
+msgstr "Return service"
+
+msgid "Способ передачи"
+msgstr "Delivery method"
+
+msgid "Способ получения"
+msgstr "Pickup service"
+
+msgid "Справочники"
+msgstr "Reference data"
+
+msgid "Ср"
+msgstr "Wed"
+
+msgid "Средний чек"
+msgstr "Average total"
+
+msgid "Срок"
+msgstr "Duration"
+
+msgid "Статистика и подсчёты"
+msgstr "Statistics and totals"
+
+msgid "Статус"
+msgstr "Status"
+
+msgid "Статус заказа"
+msgstr "Reservation status"
+
+msgid "Стереть из истории"
+msgstr "Erase from history"
+
+msgid "Страна"
+msgstr "Country"
+
+msgid "Страна аренды"
+msgstr "Rental country"
+
+msgid "Страна возврата"
+msgstr "Return country"
+
+msgid "Страна получения"
+msgstr "Pickup country"
+
+msgid "Строк"
+msgstr "Rows"
+
+msgid "Строка"
+msgstr "Row"
+
+msgid "Субагент"
+msgstr "Subagent"
+
+msgid "Субагенты"
+msgstr "Subagents"
+
+msgid "Сумма"
+msgstr "Amount"
+
+msgid "Сумма с НДС"
+msgstr "Total including VAT"
+
+msgid "Текст письма"
+msgstr "Email body"
+
+msgid "Текст, который будет отправлен"
+msgstr "Text to be sent"
+
+msgid "Телефон"
+msgstr "Phone"
+
+msgid "Телефон 2"
+msgstr "Phone 2"
+
+msgid "Телефон 3"
+msgstr "Phone 3"
+
+msgid "Телефоны"
+msgstr "Phones"
+
+msgid "Тема"
+msgstr "Subject"
+
+msgid "Тип"
+msgstr "Type"
+
+msgid "Требует проверки"
+msgstr "Needs review"
+
+msgid "Требуют внимания"
+msgstr "Need attention"
+
+msgid "Уже записано"
+msgstr "Already recorded"
+
+msgid "Условия"
+msgstr "Conditions"
+
+msgid "ФИО"
+msgstr "Full name"
+
+msgid "Фамилия"
+msgstr "Last name"
+
+msgid "Фильтры"
+msgstr "Filters"
+
+msgid "Фирма"
+msgstr "Supplier"
+
+msgid "Фирма, где заказываем"
+msgstr "Booking supplier"
+
+msgid "Цена"
+msgstr "Price"
+
+msgid "Цена оферты"
+msgstr "Offer price"
+
+msgid "Цепи"
+msgstr "Chains"
+
+msgid "Чей заказ"
+msgstr "Reservation source"
+
+msgid "Черновик"
+msgstr "Draft"
+
+msgid "Черновики"
+msgstr "Drafts"
+
+msgid "Чехия"
+msgstr "Czechia"
+
+msgid "Чт"
+msgstr "Thu"
+
+msgid "Что написал клиент"
+msgstr "Customer message"
+
+msgid "Язык"
+msgstr "Language"
+
+msgid "Язык клиента"
+msgstr "Customer language"
+
+msgid "Язык оферты"
+msgstr "Offer language"
+
+msgid "дн."
+msgstr "days"
+
+msgid "не указаны"
+msgstr "not specified"
+
+msgid "нет данных"
+msgstr "no data"
+
+msgid "см"
+msgstr "cm"

@@ -1,4 +1,4 @@
-{% autoescape off %}{{ driver_names }}
+{% load l10n %}{% localize off %}{% autoescape off %}{{ driver_names }}
 {{ booking.customer_phone_1_snapshot }}{% if booking.customer_phone_2_snapshot %} // {{ booking.customer_phone_2_snapshot }}{% endif %}{% if booking.customer_phone_3_snapshot %} // {{ booking.customer_phone_3_snapshot }}{% endif %}
 {% if booking.source_quote_snapshot.sub_agent_phone %}{{ booking.source_quote_snapshot.sub_agent_phone }} (Sub-agent)
 {% endif %}{{ booking.customer_email_snapshot }}
@@ -14,4 +14,7 @@
 {{ booking.customer_address_snapshot }}{% if booking.customer_postal_code_snapshot %}, {{ booking.customer_postal_code_snapshot }}{% endif %}{% if booking.customer_city_snapshot %} - {{ booking.customer_city_snapshot }}{% endif %}{% if booking.customer_country_snapshot %}, {{ booking.customer_country_snapshot }}{% endif %}
 {% if booking.hotel_name and booking.source_quote_snapshot.request.pickup_service != 'ADDRESS' %}Pickup hotel: {{ booking.hotel_name }}
 {% endif %}{% if booking.return_hotel_name and booking.source_quote_snapshot.request.return_service != 'ADDRESS' %}Return hotel: {{ booking.return_hotel_name }}
+{% endif %}{% if booking.rental_country != 'PL' %}Rental country: {{ booking.rental_country }}
+{% endif %}{% if booking.source_quote_snapshot.prepayment_notice.English %}{{ booking.source_quote_snapshot.prepayment_notice.English }}
 {% endif %}{% endautoescape %}
+{% endlocalize %}

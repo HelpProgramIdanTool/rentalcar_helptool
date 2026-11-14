@@ -1,4 +1,33 @@
 from django.db import models
+from django.conf import settings
+
+
+class OperatorPreference(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    language = models.CharField(max_length=2, choices=[('ru', 'Русский'), ('pl', 'Polski'), ('en', 'English')], default='ru')
+
+
+class ReferralContact(models.Model):
+    name = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name', 'pk']
+
+    def __str__(self):
+        return self.name
+
+
+class ReferralEmail(models.Model):
+    contact = models.ForeignKey(ReferralContact, on_delete=models.CASCADE, related_name='emails')
+    email = models.EmailField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['contact', 'email'], name='unique_contact_email')]
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.strip().lower()
+        return super().save(*args, **kwargs)
 
 
 class Customer(models.Model):

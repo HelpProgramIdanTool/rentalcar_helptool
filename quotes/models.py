@@ -19,6 +19,8 @@ class QuoteNumberSequence(models.Model):
 
 
 class Quote(models.Model):
+    referral_contact = models.ForeignKey('customers.ReferralContact', null=True, blank=True,
+        on_delete=models.PROTECT, related_name='quotes')
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         SENT = "SENT", "Sent"
@@ -60,6 +62,9 @@ class Quote(models.Model):
     return_service = models.CharField(max_length=30, blank=True)
     return_address = models.CharField(max_length=300, blank=True)
     cross_border_requested = models.BooleanField(default=False)
+    rental_country = models.CharField(max_length=2,default='PL')
+    pickup_country = models.CharField(max_length=100, blank=True)
+    return_country = models.CharField(max_length=100, blank=True)
     extra_requests = models.JSONField(default=dict, blank=True)
     driver_count = models.PositiveSmallIntegerField(default=1)
     vehicle_request = models.CharField(max_length=200, blank=True)

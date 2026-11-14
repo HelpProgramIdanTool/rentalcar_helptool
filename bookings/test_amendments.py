@@ -8,6 +8,25 @@ from suppliers.models import Supplier, VehicleGroup, PriceList, PriceSeason, Pri
 
 
 class AmendmentMessageTests(SimpleTestCase):
+    def test_price_guard_checks_components_reviewed_total_and_warning(self):
+        from decimal import Decimal
+        from types import SimpleNamespace
+        from .message_content import booking_price_error
+        booking=SimpleNamespace(vehicle_price_gross=Decimal(300),manual_adjustment_amount=Decimal(0),
+            subagent_price_adjustment_amount=Decimal(0),total_price_gross=Decimal(400),currency='PLN',
+            source_quote_snapshot={'total':'400','currency':'PLN'})
+        extra=SimpleNamespace(included_in_total=True,calculation_complete=True,calculated_price_gross=Decimal(100))
+        self.assertEqual(booking_price_error(booking,extras=[extra]),'')
+        booking.total_price_gross=Decimal(300)
+        self.assertTrue(booking_price_error(booking,extras=[extra]))
+        booking.total_price_gross=Decimal(400)
+        booking.source_quote_snapshot['total']='500'
+        self.assertTrue(booking_price_error(booking,extras=[extra]))
+        booking.source_quote_snapshot['total']='400'
+        self.assertTrue(booking_price_error(booking,extras=[extra],body='Total: 400 [please verify breakdown]'))
+        extra.calculation_complete=False
+        self.assertTrue(booking_price_error(booking,extras=[extra]))
+
     def test_changed_line_is_highlighted_and_untrusted_text_is_escaped(self):
         from .amendments import message
         item=message('UPDATE','test@example.test','UPDATE ORDER TEST',
@@ -23,6 +42,59 @@ class AmendmentMessageTests(SimpleTestCase):
 
 
 class AmendmentTests(TestCase):
+    def test_edited_update_is_saved_sent_exactly_and_cannot_be_silently_regenerated(self):
+        amendment,url=self.prepare(flight_number='TEST')
+        original=amendment.messages[0]['body']
+        edited=original+'\nTEST-OPERATOR-NOTE <script>not executable</script>'
+        self.client.post(url,{'message_index':'0','action':'save_text','body':edited})
+        amendment.refresh_from_db()
+        self.assertEqual(amendment.messages[0]['body'],edited)
+        self.assertNotIn('<script>',amendment.messages[0]['html'])
+        self.assertContains(self.client.get(url),'TEST-OPERATOR-NOTE')
+        response=self.client.post(self.url,{**self.data,'flight_number':'CHANGED'})
+        token=response.context['review_token']
+        self.client.post(self.url,{**self.data,'flight_number':'CHANGED','action':'create','confirm_price':'yes','review_token':token})
+        amendment.refresh_from_db()
+        self.assertEqual(amendment.messages[0]['body'],edited)
+        self.client.post(url,{'message_index':'0','recipient':'test@example.test'})
+        self.assertEqual(mail.outbox[-1].body,edited)
+        self.assertEqual(self.booking.supplier_deliveries.latest('pk').body,edited)
+
+    def test_confirmed_imported_amendment_updates_total_and_keeps_original_evidence(self):
+        original = self.booking.total_price_gross
+        imported = {'batch_id':'TEST-IMPORT','raw':{'amount':'TEST-ORIGINAL'}}
+        snapshot = {**self.booking.source_quote_snapshot,'historical_import':imported}
+        Booking.objects.filter(pk=self.booking.pk).update(source_quote_snapshot=snapshot)
+        self.booking.refresh_from_db()
+        amendment,url = self.prepare(return_date='2026-10-06')
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.rental_days,5)
+        self.assertEqual(self.booking.total_price_gross,500)
+        self.assertEqual(self.booking.source_quote_snapshot['historical_import'],imported)
+        self.assertEqual(amendment.before['fields']['total_price_gross'],str(original))
+        self.assertEqual(amendment.after['fields']['total_price_gross'],'500.00')
+        self.assertIn('5x100=500 PLN',amendment.messages[0]['body'])
+        self.assertNotIn('please verify breakdown',amendment.messages[0]['body'])
+
+    def test_old_inconsistent_update_is_blocked_before_sending_or_manual_marking(self):
+        amendment,url = self.prepare(flight_number='TEST')
+        amendment.messages[0]['body'] += '\nTotal: 300 PLN [please verify breakdown]'
+        amendment.save(update_fields=['messages'])
+        for action in ('send','manual'):
+            self.client.post(url,{'message_index':'0','action':action,'recipient':'test@example.test'})
+            amendment.refresh_from_db()
+            self.assertEqual(amendment.messages[0]['status'],'DRAFT')
+        self.assertEqual(len(mail.outbox),0)
+        self.assertFalse(self.booking.supplier_deliveries.exists())
+
+    def test_ordinary_imported_total_recalculation_remains_protected(self):
+        from decimal import Decimal
+        Booking.objects.filter(pk=self.booking.pk).update(source_quote_snapshot={'historical_import':{'batch_id':'TEST'}},total_price_gross=Decimal('123'))
+        self.booking.refresh_from_db()
+        self.booking.recalculate_totals()
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.total_price_gross,123)
+
     def test_manual_update_phone_does_not_send_and_confirmation_is_explicit(self):
         amendment,url=self.prepare(flight_number='TEST-PHONE-UPDATE')
         response=self.client.get(url)

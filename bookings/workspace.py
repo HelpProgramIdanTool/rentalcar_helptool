@@ -20,7 +20,7 @@ from django.template.loader import render_to_string
 from employees.models import Employee
 from config.email_addresses import parse_email_addresses
 from .models import Booking, BookingHistoryEvent, BookingVoucher, SupplierEmailDelivery
-from .message_content import price_breakdown, supplier_location
+from .message_content import price_breakdown, supplier_location, booking_price_error
 
 
 class ReservationForm(forms.Form):
@@ -359,6 +359,9 @@ def supplier_message(request, pk):
     send_token = signing.dumps({"booking": booking.pk, "user": request.user.pk, "token": str(uuid4())}, salt="supplier-send")
     if request.method == "POST" and request.POST.get("action") in ("send", "mark_manual"):
         form.fields["recipient"].required = True
+        price_error = booking_price_error(booking, extras=extras, body=form['body'].value() or '')
+        if price_error:
+            form.add_error(None, price_error)
         if change_mode and (not booking.supplier_booking_number or booking.status not in (Booking.Status.CONFIRMED, Booking.Status.UPDATE_PENDING)):
             form.add_error(None, "Изменение можно отправить после подтверждения заказа и внесения номера поставщика.")
         if form.is_valid():

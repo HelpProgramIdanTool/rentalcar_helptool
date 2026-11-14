@@ -23,7 +23,7 @@ def preview_prices(request):
     quote = Quote(**{key: data[key] for key in (
         'pickup_datetime', 'return_datetime', 'pickup_city', 'return_city',
         'pickup_service', 'return_service', 'pickup_address', 'return_address',
-        'driver_count', 'cross_border_requested', 'sub_agent',
+        'driver_count', 'cross_border_requested', 'sub_agent', 'rental_country',
     )})
     quote.rental_days = calculate_rental_days(quote.pickup_datetime, quote.return_datetime)
     quote.extra_requests = {code: data['child_seat_quantity'] if code == 'CHILD_SEAT'

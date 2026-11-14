@@ -1,0 +1,13 @@
+{% extends 'partners/base.html' %}{% load partner_dates %}{% block content %}
+<div class="page-heading"><h1>בחירת רכבים להצעה</h1><p>{{ draft.trip.pickup_city }} ← {{ draft.trip.return_city }} · <bdi>{{ draft.trip.pickup_date|portal_date }} — {{ draft.trip.return_date|portal_date }}</bdi> · המחיר לכל התקופה</p></div>
+<form method="post" id="option-form">{% csrf_token %}
+<div class="selection-bar"><strong>נבחרו <span id="selection-count">0</span></strong><button class="button primary">המשך לשליחה ←</button></div>
+{% for category in categories %}<details class="category"><summary>{{ category.name }} <span class="category-selected"></span></summary>
+<div class="table-scroll"><table class="compact-options"><thead><tr><th scope="col">בחירה</th><th scope="col">חברה</th><th scope="col">קבוצת רכב</th><th scope="col">מחיר לתקופה</th><th scope="col">פיקדון</th></tr></thead><tbody>
+{% for row in category.choices %}<tr {% if row.option %}class="pick-row"{% else %}class="unavailable"{% endif %}>
+<td>{% if row.option %}<input type="checkbox" name="groups" value="{{ row.group.pk }}" aria-label="{{ row.group.supplier.supplier_name }} · {{ row.group.customer_name_he|default:row.group.group_name }}" {% if row.group.pk in draft.selected_groups %}checked{% endif %}>{% else %}—{% endif %}</td>
+<td><bdi>{{ row.group.supplier.supplier_name }}</bdi></td><td>{{ row.group.customer_name_he|default:row.group.group_name }}{% if row.option.models %}<small class="group-models">לדוגמה: <bdi>{{ row.option.models }}</bdi></small>{% endif %}</td>
+{% if row.option %}<td class="option-price"><bdi>{{ row.option.total|floatformat:2 }} {{ row.option.currency }}</bdi></td><td>{% if row.option.deposit_amount != None %}<bdi>{{ row.option.deposit_amount }} {{ row.option.deposit_currency }}</bdi>{% else %}בדיקה עם עידן{% endif %}</td>{% else %}<td colspan="2">נדרש חישוב של עידן</td>{% endif %}
+</tr>{% endfor %}</tbody></table></div></details>{% empty %}<div class="panel">אין כרגע אפשרויות לחישוב עצמי. אפשר לפנות לעידן.</div>{% endfor %}<p class="fine">הדגמים להמחשה בלבד. המחיר אינו אישור זמינות.</p></form>
+<details class="manual-compact"><summary>צריך חישוב אישי של עידן?</summary><form method="post" action="{% url 'partners:manual' %}" class="manual-strip">{% csrf_token %}<input type="hidden" name="draft" value="{{ draft.pk }}"><label>מה לבדוק?<input name="message" required></label><button class="button secondary">שליחה לעידן</button></form></details>
+{% endblock %}

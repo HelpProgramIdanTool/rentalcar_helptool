@@ -1,24 +1,26 @@
+from django.utils.translation import gettext_lazy as _
 from django import forms
 from django.db.models import Q
 from django.utils import timezone
-from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup, OfferCity
+from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup, OfferCity, RentalCountry
 from employees.models import SubAgent
+from customers.models import ReferralContact
 
 
 QUOTE_STATUS_LABELS = {
-    "DRAFT": "Черновик", "SENT": "Отправлена", "ACCEPTED": "Принята",
-    "REJECTED": "Отклонена", "CANCELLED": "Отменена", "CLOSED": "Закрыта",
+    "DRAFT": _("Черновик"), "SENT": _("Отправлена"), "ACCEPTED": _("Принята"),
+    "REJECTED": _("Отклонена"), "CANCELLED": _("Отменена"), "CLOSED": _("Закрыта"),
 }
 
 
 class QuoteListFilterForm(forms.Form):
-    q = forms.CharField(label="Поиск", required=False, max_length=200,
+    q = forms.CharField(label=_("Поиск"), required=False, max_length=200,
                         widget=forms.TextInput(attrs={"placeholder": "Номер, клиент, email или телефон"}))
-    status = forms.ChoiceField(label="Статус", required=False,
+    status = forms.ChoiceField(label=_("Статус"), required=False,
                               choices=[("", "Все статусы"), *QUOTE_STATUS_LABELS.items()])
-    pickup_from = forms.DateField(label="Получение с", required=False,
+    pickup_from = forms.DateField(label=_("Получение с"), required=False,
                                  widget=forms.DateInput(attrs={"type": "date"}))
-    pickup_to = forms.DateField(label="Получение до", required=False,
+    pickup_to = forms.DateField(label=_("Получение до"), required=False,
                                widget=forms.DateInput(attrs={"type": "date"}))
 
     def clean(self):
@@ -117,105 +119,116 @@ class FirstInquiryForm(forms.Form):
         (f"{hour:02d}:{minute:02d}", f"{hour:02d}:{minute:02d}")
         for hour in range(24) for minute in (0, 30)
     ]
-    full_name = forms.CharField(label="Имя и фамилия", max_length=200, required=False)
+    full_name = forms.CharField(label=_("Имя и фамилия"), max_length=200, required=False)
     # Keep the old fields accepted for saved drafts and older integrations. They are
     # no longer shown on the form; clean() fills them from the single full-name field.
     first_name = forms.CharField(required=False, widget=forms.HiddenInput)
     last_name = forms.CharField(required=False, widget=forms.HiddenInput)
-    email = forms.EmailField(label="E-mail", required=False)
-    phone_1 = forms.CharField(label="Телефон", max_length=30, required=False)
-    phone_2 = forms.CharField(label="Телефон 2", max_length=30, required=False)
-    phone_3 = forms.CharField(label="Телефон 3", max_length=30, required=False)
-    country = forms.CharField(label="Страна", max_length=100, required=False)
+    email = forms.EmailField(label=_("E-mail"), required=False)
+    phone_1 = forms.CharField(label=_("Телефон"), max_length=30, required=False)
+    phone_2 = forms.CharField(label=_("Телефон 2"), max_length=30, required=False)
+    phone_3 = forms.CharField(label=_("Телефон 3"), max_length=30, required=False)
+    country = forms.CharField(label=_("Страна"), max_length=100, required=False)
     preferred_language = forms.ChoiceField(
-        label="Язык клиента", choices=LANGUAGE_CHOICES, initial="Hebrew", required=False
+        label=_("Язык клиента"), choices=LANGUAGE_CHOICES, initial="Hebrew", required=False
     )
     sub_agent = forms.ModelChoiceField(
-        label="Субагент", queryset=SubAgent.objects.none(), required=False,
-        help_text="Оставьте пустым для прямого клиента.",
+        label=_("Субагент"), queryset=SubAgent.objects.none(), required=False,
+        help_text=_("Оставьте пустым для прямого клиента."),
     )
-    address = forms.CharField(label="Адрес проживания", max_length=255, required=False)
-    wants_invoice = forms.BooleanField(label="Клиент хочет инвойс", required=False)
-    invoice_name = forms.CharField(label="Название / имя для инвойса", max_length=200, required=False)
-    invoice_tax_id = forms.CharField(label="NIP / налоговый номер", max_length=50, required=False)
-    invoice_address = forms.CharField(label="Адрес для инвойса", max_length=255, required=False)
-    invoice_email = forms.EmailField(label="E-mail для инвойса", required=False)
+    address = forms.CharField(label=_("Адрес проживания"), max_length=255, required=False)
+    wants_invoice = forms.BooleanField(label=_("Клиент хочет инвойс"), required=False)
+    invoice_name = forms.CharField(label=_("Название / имя для инвойса"), max_length=200, required=False)
+    invoice_tax_id = forms.CharField(label=_("NIP / налоговый номер"), max_length=50, required=False)
+    invoice_address = forms.CharField(label=_("Адрес для инвойса"), max_length=255, required=False)
+    invoice_email = forms.EmailField(label=_("E-mail для инвойса"), required=False)
 
     pickup_date = forms.DateField(
-        label="Дата получения",
+        label=_("Дата получения"),
         input_formats=["%d-%m-%Y"],
         widget=forms.TextInput(attrs={"placeholder": "ДД-ММ-ГГГГ", "autocomplete": "off"}),
     )
-    pickup_time = forms.ChoiceField(label="Время получения", choices=TIME_CHOICES, initial="10:00")
+    pickup_time = forms.ChoiceField(label=_("Время получения"), choices=TIME_CHOICES, initial="10:00")
     return_date = forms.DateField(
-        label="Дата возврата",
+        label=_("Дата возврата"),
         input_formats=["%d-%m-%Y"],
         widget=forms.TextInput(attrs={"placeholder": "ДД-ММ-ГГГГ", "autocomplete": "off"}),
     )
-    return_time = forms.ChoiceField(label="Время возврата", choices=TIME_CHOICES, initial="10:00")
-    pickup_city = forms.ChoiceField(label="Город получения", choices=CITY_CHOICES)
-    pickup_service = forms.ChoiceField(label="Способ получения", choices=SERVICE_CHOICES)
-    pickup_address = forms.CharField(label="Адрес получения", max_length=300, required=False)
-    return_city = forms.ChoiceField(label="Город возврата", choices=CITY_CHOICES)
-    return_service = forms.ChoiceField(label="Способ возврата", choices=SERVICE_CHOICES)
-    return_address = forms.CharField(label="Адрес возврата", max_length=300, required=False)
-    pickup_other_country = forms.CharField(label="Страна получения", max_length=100, required=False)
-    pickup_other_city = forms.CharField(label="Город / место получения", max_length=150, required=False)
-    return_other_country = forms.CharField(label="Страна возврата", max_length=100, required=False)
-    return_other_city = forms.CharField(label="Город / место возврата", max_length=150, required=False)
+    return_time = forms.ChoiceField(label=_("Время возврата"), choices=TIME_CHOICES, initial="10:00")
+    pickup_city = forms.ChoiceField(label=_("Город получения"), choices=CITY_CHOICES)
+    pickup_service = forms.ChoiceField(label=_("Способ получения"), choices=SERVICE_CHOICES)
+    pickup_address = forms.CharField(label=_("Адрес получения"), max_length=300, required=False)
+    return_city = forms.ChoiceField(label=_("Город возврата"), choices=CITY_CHOICES)
+    return_service = forms.ChoiceField(label=_("Способ возврата"), choices=SERVICE_CHOICES)
+    return_address = forms.CharField(label=_("Адрес возврата"), max_length=300, required=False)
+    pickup_other_country = forms.CharField(label=_("Страна получения"), max_length=100, required=False)
+    pickup_other_city = forms.CharField(label=_("Город / место получения"), max_length=150, required=False)
+    return_other_country = forms.CharField(label=_("Страна возврата"), max_length=100, required=False)
+    return_other_city = forms.CharField(label=_("Город / место возврата"), max_length=150, required=False)
     vehicle_classes = forms.ModelMultipleChoiceField(
-        label="Классы автомобилей",
+        label=_("Классы автомобилей"),
         queryset=VehicleComparisonClass.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
     )
     vehicle_groups = forms.ModelMultipleChoiceField(
-        label="Категории автомобилей поставщиков",
+        label=_("Категории автомобилей поставщиков"),
         queryset=VehicleGroup.objects.none(),
         widget=VehicleGroupCheckboxes,
     )
     suppliers = forms.ModelMultipleChoiceField(
-        label="Рассчитать предложения фирм",
+        label=_("Рассчитать предложения фирм"),
         queryset=Supplier.objects.none(),
         widget=forms.CheckboxSelectMultiple,
     )
-    driver_count = forms.IntegerField(label="Количество водителей", min_value=1, initial=1)
-    cross_border_requested = forms.BooleanField(label="Выезд за границу", required=False)
+    driver_count = forms.IntegerField(label=_("Количество водителей"), min_value=1, initial=1)
+    cross_border_requested = forms.BooleanField(label=_("Выезд за границу"), required=False)
+    referral_contact = forms.ModelChoiceField(queryset=ReferralContact.objects.all(), required=False,
+        label=_('Кто обратился'), empty_label=_('Сам клиент'), help_text=_('Контакт для учёта обращений. Комиссия не включается.'))
+    rental_country = forms.ChoiceField(label=_('Страна аренды'),choices=[('PL','Польша'),('CZ','Чехия')],initial='PL',required=False,
+        help_text=_('Меняется вручную. Страны получения и возврата определяются по городам отдельно.'))
     extra_choices = forms.MultipleChoiceField(
-        label="Дополнительные услуги",
+        label=_("Дополнительные услуги"),
         choices=EXTRA_CHOICES,
         required=False,
         widget=forms.CheckboxSelectMultiple,
     )
     child_seat_quantity = forms.IntegerField(
-        label="Количество детских кресел",
+        label=_("Количество детских кресел"),
         min_value=1,
         max_value=9,
         initial=1,
         required=False,
     )
     young_driver_quantity = forms.IntegerField(
-        label="Количество новых или молодых водителей", min_value=1,
+        label=_("Количество новых или молодых водителей"), min_value=1,
         initial=1, required=False,
-        help_text="Заполните, если отмечен новый или молодой водитель. Каждый человек считается один раз.",
+        help_text=_("Заполните, если отмечен новый или молодой водитель. Каждый человек считается один раз."),
     )
     customer_notes = forms.CharField(
-        label="Что написал клиент", required=False, widget=forms.Textarea(attrs={"rows": 4})
+        label=_("Что написал клиент"), required=False, widget=forms.Textarea(attrs={"rows": 4})
     )
     internal_notes = forms.CharField(
-        label="Моя заметка", required=False, widget=forms.Textarea(attrs={"rows": 3})
+        label=_("Моя заметка"), required=False, widget=forms.Textarea(attrs={"rows": 3})
     )
 
     def __init__(self, *args, **kwargs):
         self.pricing_only = kwargs.pop("pricing_only", False)
         super().__init__(*args, **kwargs)
+        if 'rental_country' in self.fields:
+            self.fields['rental_country'].choices=[(code, _(name)) for code, name in RentalCountry.objects.filter(is_active=True).values_list('code','name')]
         cities = list(OfferCity.objects.filter(is_active=True))
+        from .country_rules import country_code
+        countries = list(RentalCountry.objects.all())
+        country_names = {country.code: country.name for country in countries}
+        self.city_countries = {city.name: str(_(country_names.get(country_code(city.country, countries=countries), city.country))) for city in cities}
         configured_names = {city.name for city in cities}
         city_choices = [item for item in self.CITY_CHOICES if item[0] not in configured_names]
         city_choices += [(city.name, city.label) for city in cities]
         for name in ("pickup_city", "return_city"):
             self.fields[name].choices = city_choices
-        self.foreign_city_names = [city.name for city in cities if city.cross_border_required]
+        self.foreign_city_names = [city.name for city in cities
+            if country_code(city.country, countries=countries) != 'PL' and city.cross_border_required]
         # Keep exact times from existing offers and imported enquiries, without
         # offering hundreds of minute choices for normal manual entry.
         for name in ("pickup_time", "return_time"):
@@ -290,12 +303,16 @@ class FirstInquiryForm(forms.Form):
                     self.initial[f"{side}_other_country"] = parts[1]
         if self.pricing_only:
             keep = {"suppliers", "sub_agent", "driver_count", "extra_choices",
-                    "child_seat_quantity", "young_driver_quantity", "cross_border_requested"}
+                    "child_seat_quantity", "young_driver_quantity", "cross_border_requested", "rental_country"}
             self.fields = {name: field for name, field in self.fields.items()
                            if name.startswith(("pickup_", "return_")) or name in keep}
+        for field in self.fields.values():
+            if isinstance(field, forms.ChoiceField) and not isinstance(field, forms.ModelChoiceField):
+                field.choices = [(value, _(label)) for value, label in field.choices]
 
     def clean(self):
         cleaned = super().clean()
+        cleaned['rental_country']=cleaned.get('rental_country') or 'PL'
         full_name = (cleaned.get("full_name") or "").strip()
         if full_name:
             name_parts = full_name.split(maxsplit=1)
@@ -343,8 +360,12 @@ class FirstInquiryForm(forms.Form):
         if not self.pricing_only and not any(cleaned.get(field) for field in ("email", "phone_1", "phone_2", "phone_3")):
             raise forms.ValidationError("Укажите хотя бы e-mail или номер телефона.")
         cleaned["preferred_language"] = cleaned.get("preferred_language") or "Hebrew"
-        if any(cleaned.get(f"{side}_city") in self.foreign_city_names for side in ("pickup", "return")):
+        if cleaned['rental_country']=='PL' and any(cleaned.get(f"{side}_city") in self.foreign_city_names for side in ("pickup", "return")):
             cleaned["cross_border_requested"] = True
+        elif cleaned['rental_country']!='PL':
+            from .country_rules import location_country
+            if any(location_country(cleaned.get(side+'_city','')) not in ('',cleaned['rental_country']) for side in ('pickup','return')):
+                cleaned['cross_border_requested']=True
         pickup_date = cleaned.get("pickup_date")
         if pickup_date and groups is not None:
             unavailable_groups = groups.filter(available_from__gt=pickup_date)

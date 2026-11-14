@@ -10,12 +10,16 @@ from suppliers.models import (
     PriceList,
     SupplierLocation,
     SupplierExtraRate,
+    SupplierExtra,
     VehicleComparisonClass,
     VehicleRate,
 )
 from .airport_pickup import airport_code_for_city
 from .models import QuoteDocumentBlock, QuoteTemplate
 from .seasonal_benefits import seasonal_included_items
+from .one_way import automatic_route_extras
+from .country_rules import route_context
+from copy import copy
 
 
 HEBREW_VEHICLE_CLASS_NAMES = {
@@ -158,7 +162,7 @@ def _quoted_extra_price(extra, rate, days, quantity=Decimal("1")):
 
 
 def _extra_line_name(extra, quantity):
-    name = HEBREW_EXTRA_NAMES.get(extra.extra_code, extra.name)
+    name = getattr(extra, 'customer_name_he', '') or HEBREW_EXTRA_NAMES.get(extra.extra_code, extra.name)
     if extra.extra_code in {"BABY_SEAT_BOOSTER", "CHILD_SEAT"}:
         return f"{name} × {int(quantity)}"
     if quantity > 1:
@@ -226,9 +230,12 @@ def _service_extra_requests(quote, supplier_code, excluded_sides=()):
     return requests
 
 
-def _city_service_requests(quote, supplier):
+def _city_service_requests(quote, supplier, *, route=None):
     requests, excluded_sides, missing = {}, set(), []
+    local_sides=(route if route is not None else route_context(quote,supplier))['local_sides']
     for side in ("pickup", "return"):
+        if side in local_sides:
+            continue
         city = OfferCity.objects.filter(name=getattr(quote, f"{side}_city"), is_active=True).first()
         if not city or not city.cross_border_required:
             continue
@@ -312,6 +319,8 @@ def _missing_rate_reason(group, pickup_date, days, audience=PriceList.Audience.S
 
 
 def calculate_quote_options(quote, *, vehicle_group=None):
+    original_quote=quote
+    routes = {}
     required_items = required_included_items(quote)
     pickup_date = timezone.localtime(quote.pickup_datetime).date()
     requested_group_ids = {vehicle_group.pk} if vehicle_group else set(
@@ -333,6 +342,11 @@ def calculate_quote_options(quote, *, vehicle_group=None):
       if requested_group_ids:
         groups = groups.filter(id__in=requested_group_ids)
       for group in groups:
+        quote=copy(original_quote)
+        if group.supplier_id not in routes:
+            routes[group.supplier_id] = route_context(original_quote, group.supplier)
+        route=routes[group.supplier_id]
+        quote.cross_border_requested=route['cross_border']
         if group.available_from and pickup_date < group.available_from:
             continue
         if (getattr(quote, "sub_agent_id", None) and
@@ -387,7 +401,9 @@ def calculate_quote_options(quote, *, vehicle_group=None):
         base = rate.daily_rate_gross * quote.rental_days
         lines = []
         extras_total = Decimal("0.00")
-        city_requests, city_sides, missing_city_prices = _city_service_requests(quote, group.supplier)
+        city_requests, city_sides, missing_city_prices = _city_service_requests(quote, group.supplier, route=route)
+        if route['unsupported']:
+            missing_city_prices.append('Выбранная страна аренды не настроена для этой фирмы. Проверьте страну аренды.')
         for request in city_requests:
             extra, city_rate, quantity = request["extra"], request["rate"], request["quantity"]
             price = _quoted_extra_price(extra, city_rate, Decimal(quote.rental_days), quantity)
@@ -425,6 +441,9 @@ def calculate_quote_options(quote, *, vehicle_group=None):
         requested_supplier_codes.update(
             _after_hours_extra_requests(quote, group.supplier)
         )
+        route_requests, route_issues = automatic_route_extras(quote, group.supplier)
+        requested_supplier_codes.update(route_requests)
+        missing_city_prices.extend(route_issues)
         extras = group.supplier.extras.filter(is_active=True).filter(
             Q(is_mandatory=True)
             | Q(extra_code="ADDITIONAL_DRIVER")
@@ -432,6 +451,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             | Q(extra_code__in=requested_supplier_codes)
         )
         extras = extras.exclude(pk__in=[request["extra"].pk for request in city_requests])
+        extras = extras.exclude(Q(automatic_rule=SupplierExtra.AutomaticRule.DOMESTIC_ONE_WAY) & ~Q(extra_code__in=route_requests))
         for extra in extras:
             quantity = Decimal("1")
             if extra.extra_code == "ADDITIONAL_DRIVER":
@@ -446,6 +466,8 @@ def calculate_quote_options(quote, *, vehicle_group=None):
                 continue
             extra_rate = _active_extra_rate(extra, pickup_date, quote.rental_days)
             if not extra_rate:
+                if extra.extra_code in route_requests:
+                    missing_city_prices.append(f'{extra.name}: нет действующего тарифа для срока аренды.')
                 lines.append({
                     "name": _extra_line_name(extra, quantity),
                     "extra": extra,
@@ -551,6 +573,10 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             "luggage_info": _luggage_info(group),
             "included_items": included_items,
             "excluded_items": excluded_items,
+            "rental_country": route['base'],
+            "cross_border_requested": route['cross_border'],
+            "prepayment_notice": route['prepayment_text'] if route['prepayment'] else {},
+            "route_warnings": route['warnings'],
             "available": not missing_city_prices,
             "reason": " ".join(missing_city_prices),
         })

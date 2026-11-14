@@ -1,0 +1,11 @@
+<section class="comparison" aria-labelledby="comparison-title"><div class="section-heading"><div><span class="eyebrow">לפני שבוחרים</span><h2 id="comparison-title">ארבע חברות. ההבדלים שחשוב להכיר.</h2></div><span class="chip">השוואה מהירה</span></div>
+<div class="common-benefits">{% for benefit in copy.common %}<div><span class="benefit-icon" aria-hidden="true">✓</span>{{ benefit }}</div>{% endfor %}</div>
+<div class="table-scroll"><table><caption class="sr-only">השוואת תנאים בין חברות ההשכרה</caption><thead><tr><th scope="col">מה משווים?</th>{% for item in summaries %}<th scope="col"><bdi>{{ item.name }}</bdi></th>{% endfor %}</tr></thead><tbody>
+<tr><th scope="row">רכב חדש — עד שנתיים</th>{% for item in summaries %}<td>{{ item.facts.age }}</td>{% endfor %}</tr>
+<tr><th scope="row">דלפק ברוב נמלי התעופה</th>{% for item in summaries %}<td>{{ item.facts.desks }}</td>{% endfor %}</tr>
+<tr><th scope="row">קבלת הרכב בטרמינל</th>{% for item in summaries %}<td>{{ item.facts.pickup }}</td>{% endfor %}</tr>
+<tr><th scope="row">החזרת הרכב בטרמינל</th>{% for item in summaries %}<td>{{ item.facts.return }}</td>{% endfor %}</tr>
+<tr class="fuel-row"><th scope="row">מדיניות דלק</th>{% for item in summaries %}<td>{{ item.facts.fuel }}</td>{% endfor %}</tr>
+<tr><th scope="row">אפשר להזמין ניווט GPS</th>{% for item in summaries %}<td>{{ item.facts.gps }}</td>{% endfor %}</tr>
+<tr><th scope="row">אפשר להזמין שרשראות שלג</th>{% for item in summaries %}<td>{{ item.facts.chains }}</td>{% endfor %}</tr>
+</tbody></table></div><p class="fine">{{ copy.comparison_note }}</p></section>

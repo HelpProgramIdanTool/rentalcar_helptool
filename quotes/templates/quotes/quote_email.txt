@@ -1,8 +1,9 @@
-{% autoescape off %}{% for block in introduction_blocks %}{{ block.title }}
+{% load l10n %}{% localize off %}{% autoescape off %}{% for block in introduction_blocks %}{{ block.title }}
 {{ block.content }}
 
 {% endfor %}{% if is_english %}Offer{% elif is_localized %}{{ offer_labels.offer }}{% else %}הצעה{% endif %} {{ quote.quote_number }}
-{{ quote.customer }}
+{{ quote.customer }}{% if rental_country_name %}
+{{ rental_country_caption }}: {{ rental_country_name }}{% endif %}
 {% if is_english %}Vehicle collection{% elif is_localized %}{{ offer_labels.pickup }}{% else %}קבלת הרכב{% endif %}: {{ pickup_location }} — {{ quote.pickup_datetime|date:"d.m.Y H:i" }}
 {% if is_english %}Vehicle return{% elif is_localized %}{{ offer_labels.return }}{% else %}החזרת הרכב{% endif %}: {{ return_location }} — {{ quote.return_datetime|date:"d.m.Y H:i" }}
 {% if is_english %}Rental days{% elif is_localized %}{{ offer_labels.days }}{% else %}מספר ימי שכירות{% endif %}: {{ quote.rental_days }}
@@ -13,7 +14,9 @@
 {{ forloop.counter }}. {{ option.supplier_name_snapshot }} — {{ option.display_vehicle_class }}
 {% for badge in option.supplier_badges %}{{ badge }}
 {% endfor %}{{ option.vehicle_models_snapshot }}
-{% if option.supplier_conditions %}{{ option.supplier_conditions }}{% endif %}
+{% if option.supplier_conditions %}{{ option.supplier_conditions }}{% if option.prepayment_notice %}
+{{ option.prepayment_notice }}
+{% endif %}{% endif %}
 {% if option.airport_service_message %}{{ option.airport_service_message }}
 {% endif %}
 {% if option.calculation_snapshot.body_type_label or option.calculation_snapshot.transmission_label %}{{ option.calculation_snapshot.body_type_label }}{% if option.calculation_snapshot.body_type_label and option.calculation_snapshot.transmission_label %} · {% endif %}{{ option.calculation_snapshot.transmission_label }}
@@ -41,3 +44,4 @@
 {{ block.content }}
 
 {% endfor %}{% endautoescape %}
+{% endlocalize %}

@@ -76,6 +76,11 @@ class Booking(models.Model):
 
     booking_number = models.CharField(max_length=20, unique=True, editable=False)
     supplier_booking_number = models.CharField(max_length=100, blank=True)
+    rental_country = models.CharField(max_length=2,default='PL')
+    pickup_country = models.CharField(max_length=100, blank=True)
+    return_country = models.CharField(max_length=100, blank=True)
+    referral_contact = models.ForeignKey('customers.ReferralContact', null=True, blank=True,
+        on_delete=models.PROTECT, related_name='bookings')
     source_quote = models.ForeignKey(
         "quotes.Quote", on_delete=models.PROTECT, null=True, blank=True,
         related_name="bookings", editable=False,
@@ -595,8 +600,8 @@ class Booking(models.Model):
             )
         self.recalculate_totals()
 
-    def recalculate_totals(self):
-        if self.source_quote_snapshot.get("historical_import"):
+    def recalculate_totals(self, *, confirmed_review=False):
+        if self.source_quote_snapshot.get("historical_import") and not confirmed_review:
             return
         if not self.pk:
             return

@@ -1,0 +1,5 @@
+{% extends 'partners/base.html' %}{% block content %}
+<section class="hero compact-hero"><div><h1>הצעות רכב לשותפים</h1><p>פרטי נסיעה ← בחירת רכבים ← שליחת הצעה</p></div><a class="button primary" href="{% url 'partners:trip' %}">הצעה חדשה ←</a></section>
+{% include 'partners/comparison.html' %}
+<section class="panel"><h2>ההצעות והפניות שלי</h2>{% for draft in drafts %}<a class="history-row" href="{% url 'partners:review' draft.pk %}"><span>{{ draft.created_at|date:'d.m.Y' }} · {{ draft.trip.pickup_city }} ← {{ draft.trip.return_city }}</span><b>{% if draft.quote %}{{ draft.quote.quote_number }}{% elif draft.manual_requested %}הועבר לבדיקה אישית{% else %}טיוטה{% endif %}</b></a>{% empty %}<p class="muted">כאן יופיעו ההצעות והפניות שלכם בלבד.</p>{% endfor %}</section>
+{% endblock %}

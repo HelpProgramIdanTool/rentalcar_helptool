@@ -4,6 +4,8 @@ from decimal import Decimal, InvalidOperation
 from django.utils import timezone
 
 from .services import _active_extra_rate, _after_hours_extra_requests, _quoted_extra_price
+from .one_way import automatic_route_extras
+from suppliers.models import SupplierExtra
 
 
 def saved_fee_amount(lines, extra):
@@ -16,6 +18,16 @@ def saved_fee_amount(lines, extra):
         return None
 
 
+def balanced_snapshot(option, snapshot):
+    try:
+        lines_total=sum((Decimal(str(line['price'])) for line in snapshot.get('lines',[])),Decimal(0))
+        extras=Decimal(str(snapshot['extras_total']))
+        total=Decimal(str(snapshot['base']))+extras+Decimal(str(snapshot.get('subagent_adjustment',0)))+option.manual_adjustment_amount
+        return lines_total==extras and total==option.total_price_gross
+    except (KeyError,InvalidOperation,TypeError,ValueError):
+        return False
+
+
 def quote_price_issues(quote):
     issues = []
     pickup_date = timezone.localtime(quote.pickup_datetime).date()
@@ -23,6 +35,21 @@ def quote_price_issues(quote):
         supplier = option.supplier
         requests = _after_hours_extra_requests(quote, supplier)
         snapshot = option.calculation_snapshot or {}
+        if snapshot.get('rental_country', 'PL') != quote.rental_country:
+            issues.append(f'{supplier.supplier_name}: страна аренды изменена. Требуется пересчёт оферты.')
+        route_requests, route_issues = automatic_route_extras(quote, supplier)
+        issues.extend(route_issues)
+        for extra in supplier.extras.filter(is_active=True,automatic_rule=SupplierExtra.AutomaticRule.DOMESTIC_ONE_WAY):
+            quantity=route_requests.get(extra.extra_code,Decimal(0))
+            rate=_active_extra_rate(extra,pickup_date,quote.rental_days) if quantity else None
+            if quantity and rate is None:
+                issues.append(f'{supplier.supplier_name}: не определён тариф возврата в другом городе.')
+                continue
+            expected=_quoted_extra_price(extra,rate,Decimal(quote.rental_days),quantity) if rate else Decimal(0)
+            if saved_fee_amount(snapshot.get('lines',[]),extra) != expected:
+                issues.append(f'{supplier.supplier_name}: доплата за возврат в другом городе должна составлять {expected:.2f} {rate.currency if rate else option.currency}. Требуется пересчёт.')
+            elif quantity and not balanced_snapshot(option,snapshot):
+                issues.append(f'{supplier.supplier_name}: доплата за возврат в другом городе не согласуется с итогом оферты. Требуется пересчёт.')
         for extra in supplier.extras.filter(is_active=True, extra_code__in=('OUT_OF_HOURS', 'NIGHT_SERVICE')):
             quantity = requests.get(extra.extra_code, Decimal(0))
             rate = _active_extra_rate(extra, pickup_date, quote.rental_days) if quantity else None

@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from customers.models import Customer
+from .country_rules import location_country_name
 
 from .forms import FirstInquiryForm, QuoteListFilterForm, QUOTE_STATUS_LABELS
 from .models import Quote, QuoteOption, QuoteEmailDelivery
@@ -118,6 +119,8 @@ def _quote_form_initial(quote):
         "suppliers": list(quote.requested_suppliers.values_list("id", flat=True)),
         "driver_count": quote.driver_count,
         "cross_border_requested": quote.cross_border_requested,
+        "rental_country": quote.rental_country,
+        "referral_contact": quote.referral_contact_id,
         "extra_choices": list(quote.extra_requests),
         "child_seat_quantity": quote.extra_requests.get("CHILD_SEAT", 1),
         "young_driver_quantity": quote.extra_requests.get("YOUNG_DRIVER", 1),
@@ -150,6 +153,10 @@ def _update_quote_from_form(quote, data):
     quote.return_datetime = data["return_datetime"]
     quote.driver_count = data["driver_count"]
     quote.cross_border_requested = data["cross_border_requested"]
+    quote.rental_country = data.get('rental_country','PL')
+    quote.pickup_country = location_country_name(data['pickup_city'])
+    quote.return_country = location_country_name(data['return_city'])
+    quote.referral_contact = data.get('referral_contact')
     quote.extra_requests = {
         code: (data["child_seat_quantity"] if code == "CHILD_SEAT" else
                data["young_driver_quantity"] if code == "YOUNG_DRIVER" else 1)
@@ -202,6 +209,10 @@ def new_inquiry(request, customer_id=None):
             if form.cleaned_data["return_address"]:
                 return_location += f": {form.cleaned_data['return_address']}"
             quote = Quote.objects.create(
+                rental_country=form.cleaned_data.get('rental_country','PL'),
+                pickup_country=location_country_name(form.cleaned_data['pickup_city']),
+                return_country=location_country_name(form.cleaned_data['return_city']),
+                referral_contact=form.cleaned_data.get('referral_contact'),
                 customer=customer,
                 created_by_user=request.user,
                 language=form.cleaned_data["preferred_language"],
@@ -284,6 +295,8 @@ def duplicate_quote(request, quote_number):
         customer=source.customer, created_by_user=request.user, status=Quote.Status.DRAFT,
         language=source.language, pickup_datetime=source.pickup_datetime,
         sub_agent=source.sub_agent,
+        rental_country=source.rental_country, referral_contact=source.referral_contact,
+        pickup_country=source.pickup_country, return_country=source.return_country,
         return_datetime=source.return_datetime, pickup_location_text=source.pickup_location_text,
         return_location_text=source.return_location_text, pickup_city=source.pickup_city,
         pickup_service=source.pickup_service, pickup_address=source.pickup_address,
@@ -385,6 +398,9 @@ def calculate_quote(request, quote_number):
                             "luggage_info": option["luggage_info"],
                             "included_items": option["included_items"],
                             "excluded_items": option["excluded_items"],
+                            "rental_country": option.get('rental_country','PL'),
+                            "prepayment_notice": option.get('prepayment_notice',{}),
+                            "route_warnings": option.get('route_warnings',[]),
                         },
                         "display_order": order, "is_included": True,
                     },
@@ -501,6 +517,9 @@ def email_delivery(request, quote_number, delivery_id):
 
 
 def _quote_preview_context(quote, *, is_email=False):
+    from .country_rules import localize_country_text
+    from suppliers.models import RentalCountry
+    country = RentalCountry.objects.filter(code=quote.rental_country).first()
     ensure_quote_document_blocks(quote)
     ensure_quote_option_presentation(quote)
     options = list(quote.options.filter(is_included=True).select_related("comparison_class", "vehicle_group", "supplier"))
@@ -543,7 +562,9 @@ def _quote_preview_context(quote, *, is_email=False):
         return value
     for option in options:
         option.airport_service_message = service_messages.get(option.supplier_id, "")
+        option.prepayment_notice = option.calculation_snapshot.get('prepayment_notice', {}).get(quote.language, '')
         option.supplier_conditions = option.supplier.customer_conditions.get(quote.language, "")
+        option.supplier_conditions = localize_country_text(option.supplier_conditions, quote, country=country)
         option.supplier_badges = option.supplier.offer_badges.get(quote.language, [])
         if is_polish and not option.supplier_badges:
             translations = presentation.get("translations", {})
@@ -562,6 +583,8 @@ def _quote_preview_context(quote, *, is_email=False):
         ]
         option.display_included_items = [translate_text(item, presentation) for item in option.display_included_items]
         option.display_excluded_items = [translate_text(item, presentation) for item in option.display_excluded_items]
+        option.display_included_items = [localize_country_text(item, quote, country=country) for item in option.display_included_items]
+        option.display_excluded_items = [localize_country_text(item, quote, country=country) for item in option.display_excluded_items]
         if is_russian or is_english or is_polish:
             option.display_vehicle_class = translate_text(option.display_vehicle_class, presentation)
             option.calculation_snapshot = dict(option.calculation_snapshot)
@@ -570,6 +593,9 @@ def _quote_preview_context(quote, *, is_email=False):
     blocks = quote.document_blocks.filter(Q(is_enabled=True) | Q(block_key__in=REQUIRED_BLOCKS)).exclude(content="")
     introduction_keys = {"GREETING", "IMPORTANT", "CROSS_BORDER"}
     introduction_blocks = [block for block in blocks if block.block_key in introduction_keys]
+    for block in introduction_blocks:
+        if block.block_key == 'CROSS_BORDER':
+            block.content = localize_country_text(block.content, quote, country=country)
     blocks = [block for block in blocks if block.block_key not in introduction_keys]
     blocks.sort(key=lambda block: block.block_key != "ORDER_DETAILS")
     term_styles = {
@@ -603,6 +629,8 @@ def _quote_preview_context(quote, *, is_email=False):
         return_location += f": {translate_text(quote.return_address, presentation)}"
     return {
         "quote": quote, "options": options, "blocks": blocks,
+        "rental_country_name": country.localized_names.get(quote.language, country.name) if country and quote.rental_country != 'PL' else '',
+        "rental_country_caption": country.localized_names.get(quote.language+'_label', '') if country else '',
         "pickup_location": pickup_location, "return_location": return_location,
         "is_email": is_email,
         "is_english": is_english,

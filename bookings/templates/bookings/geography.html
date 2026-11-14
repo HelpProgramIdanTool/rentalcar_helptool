@@ -1,44 +1,44 @@
-{% extends 'customers/base.html' %}
+{% extends 'customers/base.html' %}{% load i18n %}
 {% block title %}География и календарь выдач{% endblock %}
 {% block content %}
 <style>
 .geo-cards{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}.geo-card{display:block;background:#eef4ff;border:1px solid #cbdcff;border-radius:12px;padding:16px;flex:1 1 210px;color:#17365d;text-decoration:none}.geo-card strong{display:block;font-size:28px}.geo-filters{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:20px 0}.geo-filters label{display:block}.geo-filters select,.geo-filters input,.geo-filters button{font:inherit;padding:8px;max-width:100%}.geo-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.geo-day{min-height:135px;padding:9px;background:white;border:1px solid #cbd5e1;border-radius:8px;overflow-wrap:anywhere}.geo-day.today{border:2px solid #155eef}.geo-day.dim{opacity:.45}.geo-day a{display:block;text-decoration:none}.geo-day strong{font-size:22px}.geo-day small{display:block;color:#456;font-size:12px;margin-top:6px}.geo-draft{color:#9a6200}.geo-nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:20px 0}.geo-scroll{overflow-x:auto}.geo-table{width:100%;border-collapse:collapse}.geo-table th,.geo-table td{text-align:left;padding:10px;border-bottom:1px solid #d6deeb;vertical-align:top}.geo-weekday{text-align:center;font-weight:bold;padding:8px}.geo-help{color:#52657d}.geo-detail{background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin:24px 0}
 @media(max-width:850px){.geo-day{min-height:85px;padding:5px}.geo-day small{display:none}.geo-day strong{font-size:17px}.geo-calendar{gap:3px}.geo-weekday{padding:5px;font-size:12px}.geo-day a{font-size:12px}.geo-card{flex-basis:130px}}
 </style>
-<a href="{% url 'quotes:statistics' %}?year={{ year }}">← Статистика и подсчёты</a>
+<a href="{% url 'quotes:statistics' %}?year={{ year }}">← {% translate "Статистика и подсчёты" %}</a>
 <h1>География и календарь выдач</h1>
-<p class="geo-help">Обновлено {{ updated|date:'d.m.Y H:i:s' }}. <button type="button" onclick="location.reload()">Обновить сейчас</button></p>
+<p class="geo-help">{% translate "Обновлено" %} {{ updated|date:'d.m.Y H:i:s' }}. <button type="button" onclick="location.reload()">{% translate "Обновить сейчас" %}</button></p>
 <form method="get" class="geo-filters">
- <label>Год получения<br><input name="year" type="number" min="2000" max="2100" value="{{ year }}" required style="width:110px"></label>
- <label>Фирма<br><select name="supplier"><option value="">Все фирмы</option>{% for key,label in supplier_choices %}<option value="{{ key }}"{% if supplier == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
- <label>Город получения<br><select name="city"><option value="">Все города</option>{% for key,label in city_choices %}<option value="{{ key }}"{% if city == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+ <label>{% translate "Год" %} получения<br><input name="year" type="number" min="2000" max="2100" value="{{ year }}" required style="width:110px"></label>
+ <label>{% translate "Фирма" %}<br><select name="supplier"><option value="">{% translate "Все фирмы" %}</option>{% for key,label in supplier_choices %}<option value="{{ key }}"{% if supplier == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+ <label>{% translate "Город" %} получения<br><select name="city"><option value="">{% translate "Все города" %}</option>{% for key,label in city_choices %}<option value="{{ key }}"{% if city == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
  <input type="hidden" name="month" value="{{ month|date:'Y-m' }}">
- <label><input type="checkbox" name="drafts" value="1"{% if show_drafts %} checked{% endif %}> Включить черновики</label>
- <button>Показать</button>
+ <label><input type="checkbox" name="drafts" value="1"{% if show_drafts %} checked{% endif %}> {% translate "Включить черновики" %}</label>
+ <button>{% translate "Показать" %}</button>
 </form>
-<p class="geo-help">География — по дате получения за {{ year }} год. За границей — везде вне Польши, включая Чехию. Получение/возврат вне Польши и запрошенный выезд — разные показатели. Отмены, неявки и архив исключены. {% if show_drafts %}Включены также черновики: {{ summary.counts.drafts|default:0 }}.{% else %}Черновики не включены.{% endif %}</p>
-<p>Заказов за выбранный год: <strong>{{ summary.total }}</strong>. Без определённой даты получения: <a href="{{ unknown_dates_url }}"><strong>{{ unknown_dates }}</strong></a> (все годы, вне годового итога).</p>
+<p class="geo-help">География — по дате получения за {{ year }} год. За границей — везде вне Польши, включая Чехию. {% translate "Получение" %}/возврат вне Польши и запрошенный выезд — разные показатели. {% translate "Отмены" %}, неявки и архив исключены. {% if show_drafts %}Включены также черновики: {{ summary.counts.drafts|default:0 }}.{% else %}{% translate "Черновики" %} не включены.{% endif %}</p>
+<p>{% translate "Заказов" %} за выбранный год: <strong>{{ summary.total }}</strong>. Без определённой даты получения: <a href="{{ unknown_dates_url }}"><strong>{{ unknown_dates }}</strong></a> (все годы, вне годового итога).</p>
 <div class="geo-cards">{% for card in cards %}<a class="geo-card" href="{{ card.url }}">{{ card.label }}<strong>{{ card.count }}</strong></a>{% endfor %}</div>
 <h2>Количество заказов по городам получения</h2>
-<div class="geo-scroll"><table class="geo-table"><thead><tr><th>Город</th><th>Заказов</th></tr></thead><tbody>{% for row in summary.cities %}<tr><td>{{ row.label }}</td><td><a href="{{ row.url }}">{{ row.count }}</a></td></tr>{% empty %}<tr><td colspan="2">Нет заказов по выбранным условиям.</td></tr>{% endfor %}</tbody></table></div>
-{% if metric %}<section id="analysis-details" class="geo-detail"><h2>Заказы выбранного показателя — {{ details|length }}</h2>{% include 'bookings/geography_orders.html' with records=details %}</section>{% endif %}
+<div class="geo-scroll"><table class="geo-table"><thead><tr><th>{% translate "Город" %}</th><th>{% translate "Заказов" %}</th></tr></thead><tbody>{% for row in summary.cities %}<tr><td>{{ row.label }}</td><td><a href="{{ row.url }}">{{ row.count }}</a></td></tr>{% empty %}<tr><td colspan="2">Нет заказов по выбранным условиям.</td></tr>{% endfor %}</tbody></table></div>
+{% if metric %}<section id="analysis-details" class="geo-detail"><h2>{% translate "Заказы" %} выбранного показателя — {{ details|length }}</h2>{% include 'bookings/geography_orders.html' with records=details %}</section>{% endif %}
 <h2>Календарь предстоящих выдач</h2>
-<p class="geo-help">Выдачи с сегодняшней даты. Месяц календаря выбирается независимо от года анализа выше. Фирма, город и переключатель черновиков действуют также на календарь. Завершённые аренды и уже активные заказы не включены. Будущих черновиков всего: {{ future_drafts }} — включите переключатель, чтобы увидеть их в календаре.</p>
+<p class="geo-help">{% translate "Выдачи" %} с сегодняшней даты. {% translate "Месяц" %} календаря выбирается независимо от года анализа выше. {% translate "Фирма" %}, город и переключатель черновиков действуют также на календарь. Завершённые аренды и уже активные заказы не включены. Будущих черновиков всего: {{ future_drafts }} — включите переключатель, чтобы увидеть их в календаре.</p>
 <form method="get" class="geo-filters">
  <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="supplier" value="{{ supplier }}"><input type="hidden" name="city" value="{{ city }}">{% if show_drafts %}<input type="hidden" name="drafts" value="1">{% endif %}
- <label>Месяц<br><input type="month" name="month" value="{{ month|date:'Y-m' }}" min="2000-01" max="2100-12" required></label>
- <label>Место получения<br><select name="location"><option value="">Все места</option>{% for place in locations %}<option value="{{ place }}"{% if location == place %} selected{% endif %}>{{ place }}</option>{% endfor %}</select></label>
- <button>Открыть месяц</button>
+ <label>{% translate "Месяц" %}<br><input type="month" name="month" value="{{ month|date:'Y-m' }}" min="2000-01" max="2100-12" required></label>
+ <label>{% translate "Место получения" %}<br><select name="location"><option value="">{% translate "Все места" %}</option>{% for place in locations %}<option value="{{ place }}"{% if location == place %} selected{% endif %}>{{ place }}</option>{% endfor %}</select></label>
+ <button>{% translate "Открыть" %} месяц</button>
 </form>
-<nav class="geo-nav" aria-label="Месяц календаря"><a href="{{ previous_url }}">← Предыдущий</a><strong>{{ month|date:'m.Y' }}</strong><a href="{{ next_url }}">Следующий →</a></nav>
+<nav class="geo-nav" aria-label="Месяц календаря"><a href="{{ previous_url }}">← {% translate "Предыдущий" %}</a><strong>{{ month|date:'m.Y' }}</strong><a href="{{ next_url }}">{% translate "Следующий" %} →</a></nav>
 <div class="geo-calendar">
- <div class="geo-weekday">Пн</div><div class="geo-weekday">Вт</div><div class="geo-weekday">Ср</div><div class="geo-weekday">Чт</div><div class="geo-weekday">Пт</div><div class="geo-weekday">Сб</div><div class="geo-weekday">Вс</div>
+ <div class="geo-weekday">{% translate "Пн" %}</div><div class="geo-weekday">{% translate "Вт" %}</div><div class="geo-weekday">{% translate "Ср" %}</div><div class="geo-weekday">{% translate "Чт" %}</div><div class="geo-weekday">{% translate "Пт" %}</div><div class="geo-weekday">{% translate "Сб" %}</div><div class="geo-weekday">{% translate "Вс" %}</div>
  {% for week in weeks %}{% for cell in week %}<div class="geo-day{% if not cell.current %} dim{% endif %}{% if cell.today %} today{% endif %}">
- {% if cell.count or cell.drafts %}<a href="{{ cell.url }}" aria-label="{{ cell.date|date:'d.m.Y' }}, выдач {{ cell.count }}, черновиков {{ cell.drafts }}"><strong>{{ cell.date.day }}</strong><br>Выдач: {{ cell.count }}{% if cell.drafts %}<br><span class="geo-draft">Черновики: {{ cell.drafts }}</span>{% endif %}</a>
+ {% if cell.count or cell.drafts %}<a href="{{ cell.url }}" aria-label="{{ cell.date|date:'d.m.Y' }}, выдач {{ cell.count }}, черновиков {{ cell.drafts }}"><strong>{{ cell.date.day }}</strong><br>Выдач: {{ cell.count }}{% if cell.drafts %}<br><span class="geo-draft">{% translate "Черновики" %}: {{ cell.drafts }}</span>{% endif %}</a>
  {% for group in cell.groups|slice:':2' %}<small>{{ group.supplier }} · {{ group.place }}: {{ group.count }}</small>{% endfor %}{% if cell.groups|length > 2 %}<small>Подробности по нажатию</small>{% endif %}
  {% else %}<strong>{{ cell.date.day }}</strong>{% endif %}</div>{% endfor %}{% endfor %}
 </div>
-{% if day %}<section id="pickup-details" class="geo-detail"><h2>Выдачи {{ day|date:'d.m.Y' }} — {{ day_records|length }}{% if show_drafts %}, включая черновики{% endif %}</h2>
+{% if day %}<section id="pickup-details" class="geo-detail"><h2>{% translate "Выдачи" %} {{ day|date:'d.m.Y' }} — {{ day_records|length }}{% if show_drafts %}, включая черновики{% endif %}</h2>
 <ul>{% for group in day_groups %}<li><strong>{{ group.supplier }}</strong> · {{ group.place }} — {{ group.count }}</li>{% endfor %}</ul>
 {% include 'bookings/geography_orders.html' with records=day_records %}</section>{% endif %}
 <p class="geo-help">Города определяются по полям заказа, местам поставщиков и распознанным названиям в исходном тексте. Даты из исходного текста отмечены в списке; расчётных дат по сумме в календаре нет. {% if request.user.is_staff %}<a href="{% url 'admin:suppliers_analyticscity_changelist' %}">Справочник городов и написаний</a>.{% endif %}</p>

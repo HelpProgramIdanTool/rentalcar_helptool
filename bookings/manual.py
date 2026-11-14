@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -22,14 +23,14 @@ from .missing_data import MissingDepositForm, new_deposit_form, apply_deposit
 
 class ManualBookingForm(BookingFromOfferForm):
     entry_token = forms.CharField(widget=forms.HiddenInput)
-    existing_customer = forms.ModelChoiceField(label="Карточка существующего клиента (или новый клиент)", queryset=Customer.objects.all(), required=False)
-    supplier = forms.ModelChoiceField(label="Фирма, где заказываем", queryset=Supplier.objects.filter(status="ACTIVE"))
-    order_source = forms.ChoiceField(label="Чей заказ", choices=Booking._meta.get_field("order_source").choices)
-    responsible = forms.ModelChoiceField(label="Ответственный сотрудник", queryset=Employee.objects.filter(status="ACTIVE"), required=False)
-    sub_agent = forms.ModelChoiceField(label="Субагент", queryset=SubAgent.objects.filter(is_active=True), required=False)
-    customer_name = forms.CharField(label="Имя и фамилия", max_length=201)
-    hotel_name = forms.CharField(label="Отель при получении", max_length=200, required=False)
-    return_hotel_name = forms.CharField(label="Отель при возврате", max_length=200, required=False)
+    existing_customer = forms.ModelChoiceField(label=_("Карточка существующего клиента (или новый клиент)"), queryset=Customer.objects.all(), required=False)
+    supplier = forms.ModelChoiceField(label=_("Фирма, где заказываем"), queryset=Supplier.objects.filter(status="ACTIVE"))
+    order_source = forms.ChoiceField(label=_("Чей заказ"), choices=Booking._meta.get_field("order_source").choices)
+    responsible = forms.ModelChoiceField(label=_("Ответственный сотрудник"), queryset=Employee.objects.filter(status="ACTIVE"), required=False)
+    sub_agent = forms.ModelChoiceField(label=_("Субагент"), queryset=SubAgent.objects.filter(is_active=True), required=False)
+    customer_name = forms.CharField(label=_("Имя и фамилия"), max_length=201)
+    hotel_name = forms.CharField(label=_("Отель при получении"), max_length=200, required=False)
+    return_hotel_name = forms.CharField(label=_("Отель при возврате"), max_length=200, required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,6 +66,8 @@ def clone_initial(booking):
     initial = {key: value for key, value in saved.items()
                if key in ManualBookingForm.base_fields and key not in excluded}
     initial.update(customer_name="", existing_customer=None,
+                   rental_country=booking.rental_country,
+                     referral_contact=booking.referral_contact_id,
                    supplier=booking.supplier_id, vehicle_group=booking.vehicle_group_id,
                    order_source=booking.order_source, responsible=booking.salesperson_employee_id,
                    sub_agent=booking.sub_agent_id, driver_count=max(booking.drivers.count(), 1))

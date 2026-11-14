@@ -1,4 +1,25 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+
+
+def booking_price_error(booking, *, extras=None, body=''):
+    error = 'Итог заказа не совпадает с расчётом или расчёт не завершён. Пересчитайте заказ перед передачей поставщику. Письмо не отправлено.'
+    if '[please verify breakdown]' in body or '[price requires confirmation]' in body:
+        return error
+    extras = list(booking.extras.all()) if extras is None else extras
+    if any(item.included_in_total and not item.calculation_complete for item in extras):
+        return error
+    try:
+        expected = booking.vehicle_price_gross + sum((item.calculated_price_gross for item in extras if item.included_in_total),Decimal(0)) + booking.manual_adjustment_amount + booking.subagent_price_adjustment_amount
+        if not expected.is_finite() or expected != booking.total_price_gross:
+            return error
+        reviewed = booking.source_quote_snapshot.get('total')
+        if reviewed is not None and Decimal(str(reviewed)) != booking.total_price_gross:
+            return error
+        if booking.source_quote_snapshot.get('currency',booking.currency) != booking.currency:
+            return error
+    except (InvalidOperation, TypeError, ValueError):
+        return error
+    return ''
 
 
 def amount_text(value):

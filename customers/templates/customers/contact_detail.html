@@ -1,0 +1,12 @@
+{% extends 'customers/base.html' %}{% load i18n %}{% block content %}
+<h1>{{ contact }}</h1><p>{% for email in contact.emails.all %}{{ email.email }} {% endfor %}</p>
+<p><a href="{% url 'customers:contacts' %}">{% translate "Контакты" %}</a> · <a href="?kind=offers">{% translate "Оферты" %}</a> · <a href="?kind=bookings">{% translate "Заказы" %}</a> · <a href="?kind=cancelled">{% translate "Отмены" %}</a></p>
+<form method="get"><input type="hidden" name="kind" value="{{ kind }}">{{ period.as_p }}<button>{% translate "Найти" %}</button></form>
+<p>{% translate "Период" %} по дате создания. Записей: {{ records.count }}</p>
+<table><tr><th>{% translate "Номер" %}</th><th>{% translate "Клиент" %}</th><th>{% translate "Создано" %}</th><th>{% translate "Статус" %}</th></tr>
+{% for record in records %}<tr><td>{% if kind == 'offers' %}<a href="{% url 'quotes:calculate_quote' record.quote_number %}">{{ record.quote_number }}</a>{% else %}<a href="{% url 'quotes:booking_detail' record.pk %}">{{ record.booking_number }}</a>{% endif %}</td><td>{{ record.customer }}</td><td>{{ record.created_at|date:'d.m.Y' }}</td><td>{% translate record.get_status_display %}</td></tr>{% endfor %}</table>
+{% if not customer_mode %}<p><a href="?link=1">{% translate "Найти" %} старые заказы по точному email</a></p>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="link">
+{% for record in candidates %}<p><label><input type="checkbox" name="selected" value="{{ record.pk }}">{{ record.booking_number }} — {{ record.customer }} — {{ record.customer_email_snapshot }}</label></p>{% endfor %}
+{% if candidates %}<label><input required type="checkbox" name="confirm" value="yes">Проверил выбранные заказы. Связать с этим контактом.</label><button>{% translate "Связать выбранные" %}</button>{% endif %}</form>
+{% endif %}{% endblock %}

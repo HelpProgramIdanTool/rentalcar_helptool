@@ -15,6 +15,18 @@ from .models import Booking
 
 
 class QuoteConversionTests(TestCase):
+    def test_referring_contact_transfers_without_commission_or_changing_renter(self):
+        from customers.models import ReferralContact
+        contact = ReferralContact.objects.create(name='TEST REFERRER')
+        self.quote.referral_contact = contact
+        self.quote.save()
+        data, response = self.review(referral_contact=str(contact.pk))
+        self.create(data, response)
+        booking = Booking.objects.get()
+        self.assertEqual(booking.referral_contact_id, contact.pk)
+        self.assertEqual(booking.customer_id, self.customer.pk)
+        self.assertIsNone(booking.sub_agent_id)
+
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="operator")
         self.client.force_login(self.user)

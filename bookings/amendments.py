@@ -21,7 +21,7 @@ from django.views.decorators.http import require_http_methods
 from config.email_addresses import parse_email_addresses
 from .attention import visible_bookings
 from .manual import ManualBookingForm, clone_initial
-from .message_content import price_breakdown, supplier_location
+from .message_content import price_breakdown, supplier_location, booking_price_error
 from .models import Booking, BookingAmendment, BookingHistoryEvent, SupplierEmailDelivery
 from .quote_conversion import calculate, create_draft, fingerprint, review_snapshot
 
@@ -89,7 +89,10 @@ def message(kind, recipient, subject, body, previous=''):
                 html=html, status='DRAFT', token=str(uuid4()))
 
 
+@transaction.atomic
 def prepare_amendment(booking, data, result, snapshot, user, pending=None):
+    if pending and any(item.get('edited') for item in pending.messages):
+        raise forms.ValidationError('Письмо отредактировано вручную. Сначала явно сбросьте правки на экране письма, затем пересчитайте заказ.')
     from suppliers.models import Supplier
     before = pending.before if pending else current_snapshot(booking)
     old_supplier = Supplier.objects.get(pk=before['fields']['supplier_id'])
@@ -111,6 +114,11 @@ def prepare_amendment(booking, data, result, snapshot, user, pending=None):
         updates.update(supplier_booking_number=old_number, status=before['fields']['status'])
     Booking.objects.filter(pk=booking.pk).update(**updates)
     booking.refresh_from_db()
+    if booking.total_price_gross != result['total'] or booking.currency != result['currency']:
+        raise forms.ValidationError('Сохранённая сумма не совпадает с подтверждённым расчётом. Изменение не сохранено.')
+    price_error = booking_price_error(booking)
+    if price_error:
+        raise forms.ValidationError(price_error)
     new_body = order_body(booking)
     if switched:
         mails = [message('CANCEL', old_supplier.changes_email or old_supplier.booking_email,
@@ -222,6 +230,37 @@ def amendment_messages(request, pk, amendment_id):
         with transaction.atomic():
             amendment = BookingAmendment.objects.select_for_update().get(pk=amendment.pk)
             item = deepcopy(amendment.messages[index])
+            if request.POST.get('action') in ('save_text','reset_text'):
+                if item['status'] not in ('DRAFT','FAILED'):
+                    messages.error(request,'Отправленное письмо нельзя редактировать.')
+                    return redirect('quotes:booking_amendment',pk=pk,amendment_id=amendment_id)
+                if request.POST.get('action') == 'reset_text':
+                    if request.POST.get('confirm_reset') != 'yes':
+                        messages.error(request,'Подтвердите сброс ручных правок.')
+                        return redirect('quotes:booking_amendment',pk=pk,amendment_id=amendment_id)
+                    body=item.get('generated_body',item['body'])
+                    item['edited']=False
+                else:
+                    body=request.POST.get('body','').strip()
+                    if not body or len(body)>50000:
+                        messages.error(request,'Введите текст письма, не более 50 000 символов.')
+                        return redirect('quotes:booking_amendment',pk=pk,amendment_id=amendment_id)
+                    item.setdefault('generated_body',item['body'])
+                    item['edited']=True
+                item['body']=body
+                item['html']=message(item['kind'],item['recipient'],item['subject'],body,
+                    amendment.before.get('supplier_body',''))['html']
+                item['edited_by']=request.user.pk
+                amendment.messages[index]=item
+                amendment.save(update_fields=['messages'])
+                messages.success(request,'Текст сохранён. Проверьте его перед отправкой.')
+                return redirect('quotes:booking_amendment',pk=pk,amendment_id=amendment_id)
+            booking.refresh_from_db()
+            if item['kind'] in ('NEW','UPDATE'):
+                price_error = booking_price_error(booking, body=item.get('body',''))
+                if price_error:
+                    messages.error(request, price_error)
+                    return redirect('quotes:booking_amendment', pk=pk, amendment_id=amendment_id)
             retry = item['status'] == 'FAILED' and request.POST.get('confirm_retry') == 'yes'
             if item['status'] != 'DRAFT' and not retry:
                 messages.error(request, 'Это письмо уже обработано. Проверьте его состояние; повторная отправка заблокирована.')

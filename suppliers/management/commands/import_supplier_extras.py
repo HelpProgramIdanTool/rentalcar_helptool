@@ -44,6 +44,8 @@ def extra(
     rates,
     description="",
     mandatory=False,
+    automatic_rule=None,
+    customer_name_he=None,
 ):
     return {
         "extra_code": code,
@@ -53,6 +55,8 @@ def extra(
         "description": description,
         "is_mandatory": mandatory,
         "rates": rates,
+        **({"automatic_rule":automatic_rule} if automatic_rule is not None else {}),
+        **({"customer_name_he":customer_name_he} if customer_name_he is not None else {}),
     }
 
 
@@ -81,7 +85,7 @@ def car_free_records():
         extra("THIRD_PARTY_INQUIRY", "Third-party inquiry administration", "PENALTY", "Administrative fee for handling third-party inquiries related to the use of the vehicle during the rental period", [rate(100, formula, formula={"plus": "actual fine"})]),
         extra("FINE_ADMIN_FOREIGN", "Foreign fine administration", "PENALTY", "Administrative fee in connection with the handling of fine payment obligations to foreign institutions", [rate(250, formula, formula={"plus": "actual fine"})]),
         extra("YOUNG_DRIVER_21_24", "Young driver age 21-24", "DRIVER", "Young Driver's fee (21-24)", [rate(0, rental)]),
-        extra("ONE_WAY_PL", "One-way rental in Poland", "DELIVERY", "One way in Poland (up to 3 days, 4 days and above is free)", [rate(199, rental, rate_code="DAYS_1_3", days_from=1, days_to=3), rate(0, rental, rate_code="DAYS_4_PLUS", days_from=4)]),
+        extra("ONE_WAY_PL", "One-way rental in Poland", "DELIVERY", "One way in Poland (up to 3 days, 4 days and above is free)", [rate(199, rental, rate_code="DAYS_1_3", days_from=1, days_to=3), rate(0, rental, rate_code="DAYS_4_PLUS", days_from=4)], automatic_rule="DOMESTIC_ONE_WAY", customer_name_he="החזרת הרכב בעיר אחרת בפולין"),
         extra("BABY_SEAT_BOOSTER", "Baby seat or booster", "CHILD_EQUIPMENT", "Baby Seat/Booster (up to 10 days, 11 days and above is free)", [rate(25, day, maximum=250)]),
         extra("SNOW_CHAINS", "Snow chains", "EQUIPMENT", "Snow chains", [rate(25, day, maximum=250)]),
         extra("FOREIGN_CITY_DELIVERY", "Delivery or return in selected foreign city", "DELIVERY", "Delivery / Return in Bratislava, Berlin, Vienna, Budapest", [rate(1000, unit)]),
@@ -210,6 +214,7 @@ def upsert_supplier_extras(supplier, records, source_values, valid_from, source_
                 "description": description,
                 "is_mandatory": record["is_mandatory"],
                 "is_active": True,
+                **{key:record[key] for key in ('automatic_rule','customer_name_he') if key in record},
             },
         )
         extras_created += int(created)
