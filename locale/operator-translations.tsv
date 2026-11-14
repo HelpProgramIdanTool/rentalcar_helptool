@@ -325,3 +325,25 @@ Cancelled	Anulowana	Cancelled
 Выслать из системы	Wyślij z systemu	Send from system
 Отметить отправку вручную	Oznacz wysłanie ręczne	Mark as sent manually
 Текст, который будет отправлен	Treść do wysłania	Text to be sent
+Выдачи и возвраты за период	Wydania i zwroty w okresie	Pickups and returns by period
+С даты	Od daty	From date
+По дату	Do daty	Through date
+Операции	Operacje	Operations
+Выдачи и возвраты	Wydania i zwroty	Pickups and returns
+Возвраты	Zwroty	Returns
+Для одного дня укажите одинаковые даты. Обе границы периода включены. Даты и время — по Варшаве.	Dla jednego dnia wybierz tę samą datę. Obie daty są uwzględnione. Daty i godziny według czasu Warszawy.	For a single day, choose the same date twice. Both dates are included. Dates and times use Warsaw time.
+Выдача и возврат считаются отдельно, каждый по своей дате. Отмены, неявки и архив исключены. Черновики включаются только переключателем.	Odbiór i zwrot liczone są osobno według własnej daty. Anulowane rezerwacje, nieobecności i archiwum są wykluczone. Szkice można włączyć przełącznikiem.	Pickups and returns are counted separately by their own dates. Cancellations, no-shows and archived reservations are excluded. Drafts are optional.
+Считаются даты в заказах, включая будущие операции.	Uwzględniane są daty w rezerwacjach, w tym przyszłe operacje.	Based on reservation dates, including future operations.
+Всего операций	Łącznie operacji	Total operations
+Уникальных заказов	Unikalne rezerwacje	Unique reservations
+По фирмам и городам	Według firm i miast	By supplier and city
+Нет операций за выбранный период.	Brak operacji w wybranym okresie.	No operations in the selected period.
+По дням	Według dni	By day
+Дата	Data	Date
+Операции без определённой даты	Operacje bez ustalonej daty	Operations without a known date
+Все годы, с учётом фирмы, города и типа операции. В итог периода не включены; даты по стоимости не угадываются.	Wszystkie lata, z uwzględnieniem firmy, miasta i rodzaju operacji. Nie są uwzględnione w sumach okresu; dat nie szacuje się na podstawie ceny.	All years, filtered by supplier, city and operation. Excluded from period totals; dates are not estimated from prices.
+Список операций	Lista operacji	Operation list
+Список заказов	Lista rezerwacji	Reservation list
+Дата из исходной записи	Data z oryginalnego wpisu	Date from original record
+Время не указано	Nie podano godziny	Time not specified
+Место	Miejsce	Location

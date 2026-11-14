@@ -1,0 +1,23 @@
+{% extends 'customers/base.html' %}{% load i18n %}
+{% block title %}{% translate 'Выдачи и возвраты за период' %}{% endblock %}
+{% block content %}
+<p><a href="{% url 'quotes:statistics' %}">← {% translate 'Статистика и подсчёты' %}</a></p>
+<h1>{% translate 'Выдачи и возвраты за период' %}</h1>
+<form method="get" class="list-filters">{{ form.as_p }}<button>{% translate 'Показать' %}</button><button name="details" value="1">{% translate 'Список заказов' %}</button></form>
+<p>{% translate 'Для одного дня укажите одинаковые даты. Обе границы периода включены. Даты и время — по Варшаве.' %}</p>
+<p>{% translate 'Считаются даты в заказах, включая будущие операции.' %}</p><p>{% translate 'Выдача и возврат считаются отдельно, каждый по своей дате. Отмены, неявки и архив исключены. Черновики включаются только переключателем.' %}</p>
+{% if form.is_valid %}
+<section class="customer-info"><p>{% translate 'Выдачи' %}: <strong>{{ totals.pickup }}</strong></p><p>{% translate 'Возвраты' %}: <strong>{{ totals.returns }}</strong></p><p>{% translate 'Всего операций' %}: <strong>{{ totals.operations }}</strong></p><p>{% translate 'Уникальных заказов' %}: <strong>{{ totals.bookings }}</strong></p></section>
+<h2>{% translate 'По фирмам и городам' %}</h2>
+<div class="table-scroll"><table class="offer-table"><thead><tr><th>{% translate 'Фирма' %}</th><th>{% translate 'Город' %}</th><th>{% translate 'Выдачи' %}</th><th>{% translate 'Возвраты' %}</th><th>{% translate 'Всего операций' %}</th></tr></thead><tbody>
+{% for row in rows %}<tr><td>{{ row.supplier }}</td><td>{{ row.city }}</td><td><a href="{{ row.pickup_url }}">{{ row.pickup }}</a></td><td><a href="{{ row.return_url }}">{{ row.returns }}</a></td><td>{{ row.total }}</td></tr>{% empty %}<tr><td colspan="5">{% translate 'Нет операций за выбранный период.' %}</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>{% translate 'По дням' %}</h2>
+<div class="table-scroll"><table class="offer-table"><thead><tr><th>{% translate 'Дата' %}</th><th>{% translate 'Фирма' %}</th><th>{% translate 'Город' %}</th><th>{% translate 'Выдачи' %}</th><th>{% translate 'Возвраты' %}</th></tr></thead><tbody>
+{% for row in daily %}<tr><td>{{ row.day|date:'d.m.Y' }}</td><td>{{ row.supplier }}</td><td>{{ row.city }}</td><td><a href="{{ row.pickup_url }}">{{ row.pickup }}</a></td><td><a href="{{ row.return_url }}">{{ row.returns }}</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% if undated %}<details><summary>{% translate 'Операции без определённой даты' %}: {{ undated|length }}</summary><p>{% translate 'Все годы, с учётом фирмы, города и типа операции. В итог периода не включены; даты по стоимости не угадываются.' %}</p><ul>{% for event in undated %}<li><a href="{% url 'quotes:booking_detail' event.booking.pk %}">{{ event.booking.booking_number }}</a> · {{ event.supplier }} · {{ event.city }} · {% if event.side == 'pickup' %}{% translate 'Выдача' %}{% else %}{% translate 'Возвраты' %}{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+{% if show_details %}<h2 id="operations-details">{% translate 'Список операций' %} — {{ events|length }}</h2><div class="table-scroll"><table class="offer-table"><thead><tr><th>{% translate 'Дата' %}</th><th>{% translate 'Операции' %}</th><th>{% translate 'Заказ' %}</th><th>{% translate 'Клиент' %}</th><th>{% translate 'Фирма' %}</th><th>{% translate 'Город' %}</th><th>{% translate 'Место' %}</th></tr></thead><tbody>
+{% for event in events %}<tr><td>{{ event.time|date:'d.m.Y' }}{% if event.time_known %} {{ event.time|date:'H:i' }}{% else %}<br><small>{% translate 'Время не указано' %}</small>{% endif %}{% if event.from_source %}<br><small>{% translate 'Дата из исходной записи' %}</small>{% endif %}</td><td>{% if event.side == 'pickup' %}{% translate 'Выдача' %}{% else %}{% translate 'Возвраты' %}{% endif %}{% if event.booking.status == 'DRAFT' %}<br>{% translate 'Черновик' %}{% endif %}</td><td><a href="{% url 'quotes:booking_detail' event.booking.pk %}">{{ event.booking.booking_number }}</a></td><td>{{ event.booking.customer_name_snapshot }}</td><td>{{ event.supplier }}</td><td>{{ event.city }}</td><td>{{ event.place }}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}{% endif %}
+{% endblock %}

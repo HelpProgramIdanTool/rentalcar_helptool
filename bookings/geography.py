@@ -30,11 +30,14 @@ def fold(text):
     return ' '.join(re.findall(r'\w+',text))
 
 
-def pickup_time(booking):
-    if booking.pickup_datetime:
-        return timezone.localtime(booking.pickup_datetime), False
+def operation_time(booking, side):
+    if side not in ('pickup', 'return'):
+        raise ValueError('Unknown operation side')
+    value = getattr(booking, side + '_datetime')
+    if value:
+        return timezone.localtime(value), False
     raw=(booking.source_quote_snapshot or {}).get('historical_import',{}).get('raw',{})
-    text=str(raw.get('B','')).strip().lstrip("`'")
+    text=str(raw.get('B' if side == 'pickup' else 'C','')).strip().lstrip("`'")
     match=re.match(r'(\d{1,2})\s*[/.-]\s*(\d{1,2})\s*[/.-]+\s*(\d{2,4})(?!\d)(?:\s*[,;]?\s*(\d{1,2}):(\d{2}))?',text)
     if match:
         d,m,y,h,minute=match.groups()
@@ -44,6 +47,10 @@ def pickup_time(booking):
         except ValueError:
             pass
     return None,False
+
+
+def pickup_time(booking):
+    return operation_time(booking, 'pickup')
 
 
 class Places:

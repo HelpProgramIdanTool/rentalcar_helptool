@@ -106,6 +106,9 @@ msgstr "Kierowca"
 msgid "Возврат"
 msgstr "Zwrot"
 
+msgid "Возвраты"
+msgstr "Zwroty"
+
 msgid "Возраст"
 msgstr "Wiek"
 
@@ -114,6 +117,9 @@ msgstr "Przywróć"
 
 msgid "Время возврата"
 msgstr "Godzina zwrotu"
+
+msgid "Время не указано"
+msgstr "Nie podano godziny"
 
 msgid "Время получения"
 msgstr "Godzina odbioru"
@@ -126,6 +132,9 @@ msgstr "Ndz"
 
 msgid "Все"
 msgstr "Wszystkie"
+
+msgid "Все годы, с учётом фирмы, города и типа операции. В итог периода не включены; даты по стоимости не угадываются."
+msgstr "Wszystkie lata, z uwzględnieniem firmy, miasta i rodzaju operacji. Nie są uwzględnione w sumach okresu; dat nie szacuje się na podstawie ceny."
 
 msgid "Все города"
 msgstr "Wszystkie miasta"
@@ -148,6 +157,9 @@ msgstr "Wszystkie firmy"
 msgid "Всего"
 msgstr "Łącznie"
 
+msgid "Всего операций"
+msgstr "Łącznie operacji"
+
 msgid "Всего оферт"
 msgstr "Liczba ofert"
 
@@ -163,8 +175,17 @@ msgstr "Wydano"
 msgid "Выдача"
 msgstr "Wydanie"
 
+msgid "Выдача и возврат считаются отдельно, каждый по своей дате. Отмены, неявки и архив исключены. Черновики включаются только переключателем."
+msgstr "Odbiór i zwrot liczone są osobno według własnej daty. Anulowane rezerwacje, nieobecności i archiwum są wykluczone. Szkice można włączyć przełącznikiem."
+
 msgid "Выдачи"
 msgstr "Wydania"
+
+msgid "Выдачи и возвраты"
+msgstr "Wydania i zwroty"
+
+msgid "Выдачи и возвраты за период"
+msgstr "Wydania i zwroty w okresie"
 
 msgid "Выезд"
 msgstr "Wyjazd"
@@ -214,8 +235,14 @@ msgstr "Dane fotelików"
 msgid "Данные клиента"
 msgstr "Dane klienta"
 
+msgid "Дата"
+msgstr "Data"
+
 msgid "Дата возврата"
 msgstr "Data zwrotu"
+
+msgid "Дата из исходной записи"
+msgstr "Data z oryginalnego wpisu"
 
 msgid "Дата начала позже даты окончания."
 msgstr "Data początkowa jest późniejsza niż końcowa."
@@ -240,6 +267,9 @@ msgstr "Foteliki dziecięce"
 
 msgid "Детское кресло"
 msgstr "Fotelik dziecięcy"
+
+msgid "Для одного дня укажите одинаковые даты. Обе границы периода включены. Даты и время — по Варшаве."
+msgstr "Dla jednego dnia wybierz tę samą datę. Obie daty są uwzględnione. Daty i godziny według czasu Warszawy."
 
 msgid "Добавить в оферту"
 msgstr "Dodaj do oferty"
@@ -406,6 +436,9 @@ msgstr "Osoba kontaktowa"
 msgid "Меняется вручную. Страны получения и возврата определяются по городам отдельно."
 msgstr "Zmieniane ręcznie. Kraje odbioru i zwrotu wynikają z miast."
 
+msgid "Место"
+msgstr "Miejsce"
+
 msgid "Место получения"
 msgstr "Miejsce odbioru"
 
@@ -466,6 +499,9 @@ msgstr "Nie można obliczyć"
 msgid "Нет вариантов"
 msgstr "Brak opcji"
 
+msgid "Нет операций за выбранный период."
+msgstr "Brak operacji w wybranym okresie."
+
 msgid "Нет у поставщика"
 msgstr "Niedostępne u dostawcy"
 
@@ -513,6 +549,12 @@ msgstr "Taryfa ogólna"
 
 msgid "Ожидание с"
 msgstr "Oczekiwanie od"
+
+msgid "Операции"
+msgstr "Operacje"
+
+msgid "Операции без определённой даты"
+msgstr "Operacje bez ustalonej daty"
 
 msgid "Описание"
 msgstr "Opis"
@@ -628,6 +670,12 @@ msgstr "Wiadomość do dostawcy"
 msgid "Пн"
 msgstr "Pon"
 
+msgid "По дату"
+msgstr "Do daty"
+
+msgid "По дням"
+msgstr "Według dni"
+
 msgid "По клиенту"
 msgstr "Według klienta"
 
@@ -636,6 +684,9 @@ msgstr "Według kontaktu"
 
 msgid "По телефону"
 msgstr "Telefonicznie"
+
+msgid "По фирмам и городам"
+msgstr "Według firm i miast"
 
 msgid "Подготовить письмо"
 msgstr "Przygotuj wiadomość"
@@ -726,6 +777,9 @@ msgstr "Dopłata ręczna"
 
 msgid "С НДС"
 msgstr "Brutto"
+
+msgid "С даты"
+msgstr "Od daty"
 
 msgid "Сам клиент"
 msgstr "Sam klient"
@@ -820,6 +874,12 @@ msgstr "Zapisz treść"
 msgid "Сохранить черновик"
 msgstr "Zapisz szkic"
 
+msgid "Список заказов"
+msgstr "Lista rezerwacji"
+
+msgid "Список операций"
+msgstr "Lista operacji"
+
 msgid "Способ возврата"
 msgstr "Sposób zwrotu"
 
@@ -883,6 +943,9 @@ msgstr "Kwota"
 msgid "Сумма с НДС"
 msgstr "Kwota brutto"
 
+msgid "Считаются даты в заказах, включая будущие операции."
+msgstr "Uwzględniane są daty w rezerwacjach, w tym przyszłe operacje."
+
 msgid "Текст письма"
 msgstr "Treść wiadomości"
 
@@ -915,6 +978,9 @@ msgstr "Wymagają uwagi"
 
 msgid "Уже записано"
 msgstr "Już zapisano"
+
+msgid "Уникальных заказов"
+msgstr "Unikalne rezerwacje"
 
 msgid "Условия"
 msgstr "Warunki"

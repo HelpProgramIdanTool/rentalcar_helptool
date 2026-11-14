@@ -106,6 +106,9 @@ msgstr "Driver"
 msgid "Возврат"
 msgstr "Return"
 
+msgid "Возвраты"
+msgstr "Returns"
+
 msgid "Возраст"
 msgstr "Age"
 
@@ -114,6 +117,9 @@ msgstr "Restore"
 
 msgid "Время возврата"
 msgstr "Return time"
+
+msgid "Время не указано"
+msgstr "Time not specified"
 
 msgid "Время получения"
 msgstr "Pickup time"
@@ -126,6 +132,9 @@ msgstr "Sun"
 
 msgid "Все"
 msgstr "All"
+
+msgid "Все годы, с учётом фирмы, города и типа операции. В итог периода не включены; даты по стоимости не угадываются."
+msgstr "All years, filtered by supplier, city and operation. Excluded from period totals; dates are not estimated from prices."
 
 msgid "Все города"
 msgstr "All cities"
@@ -148,6 +157,9 @@ msgstr "All suppliers"
 msgid "Всего"
 msgstr "Total"
 
+msgid "Всего операций"
+msgstr "Total operations"
+
 msgid "Всего оферт"
 msgstr "Total offers"
 
@@ -163,8 +175,17 @@ msgstr "Handed over"
 msgid "Выдача"
 msgstr "Handover"
 
+msgid "Выдача и возврат считаются отдельно, каждый по своей дате. Отмены, неявки и архив исключены. Черновики включаются только переключателем."
+msgstr "Pickups and returns are counted separately by their own dates. Cancellations, no-shows and archived reservations are excluded. Drafts are optional."
+
 msgid "Выдачи"
 msgstr "Handovers"
+
+msgid "Выдачи и возвраты"
+msgstr "Pickups and returns"
+
+msgid "Выдачи и возвраты за период"
+msgstr "Pickups and returns by period"
 
 msgid "Выезд"
 msgstr "Departure"
@@ -214,8 +235,14 @@ msgstr "Child seat details"
 msgid "Данные клиента"
 msgstr "Customer details"
 
+msgid "Дата"
+msgstr "Date"
+
 msgid "Дата возврата"
 msgstr "Return date"
+
+msgid "Дата из исходной записи"
+msgstr "Date from original record"
 
 msgid "Дата начала позже даты окончания."
 msgstr "The start date is after the end date."
@@ -240,6 +267,9 @@ msgstr "Child seats"
 
 msgid "Детское кресло"
 msgstr "Child seat"
+
+msgid "Для одного дня укажите одинаковые даты. Обе границы периода включены. Даты и время — по Варшаве."
+msgstr "For a single day, choose the same date twice. Both dates are included. Dates and times use Warsaw time."
 
 msgid "Добавить в оферту"
 msgstr "Add to offer"
@@ -406,6 +436,9 @@ msgstr "Referring contact"
 msgid "Меняется вручную. Страны получения и возврата определяются по городам отдельно."
 msgstr "Change manually. Pickup and return countries are determined separately from the cities."
 
+msgid "Место"
+msgstr "Location"
+
 msgid "Место получения"
 msgstr "Pickup location"
 
@@ -466,6 +499,9 @@ msgstr "Cannot calculate"
 msgid "Нет вариантов"
 msgstr "No options"
 
+msgid "Нет операций за выбранный период."
+msgstr "No operations in the selected period."
+
 msgid "Нет у поставщика"
 msgstr "Unavailable from supplier"
 
@@ -513,6 +549,12 @@ msgstr "General tariff"
 
 msgid "Ожидание с"
 msgstr "Waiting since"
+
+msgid "Операции"
+msgstr "Operations"
+
+msgid "Операции без определённой даты"
+msgstr "Operations without a known date"
 
 msgid "Описание"
 msgstr "Description"
@@ -628,6 +670,12 @@ msgstr "Supplier email"
 msgid "Пн"
 msgstr "Mon"
 
+msgid "По дату"
+msgstr "Through date"
+
+msgid "По дням"
+msgstr "By day"
+
 msgid "По клиенту"
 msgstr "By customer"
 
@@ -636,6 +684,9 @@ msgstr "By contact"
 
 msgid "По телефону"
 msgstr "By phone"
+
+msgid "По фирмам и городам"
+msgstr "By supplier and city"
 
 msgid "Подготовить письмо"
 msgstr "Prepare email"
@@ -726,6 +777,9 @@ msgstr "Manual surcharge"
 
 msgid "С НДС"
 msgstr "Including VAT"
+
+msgid "С даты"
+msgstr "From date"
 
 msgid "Сам клиент"
 msgstr "Customer directly"
@@ -820,6 +874,12 @@ msgstr "Save text"
 msgid "Сохранить черновик"
 msgstr "Save draft"
 
+msgid "Список заказов"
+msgstr "Reservation list"
+
+msgid "Список операций"
+msgstr "Operation list"
+
 msgid "Способ возврата"
 msgstr "Return service"
 
@@ -883,6 +943,9 @@ msgstr "Amount"
 msgid "Сумма с НДС"
 msgstr "Total including VAT"
 
+msgid "Считаются даты в заказах, включая будущие операции."
+msgstr "Based on reservation dates, including future operations."
+
 msgid "Текст письма"
 msgstr "Email body"
 
@@ -915,6 +978,9 @@ msgstr "Need attention"
 
 msgid "Уже записано"
 msgstr "Already recorded"
+
+msgid "Уникальных заказов"
+msgstr "Unique reservations"
 
 msgid "Условия"
 msgstr "Conditions"

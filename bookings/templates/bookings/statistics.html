@@ -2,6 +2,7 @@
 {% block title %}{% translate "Статистика и подсчёты" %}{% endblock %}
 {% block content %}
 <h1>{% translate "Статистика и подсчёты" %}</h1>
+<p><a href="{% url 'quotes:operations' %}">{% translate "Выдачи и возвраты за период" %} →</a></p>
 <p><a href="{% url 'quotes:geography' %}?year={{ year }}">География заказов и календарь будущих выдач →</a></p>
 <form method="get"><label>{% translate "Год" %} <input name="year" type="number" min="2000" max="9998" value="{{ year }}" required></label> <button>{% translate "Показать" %}</button></form>
 <p>{% translate "Обновлено" %}: {{ updated|date:"d.m.Y H:i:s" }}. Страница обновляется каждую минуту. <button type="button" onclick="location.reload()">{% translate "Обновить сейчас" %}</button></p>
