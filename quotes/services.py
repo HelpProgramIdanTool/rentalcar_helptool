@@ -18,6 +18,7 @@ from .airport_pickup import airport_code_for_city
 from .models import QuoteDocumentBlock, QuoteTemplate
 from .seasonal_benefits import seasonal_included_items
 from .one_way import automatic_route_extras
+from config.driver_fees import YOUNG_DRIVER_CODES
 from .country_rules import route_context
 from copy import copy
 
@@ -418,7 +419,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
         }
         supplier_code = group.supplier.supplier_code
         young_driver_code = group.supplier.extras.filter(
-            is_active=True, extra_code__in=("YOUNG_DRIVER", "YOUNG_DRIVER_21_24"),
+            is_active=True, extra_code__in=YOUNG_DRIVER_CODES,
         ).order_by("extra_code").values_list("extra_code", flat=True).first()
         if young_driver_code:
             requested_code_map["YOUNG_DRIVER"] = {supplier_code: young_driver_code}

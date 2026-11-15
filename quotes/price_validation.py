@@ -6,6 +6,38 @@ from django.utils import timezone
 from .services import _active_extra_rate, _after_hours_extra_requests, _quoted_extra_price
 from .one_way import automatic_route_extras
 from suppliers.models import SupplierExtra
+from config.driver_fees import YOUNG_DRIVER_CODES
+
+
+def young_driver_quote_issues(quote, option, pickup_date):
+    error = f'{option.supplier.supplier_name}: доплата за молодых/новых водителей не согласуется с их количеством или итогом. Пересчитайте оферту.'
+    try:
+        values = [Decimal(str(quote.extra_requests.get(code,0))) for code in YOUNG_DRIVER_CODES]
+        if any(not value.is_finite() or value < 0 for value in values):
+            return [error]
+        quantities = {value for value in values if value}
+        if not quantities:
+            return []
+        if len(quantities) != 1:
+            return [error]
+        quantity = quantities.pop()
+        extras = list(option.supplier.extras.filter(is_active=True,extra_code__in=YOUNG_DRIVER_CODES))
+        if len(extras) != 1:
+            return [error]
+        extra = extras[0]
+        rate = _active_extra_rate(extra,pickup_date,quote.rental_days)
+        if rate is None:
+            return [error]
+        snapshot = option.calculation_snapshot or {}
+        lines = [line for line in snapshot.get('lines',[]) if str(line.get('extra_id')) == str(extra.pk)
+                 or (not line.get('extra_id') and line.get('name') == extra.name)]
+        expected = _quoted_extra_price(extra,rate,Decimal(quote.rental_days),quantity)
+        if (len(lines) != 1 or Decimal(str(lines[0].get('quantity',1))) != quantity
+                or saved_fee_amount(lines,extra) != expected or not balanced_snapshot(option,snapshot)):
+            return [error]
+    except (InvalidOperation, TypeError, ValueError):
+        return [error]
+    return []
 
 
 def saved_fee_amount(lines, extra):
@@ -35,6 +67,7 @@ def quote_price_issues(quote):
         supplier = option.supplier
         requests = _after_hours_extra_requests(quote, supplier)
         snapshot = option.calculation_snapshot or {}
+        issues.extend(young_driver_quote_issues(quote, option, pickup_date))
         if snapshot.get('rental_country', 'PL') != quote.rental_country:
             issues.append(f'{supplier.supplier_name}: страна аренды изменена. Требуется пересчёт оферты.')
         route_requests, route_issues = automatic_route_extras(quote, supplier)

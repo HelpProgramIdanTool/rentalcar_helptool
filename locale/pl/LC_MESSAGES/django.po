@@ -76,6 +76,9 @@ msgstr "Najbliższy odbiór"
 msgid "Будущие возвраты"
 msgstr "Przyszłe zwroty"
 
+msgid "В письме отсутствует описание молодых/новых водителей. Добавьте строку:"
+msgstr "W wiadomości brakuje informacji o młodych lub nowych kierowcach. Dodaj wiersz:"
+
 msgid "Валюта"
 msgstr "Waluta"
 
@@ -276,6 +279,9 @@ msgstr "Dla jednego dnia wybierz tę samą datę. Obie daty są uwzględnione. D
 
 msgid "Добавить в оферту"
 msgstr "Dodaj do oferty"
+
+msgid "Доплата за молодых/новых водителей не соответствует отмеченным водителям. Проверьте тариф и пересчитайте заказ перед отправкой."
+msgstr "Dopłata dla młodych lub nowych kierowców nie odpowiada zaznaczonym kierowcom. Sprawdź taryfę i przelicz rezerwację przed wysłaniem."
 
 msgid "Дополнительные услуги"
 msgstr "Usługi dodatkowe"
@@ -510,6 +516,9 @@ msgstr "Brak opcji"
 
 msgid "Нет операций за выбранный период."
 msgstr "Brak operacji w wybranym okresie."
+
+msgid "Нет подтверждённого тарифа для молодых/новых водителей. Настройте услугу у выбранной фирмы; ручная доплата её не заменяет."
+msgstr "Brak potwierdzonej taryfy dla młodych lub nowych kierowców. Skonfiguruj usługę dla tej firmy; dopłata ręczna jej nie zastępuje."
 
 msgid "Нет у поставщика"
 msgstr "Niedostępne u dostawcy"

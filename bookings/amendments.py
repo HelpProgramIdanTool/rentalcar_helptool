@@ -21,7 +21,7 @@ from django.views.decorators.http import require_http_methods
 from config.email_addresses import parse_email_addresses
 from .attention import visible_bookings
 from .manual import ManualBookingForm, clone_initial
-from .message_content import price_breakdown, supplier_location, booking_price_error
+from .message_content import price_breakdown, supplier_location, booking_price_error, young_driver_names
 from .models import Booking, BookingAmendment, BookingHistoryEvent, SupplierEmailDelivery
 from .quote_conversion import calculate, create_draft, fingerprint, review_snapshot
 
@@ -63,6 +63,7 @@ def order_body(booking):
         extra.supplier_visible_name = translate_text(extra.supplier_visible_name, english)
     return render_to_string('bookings/supplier_message.txt', {
         'booking': booking,
+        'young_driver_names': young_driver_names(booking),
         'driver_names': ' // '.join(f'{d.first_name} {d.last_name}'.strip() for d in booking.drivers.all()) or booking.customer_name_snapshot,
         'price_breakdown': price_breakdown(booking, extras),
         'pickup_location': supplier_location(booking, 'pickup'),

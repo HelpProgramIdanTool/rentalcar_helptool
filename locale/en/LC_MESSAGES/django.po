@@ -76,6 +76,9 @@ msgstr "Next pickup"
 msgid "Будущие возвраты"
 msgstr "Upcoming returns"
 
+msgid "В письме отсутствует описание молодых/новых водителей. Добавьте строку:"
+msgstr "The message is missing the young/new driver details. Add this line:"
+
 msgid "Валюта"
 msgstr "Currency"
 
@@ -276,6 +279,9 @@ msgstr "For a single day, choose the same date twice. Both dates are included. D
 
 msgid "Добавить в оферту"
 msgstr "Add to offer"
+
+msgid "Доплата за молодых/новых водителей не соответствует отмеченным водителям. Проверьте тариф и пересчитайте заказ перед отправкой."
+msgstr "The young/new driver fee does not match the selected drivers. Check the tariff and recalculate before sending."
 
 msgid "Дополнительные услуги"
 msgstr "Additional services"
@@ -510,6 +516,9 @@ msgstr "No options"
 
 msgid "Нет операций за выбранный период."
 msgstr "No operations in the selected period."
+
+msgid "Нет подтверждённого тарифа для молодых/новых водителей. Настройте услугу у выбранной фирмы; ручная доплата её не заменяет."
+msgstr "No confirmed tariff for young/new drivers. Configure the service for this supplier; a manual surcharge does not replace it."
 
 msgid "Нет у поставщика"
 msgstr "Unavailable from supplier"

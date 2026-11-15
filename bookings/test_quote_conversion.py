@@ -113,6 +113,9 @@ class QuoteConversionTests(TestCase):
             self.assertEqual(sorted(links, key=html.index), links)
 
     def test_young_driver_offer_prefills_individual_driver_flags(self):
+        from suppliers.models import SupplierExtra, SupplierExtraRate
+        extra = SupplierExtra.objects.create(supplier=self.supplier,extra_code='YOUNG_DRIVER',name='TEST Young driver')
+        SupplierExtraRate.objects.create(extra=extra,calculation_type='PER_DRIVER_DAY',amount_gross=10,valid_from='2026-01-01')
         self.quote.extra_requests = {"YOUNG_DRIVER": 1}
         self.quote.driver_count = 2
         self.quote.save()

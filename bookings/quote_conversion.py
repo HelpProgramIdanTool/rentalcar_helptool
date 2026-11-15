@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from config.rental_duration import calculate_rental_days
+from config.driver_fees import YOUNG_DRIVER_CODES
 from employees.models import Employee
 from suppliers.models import SupplierLocation, VehicleGroup
 from quotes.forms import FirstInquiryForm
@@ -166,10 +167,12 @@ def calculate(option, data):
     young_count = sum(bool(data.get(f"driver_{index}_young")) for index in range(1, data["driver_count"] + 1))
     if young_count:
         young_extra = data["vehicle_group"].supplier.extras.filter(
-            is_active=True, extra_code__in=("YOUNG_DRIVER", "YOUNG_DRIVER_21_24")
+            is_active=True, extra_code__in=YOUNG_DRIVER_CODES
         ).order_by("pk").first()
         if young_extra:
             inquiry.extra_requests[young_extra.extra_code] = young_count
+        else:
+            raise forms.ValidationError(_('Нет подтверждённого тарифа для молодых/новых водителей. Настройте услугу у выбранной фирмы; ручная доплата её не заменяет.'))
     results = calculate_quote_options(inquiry, vehicle_group=data["vehicle_group"])
     if not results or not results[0]["available"]:
         raise forms.ValidationError("Нет действующего тарифа для выбранной машины и дат. Заказ не создан.")

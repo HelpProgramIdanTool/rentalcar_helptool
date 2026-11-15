@@ -350,3 +350,6 @@ Cancelled	Anulowana	Cancelled
 ДД.ММ.ГГГГ	DD.MM.RRRR	DD.MM.YYYY
 Имя из исходной записи	Nazwisko z oryginalnego wpisu	Name from original record
 Имя из заказа	Nazwisko z rezerwacji	Name from reservation
+Нет подтверждённого тарифа для молодых/новых водителей. Настройте услугу у выбранной фирмы; ручная доплата её не заменяет.	Brak potwierdzonej taryfy dla młodych lub nowych kierowców. Skonfiguruj usługę dla tej firmy; dopłata ręczna jej nie zastępuje.	No confirmed tariff for young/new drivers. Configure the service for this supplier; a manual surcharge does not replace it.
+Доплата за молодых/новых водителей не соответствует отмеченным водителям. Проверьте тариф и пересчитайте заказ перед отправкой.	Dopłata dla młodych lub nowych kierowców nie odpowiada zaznaczonym kierowcom. Sprawdź taryfę i przelicz rezerwację przed wysłaniem.	The young/new driver fee does not match the selected drivers. Check the tariff and recalculate before sending.
+В письме отсутствует описание молодых/новых водителей. Добавьте строку:	W wiadomości brakuje informacji o młodych lub nowych kierowcach. Dodaj wiersz:	The message is missing the young/new driver details. Add this line:

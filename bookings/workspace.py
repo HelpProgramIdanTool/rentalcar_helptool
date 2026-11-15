@@ -20,7 +20,7 @@ from django.template.loader import render_to_string
 from employees.models import Employee
 from config.email_addresses import parse_email_addresses
 from .models import Booking, BookingHistoryEvent, BookingVoucher, SupplierEmailDelivery
-from .message_content import price_breakdown, supplier_location, booking_price_error
+from .message_content import price_breakdown, supplier_location, booking_price_error, young_driver_names
 
 
 class ReservationForm(forms.Form):
@@ -338,6 +338,7 @@ def supplier_message(request, pk):
         "subject": subject,
         "body": ((f"Please update existing reservation {booking.supplier_booking_number}.\nPlease confirm the changes and send an updated voucher.\n\n" if change_mode else "") + render_to_string("bookings/supplier_message.txt", {
             "booking": booking, "driver_names": names or booking.customer_name_snapshot or "[driver names]",
+            "young_driver_names": young_driver_names(booking),
             "price_breakdown": price_breakdown(booking, extras),
             "pickup_location": supplier_location(booking, "pickup"),
             "return_location": supplier_location(booking, "return"),

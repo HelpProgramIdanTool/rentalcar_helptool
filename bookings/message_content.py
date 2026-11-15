@@ -1,4 +1,43 @@
 from decimal import Decimal, InvalidOperation
+from django.utils.translation import gettext as _
+from config.driver_fees import YOUNG_DRIVER_CODES
+
+
+def young_driver_names(booking):
+    return [' '.join(filter(None, (driver.first_name, driver.last_name))).strip() or '[driver name missing]'
+            for driver in booking.drivers.all() if driver.young_driver_status]
+
+
+def young_driver_price_error(booking, extras):
+    manager = getattr(booking, 'drivers', None)
+    if manager is None:
+        return ''
+    count = sum(driver.young_driver_status for driver in manager.all())
+    request = booking.source_quote_snapshot.get('request', {})
+    declared = sum(value is True for key, value in request.items()
+                   if key.startswith('driver_') and key.endswith('_young'))
+    fees = [item for item in extras if item.included_in_total
+            and getattr(getattr(item, 'extra', None), 'extra_code', '') in YOUNG_DRIVER_CODES]
+    if not count and not declared and not fees:
+        return ''
+    error = _('Доплата за молодых/новых водителей не соответствует отмеченным водителям. Проверьте тариф и пересчитайте заказ перед отправкой.')
+    if not count or (declared and declared != count) or len(fees) != 1:
+        return error
+    fee = fees[0]
+    if fee.quantity != count or not booking.rental_days:
+        return error
+    from types import SimpleNamespace
+    from quotes.services import _quoted_extra_price
+    rate = SimpleNamespace(calculation_type=fee.calculation_type_snapshot,
+        amount_gross=fee.unit_price_gross_snapshot, minimum_amount_gross=fee.minimum_amount_gross_snapshot,
+        maximum_amount_gross=fee.maximum_amount_gross_snapshot, formula_config=fee.formula_snapshot)
+    try:
+        expected = _quoted_extra_price(fee.extra, rate, Decimal(booking.rental_days), Decimal(count))
+        if fee.calculated_price_gross != expected:
+            return error
+    except (InvalidOperation, TypeError, ValueError):
+        return error
+    return ''
 
 
 def booking_price_error(booking, *, extras=None, body=''):
@@ -6,6 +45,15 @@ def booking_price_error(booking, *, extras=None, body=''):
     if '[please verify breakdown]' in body or '[price requires confirmation]' in body:
         return error
     extras = list(booking.extras.all()) if extras is None else extras
+    young_error = young_driver_price_error(booking, extras)
+    if young_error:
+        return young_error
+    if body:
+        names = young_driver_names(booking) if getattr(booking, 'drivers', None) is not None else []
+        if names:
+            required = f'Young/new drivers ({len(names)}): ' + ' // '.join(names)
+            if required not in body:
+                return _('В письме отсутствует описание молодых/новых водителей. Добавьте строку:') + ' ' + required
     if any(item.included_in_total and not item.calculation_complete for item in extras):
         return error
     try:

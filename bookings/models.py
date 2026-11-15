@@ -10,6 +10,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from config.rental_duration import calculate_rental_days
+from config.driver_fees import YOUNG_DRIVER_CODES
 from config.after_hours import is_after_hours, needs_after_hours_charge
 from config.email_addresses import validate_email_addresses
 
@@ -533,7 +534,7 @@ class Booking(models.Model):
     def sync_young_driver_extras(self):
         young_driver_count = self.drivers.filter(young_driver_status=True).count()
         extras = self.supplier.extras.filter(
-            extra_code__in=("YOUNG_DRIVER", "YOUNG_DRIVER_21_24"),
+            extra_code__in=YOUNG_DRIVER_CODES,
             is_active=True,
         )
         for extra in extras:

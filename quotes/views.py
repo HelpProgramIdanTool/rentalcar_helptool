@@ -532,6 +532,13 @@ def _quote_preview_context(quote, *, is_email=False):
     service_messages = airport_service_messages(
         quote, {option.supplier_id for option in options}, quote.language
     )
+    configured_extra_names = {}
+    if is_english:
+        from suppliers.models import SupplierExtra
+        for supplier_id, hebrew, english in SupplierExtra.objects.filter(
+            supplier_id__in={option.supplier_id for option in options}
+        ).exclude(customer_name_he='').values_list('supplier_id','customer_name_he','name'):
+            configured_extra_names.setdefault(supplier_id, []).append((hebrew,english))
     english_items = {
         "מחיר השכרת הרכב": "Vehicle rental price",
         "מע״מ (VAT)": "VAT",
@@ -548,7 +555,10 @@ def _quote_preview_context(quote, *, is_email=False):
         "שרשראות שלג": "Snow chains",
         "נתב Wi-Fi": "Wi-Fi router",
     }
-    def translate_item(value):
+    def translate_item(value, supplier_id=None):
+        for source, translated in configured_extra_names.get(supplier_id, []):
+            if value == source or value.startswith(source + ' × '):
+                return translated + value[len(source):]
         if value in english_items:
             return english_items[value]
         for source, translated in english_items.items():
@@ -574,11 +584,11 @@ def _quote_preview_context(quote, *, is_email=False):
             if is_english or is_polish else option.calculation_snapshot.get("hebrew_vehicle_class", option.vehicle_group_name_snapshot)
         )
         option.display_included_items = [
-            translate_item(item) if is_english else item
+            translate_item(item, option.supplier_id) if is_english else item
             for item in option.calculation_snapshot.get("included_items", [])
         ]
         option.display_excluded_items = [
-            translate_item(item) if is_english else item
+            translate_item(item, option.supplier_id) if is_english else item
             for item in option.calculation_snapshot.get("excluded_items", [])
         ]
         option.display_included_items = [translate_text(item, presentation) for item in option.display_included_items]
