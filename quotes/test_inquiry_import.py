@@ -43,6 +43,29 @@ GPS: לא
 
 
 class ParserTests(SimpleTestCase):
+    def test_website_mail_with_pasted_headers_and_multiline_border_answer(self):
+        raw = (SAMPLE.replace('2026-09-26','01/12/2030').replace('2026-10-03','03/12/2030')
+               .replace('15:00','14:00').replace('11:30','22:00')
+               .replace('test@example.com','[TEST@EXAMPLE.INVALID](mailto:TEST@EXAMPLE.INVALID)')
+               .replace('כולל הנהג: 6','כולל הנהג: 2').replace('משוער: 5','משוער: 2')
+               .replace('- רכב סטיישן\n- רכב של 7 מקומות\n- רכב 8/9 מקומות',
+                        '- רכב משפחתי / מנהלים גדול, סדאן\n- קראסאובר SUV בינוני\n- רכב פרמיום SUV גדול')
+               .replace('יציאה מחוץ לפולין:\nלא','יציאה מחוץ לפולין:\nכן\nמדינות:\n'))
+        raw = '| from Poland Rent a Car |\n| --- |\n\n' + raw.replace('\n','\\\n')
+        data, requirements, _ = parse_inquiry(raw)
+        self.assertEqual(data['full_name'],'Test Person')
+        self.assertEqual(data['email'],'TEST@EXAMPLE.INVALID')
+        self.assertEqual(data['phone_1'],'123456789')
+        self.assertEqual((data['pickup_city'],data['return_city']),('Kraków','Kraków'))
+        self.assertEqual((data['pickup_service'],data['return_service']),('AIRPORT','AIRPORT'))
+        self.assertEqual((data['pickup_date'],data['return_date']),('01-12-2030','03-12-2030'))
+        self.assertEqual((data['pickup_time'],data['return_time']),('14:00','22:00'))
+        self.assertEqual((requirements['passengers'],requirements['bags']),(2,2))
+        self.assertTrue(requirements['automatic'])
+        self.assertEqual(len(requirements['categories']),3)
+        self.assertTrue(data['cross_border_requested'])
+        self.assertEqual(data['extra_choices'],[])
+
     def test_customer_email_with_dotted_dates_keeps_only_explicit_facts(self):
         raw = ('היי עידן\nאפשר הצעת מחיר לרכב אוטומט CLASS C /D משהו יוקרתי\n'
                'איסוף ב16.11 בקראקוב בשדה תעופה בשעה 15.00\n'

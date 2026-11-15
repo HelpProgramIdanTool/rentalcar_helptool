@@ -70,7 +70,7 @@
 <body><div class="app">{% include 'quotes/sidebar.html' %}<main>
   <div class="inquiry-header"><h1>{% translate "Новое обращение" %}</h1><a class="icon-button" href="{% url 'quotes:home' %}" title="На главную" aria-label="На главную"><span aria-hidden="true">⌂</span></a></div>
   {% if selected_customer %}<p>{% translate "Оферта для" %}: <strong>{{ selected_customer }}</strong></p>{% endif %}
-  <form method="post" novalidate autocomplete="off">
+  <form id="inquiry-form" method="post" novalidate autocomplete="off">
     {% csrf_token %}
     {{ form.non_field_errors }}
     {% if not is_editing and not selected_customer %}
@@ -175,7 +175,7 @@
   const invoice = document.querySelector('#invoice-fields');
   function toggleInvoice() { invoice.hidden = !checkbox.checked; }
   checkbox.addEventListener('change', toggleInvoice); toggleInvoice();
-  const form = document.querySelector('form');
+  const form = document.getElementById('inquiry-form');
   document.querySelectorAll('.vehicle-picker input[type="checkbox"]').forEach(group => {
     group.addEventListener('change', () => {
       if (group.checked) {
@@ -211,7 +211,7 @@
         if(name==='suppliers')return;
         if((name==='pickup_time'||name==='return_time')&&value){
           const select=form.elements[name];
-          if(!Array.from(select.options).some(option=>option.value===value))select.add(new Option(value,value));
+          if(select && select.options && !Array.from(select.options).some(option=>option.value===value))select.add(new Option(value,value));
         }
         form.querySelectorAll('[name="'+name+'"]').forEach(el => {
           if (el.type === 'checkbox') el.checked = Array.isArray(value) ? value.map(String).includes(el.value) : Boolean(value);
