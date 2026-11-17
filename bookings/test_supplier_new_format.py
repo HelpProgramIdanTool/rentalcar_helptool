@@ -61,6 +61,37 @@ class SupplierNewFormatTests(TestCase):
         page = self.client.get(reverse('quotes:supplier_message',args=[booking.pk]))
         self.assertEqual(page.context['body'],expected)
 
+    def test_invoice_entered_in_order_reaches_new_and_update_letters(self):
+        booking = self.create(wants_invoice='on',invoice_name='TEST INVOICE COMPANY',
+            invoice_tax_id='TEST-TAX',invoice_address='TEST INVOICE STREET',invoice_email='invoice@example.invalid')
+        self.assertTrue(booking.wants_invoice_snapshot)
+        self.assertEqual(booking.invoice_name_snapshot,'TEST INVOICE COMPANY')
+        Booking.objects.filter(pk=booking.pk).update(invoice_city_snapshot='TEST INVOICE CITY',
+            invoice_country_snapshot='TEST INVOICE COUNTRY',invoice_postal_code_snapshot='TEST-POSTAL')
+        booking.refresh_from_db()
+        for structured in (False,True):
+            if structured:
+                self.enable(booking)
+            for kind in ('NEW','UPDATE'):
+                body = render_supplier_booking(booking,kind=kind)
+                self.assertIn('Invoice details',body)
+                self.assertIn('Invoice name: TEST INVOICE COMPANY',body)
+                self.assertIn('Tax ID: TEST-TAX',body)
+                self.assertIn('Invoice address: TEST INVOICE STREET, TEST INVOICE CITY, TEST-POSTAL, TEST INVOICE COUNTRY',body)
+                self.assertIn('Invoice email: invoice@example.invalid',body)
+            page = self.client.get(reverse('quotes:supplier_message',args=[booking.pk]))
+            self.assertIn('Invoice name: TEST INVOICE COMPANY',page.context['body'])
+        self.assertFalse(mail.outbox)
+
+    def test_invoice_not_requested_does_not_expose_saved_invoice_details(self):
+        booking = self.enable(self.create())
+        Booking.objects.filter(pk=booking.pk).update(invoice_name_snapshot='TEST OLD INVOICE')
+        booking.refresh_from_db()
+        for kind in ('NEW','UPDATE'):
+            body = render_supplier_booking(booking,kind=kind)
+            self.assertNotIn('Invoice details',body)
+            self.assertNotIn('TEST OLD INVOICE',body)
+
     def test_only_new_letters_use_profile_and_fields_have_english_dates(self):
         booking = self.enable(self.create(driver_count=2,driver_1_name='TEST FIRST',driver_2_name='TEST SECOND',
             phone_1='TEST-PHONE',email='test@example.invalid',address='TEST STREET',country='TEST COUNTRY'))
@@ -117,7 +148,9 @@ class SupplierNewFormatTests(TestCase):
         self.assertFalse(mail.outbox)
 
     def test_actual_send_has_matching_plain_and_safe_html_parts(self):
-        booking = self.enable(self.create(driver_1_name='TEST <script>DRIVER</script>'))
+        booking = self.enable(self.create(driver_1_name='TEST <script>DRIVER</script>',
+            wants_invoice='on',invoice_name='TEST <b>INVOICE</b>',invoice_tax_id='TEST-SEND-TAX',
+            invoice_address='TEST SEND ADDRESS',invoice_email='invoice@example.invalid'))
         url = reverse('quotes:supplier_message',args=[booking.pk])
         page = self.client.get(url)
         body = page.context['body']+'\nTEST OPERATOR NOTE'
@@ -126,11 +159,14 @@ class SupplierNewFormatTests(TestCase):
         self.assertEqual(response.status_code,302)
         email = mail.outbox[0]
         self.assertEqual(email.body,body)
+        self.assertIn('Invoice name: TEST <b>INVOICE</b>',email.body)
         html = email.alternatives[0].content
         self.assertIn('<strong>Customer:</strong>',html)
         self.assertIn('TEST OPERATOR NOTE',html)
         self.assertIn('&lt;script&gt;DRIVER&lt;/script&gt;',html)
         self.assertNotIn('<script>',html)
+        self.assertIn('TEST &lt;b&gt;INVOICE&lt;/b&gt;',html)
+        self.assertIn('<strong>Tax ID:</strong> TEST-SEND-TAX',html)
         self.assertEqual(booking.supplier_deliveries.get().body,body)
 
     def test_invalid_editable_template_is_reported_without_sending_or_crashing(self):

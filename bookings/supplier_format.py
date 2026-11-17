@@ -17,6 +17,17 @@ def has_new_booking_format(booking, kind):
     return kind == 'NEW' and bool(booking.supplier.new_booking_email_template.strip())
 
 
+def _with_invoice(booking, body):
+    if not booking.wants_invoice_snapshot:
+        return body
+    address = ', '.join(value for value in (booking.invoice_address_snapshot,
+        booking.invoice_city_snapshot,booking.invoice_postal_code_snapshot,
+        booking.invoice_country_snapshot) if value)
+    invoice = render_to_string('bookings/supplier_invoice.txt',
+        {'booking':booking,'invoice_address':address}).strip()
+    return body+'\n\n'+invoice
+
+
 def _english_datetime(value):
     if value is None:
         return '[please specify]'
@@ -86,11 +97,12 @@ def render_supplier_booking(booking, *, kind='NEW', extras=None,driver_fallback=
         extra.supplier_visible_name = translate_text(extra.supplier_visible_name,english)
     drivers = [' '.join(filter(None,(d.first_name,d.last_name))).strip() for d in booking.drivers.all()]
     if not has_new_booking_format(booking,kind):
-        return render_to_string('bookings/supplier_message.txt',dict(booking=booking,
+        body = render_to_string('bookings/supplier_message.txt',dict(booking=booking,
             driver_names=' // '.join(drivers) or booking.customer_name_snapshot or driver_fallback,
             young_driver_names=young_driver_names(booking),price_breakdown=price_breakdown(booking,extras),
             pickup_location=supplier_location(booking,'pickup'),return_location=supplier_location(booking,'return'),
             extras=[extra for extra in extras if extra.included_in_total])).strip()
+        return _with_invoice(booking,body)
     options = booking.supplier.new_booking_email_options
     if options is None:
         options = {}
@@ -114,7 +126,8 @@ def render_supplier_booking(booking, *, kind='NEW', extras=None,driver_fallback=
         flight_number=booking.flight_number,return_date=_english_datetime(booking.return_datetime),
         return_location=_location(booking,'return',options),vehicle_class=vehicle,days=str(booking.rental_days or ''),
         services=_services(booking,extras,options),deposit=deposit,price_calculation=price_breakdown(booking,extras))
-    return Template(booking.supplier.new_booking_email_template).substitute(values).strip()
+    body = Template(booking.supplier.new_booking_email_template).substitute(values).strip()
+    return _with_invoice(booking,body)
 
 
 def new_booking_html(booking, kind, body):
@@ -127,7 +140,7 @@ def new_booking_html(booking, kind, body):
         elif ': ' in line:
             label,value = line.split(': ',1)
             lines.append('<strong>'+str(escape(label))+':</strong> '+str(escape(value)))
-        elif line in ('Rental Details','Additional Services'):
+        elif line in ('Rental Details','Additional Services','Invoice details'):
             lines.append('<strong>'+str(escape(line))+'</strong>')
         else:
             lines.append(str(escape(line)))

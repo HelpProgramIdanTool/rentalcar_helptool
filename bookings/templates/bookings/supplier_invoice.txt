@@ -1,0 +1,7 @@
+{% autoescape off %}Invoice details
+Invoice requested: Yes
+{% if booking.invoice_name_snapshot %}Invoice name: {{ booking.invoice_name_snapshot }}
+{% endif %}{% if booking.invoice_tax_id_snapshot %}Tax ID: {{ booking.invoice_tax_id_snapshot }}
+{% endif %}{% if invoice_address %}Invoice address: {{ invoice_address }}
+{% endif %}{% if booking.invoice_email_snapshot %}Invoice email: {{ booking.invoice_email_snapshot }}
+{% endif %}{% endautoescape %}
