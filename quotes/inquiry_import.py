@@ -207,7 +207,8 @@ def parse_inquiry(raw):
             if section and key.strip() in ("עיר", "מקום", "תאריך", "שעה"):
                 sections[(section, key.strip())] = value.strip()
     warnings = []
-    data = {"customer_notes": raw, "preferred_language": "Hebrew", "driver_count": 1,
+    language_marker = re.search(r"(?mi)^\s*Client language:\s*(English|Hebrew)\s*$", text)
+    data = {"customer_notes": raw, "preferred_language": language_marker.group(1).title() if language_marker else "Hebrew", "driver_count": 1,
             "full_name": fields.get("שם", ""), "first_name": fields.get("שם", ""), "last_name": "",
             "email": fields.get("דוא״ל", fields.get('דוא"ל', "")),
             "phone_1": fields.get("טלפון / וואטסאפ", ""), "extra_choices": []}

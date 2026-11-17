@@ -1,0 +1,8 @@
+.prc-form-wrap[lang="en"] { direction:ltr; text-align:left; }
+.prc-form-wrap[lang="en"] input,
+.prc-form-wrap[lang="en"] textarea,
+.prc-form-wrap[lang="en"] select { text-align:left; }
+.prc-form-wrap[lang="en"] .prc-choice,
+.prc-form-wrap[lang="en"] .prc-car-card { direction:ltr; }
+.prc-form-wrap[lang="en"] .prc-form-card { min-width:0; }
+.prc-form-wrap[lang="en"] .prc-step-pill { white-space:normal; }

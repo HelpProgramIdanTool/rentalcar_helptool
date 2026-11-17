@@ -43,6 +43,14 @@ GPS: לא
 
 
 class ParserTests(SimpleTestCase):
+    def test_explicit_site_language_is_preserved_without_changing_form_values(self):
+        for marker,expected in [('English','English'),('Hebrew','Hebrew'),('unknown','Hebrew')]:
+            data,requirements,_ = parse_inquiry('Client language: '+marker+'\n'+SAMPLE)
+            self.assertEqual(data['preferred_language'],expected)
+            self.assertEqual(data['full_name'],'Test Person')
+            self.assertEqual(data['pickup_city'],'Kraków')
+            self.assertEqual(len(requirements['categories']),3)
+
     def test_website_mail_with_pasted_headers_and_multiline_border_answer(self):
         raw = (SAMPLE.replace('2026-09-26','01/12/2030').replace('2026-10-03','03/12/2030')
                .replace('15:00','14:00').replace('11:30','22:00')

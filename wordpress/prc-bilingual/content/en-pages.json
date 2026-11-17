@@ -1,0 +1,62 @@
+[
+  {
+    "key": "home",
+    "slug": "english-home-preview",
+    "hebrew_page": 579,
+    "replace_after_review": 25371,
+    "title": "Car hire in Poland with personal support",
+    "seo_title": "Car Hire in Poland with Full Insurance | Poland Rent a Car",
+    "meta_description": "Compare car hire offers from local rental companies in Poland. Understand insurance, deposits and delivery options, with personal help from Idan.",
+    "focus_keyword": "car hire in Poland",
+    "content": "<p>Local rental companies. Clear explanations. Personal help before you book.</p><h2>Find the right car for your trip</h2><p>Tell us when and where you need a car, how many people are travelling and how much luggage you have. Idan will check suitable options from Polish rental companies and send you a quotation with the price, deposit and rental conditions.</p><p><a href='{{quote}}'>Request a car hire quote</a></p><h2>What you can compare</h2><ul><li>Vehicle categories and representative models.</li><li>The total quoted rental price and selected extras.</li><li>Supplier insurance with zero excess, including theft, glass and wheels, subject to the rental conditions.</li><li>The security deposit, fuel policy and collection arrangements.</li></ul><h2>A person to help you understand the offer</h2><p>I am Idan, based in Poland. I work with local rental companies and help customers understand the differences between their offers. You receive the rental company's confirmation after the booking is approved.</p><h2>How it works</h2><ol><li>Send your trip details using the quotation form.</li><li>Compare the options and ask about anything that is unclear.</li><li>Choose an offer and provide the drivers' details.</li><li>Receive confirmation and collection instructions.</li></ol><p>Submitting the form is a request for a quotation, not a confirmed booking. Prices and availability are checked for your dates. Vehicles are booked by category; a particular model is not guaranteed.</p><p><a href='{{companies}}'>Compare rental companies</a> · <a href='{{insurance}}'>Insurance and deposits</a> · <a href='{{travel}}'>Collection, return and travel abroad</a></p>"
+  },
+  {
+    "key": "companies",
+    "slug": "compare-rental-companies",
+    "title": "Compare car rental companies in Poland",
+    "seo_title": "Compare Rental Companies in Poland | Poland Rent a Car",
+    "meta_description": "Compare One Rent, CarFree, MM Cars and Kaizen Rent: fuel policy, airport arrangements, vehicle age and optional equipment. Request an individual quote.",
+    "focus_keyword": "rental companies in Poland",
+    "content": "<p>The right company depends on your dates, vehicle category and collection arrangements. The comparison below explains practical differences; your quotation and rental confirmation specify the conditions for your booking.</p><h2>The main differences</h2><table><caption>Rental company comparison</caption><thead><tr><th scope='col'>Feature</th><th scope='col'>One Rent</th><th scope='col'>CarFree</th><th scope='col'>MM Cars</th><th scope='col'>Kaizen Rent</th></tr></thead><tbody><tr><th scope='row'>Vehicles up to two years old</th><td>Yes</td><td>Yes</td><td>Yes</td><td>Check the offer</td></tr><tr><th scope='row'>Desks in most airports</th><td>Check the airport</td><td>Yes</td><td>Check the airport</td><td>Yes</td></tr><tr><th scope='row'>Collection at the terminal</th><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr><tr><th scope='row'>Return at the terminal</th><td>Depends on airport</td><td>Yes</td><td>Depends on airport</td><td>Yes</td></tr><tr><th scope='row'>Fuel policy</th><td>Full to full</td><td>Return at the same fuel level</td><td>Full to full</td><td>Full to full</td></tr><tr><th scope='row'>Optional GPS unit</th><td>Not offered</td><td>Available to request</td><td>Available to request</td><td>Available to request</td></tr><tr><th scope='row'>Snow chains</th><td>Available to request</td><td>Available to request</td><td>Available to request</td><td>Available to request</td></tr></tbody></table><h2>Included across the offers</h2><p>Supplier insurance with zero excess includes theft, glass and wheels, subject to the company's conditions. Vehicles have tyres appropriate to the season. Equipment requests remain subject to availability and any applicable charge.</p><p>An airport desk and collection at the terminal are different arrangements. Your confirmation explains where to meet the representative and where to return the vehicle.</p><p><a href='{{quote}}'>Get offers for your trip</a></p>"
+  },
+  {
+    "key": "insurance",
+    "slug": "insurance-and-deposit",
+    "hebrew_page": 617,
+    "title": "Car hire insurance and security deposits",
+    "seo_title": "Car Hire Insurance & Deposits in Poland | Poland Rent a Car",
+    "meta_description": "Understand zero-excess car hire insurance, security deposits and driver requirements before booking a rental car in Poland. Ask for a clear quotation.",
+    "focus_keyword": "car hire insurance in Poland",
+    "content": "<h2>Supplier insurance with zero excess</h2><p>Our offers include insurance provided by the rental company with zero excess, including theft, glass and wheels, subject to the rental conditions. This differs from a separate reimbursement policy, where you may first have to pay the rental company and then claim money back from another insurer.</p><p>Zero excess does not remove the rental contract's obligations or exclusions. Read the offer and confirmation, and ask about anything that is unclear before accepting.</p><h2>Why is there still a deposit?</h2><p>The security deposit is separate from insurance. The amount and release conditions depend on the company and vehicle category. Your offer states the deposit for each option. Insurance does not automatically remove charges for fuel or other obligations under the rental agreement.</p><h2>Credit card and driver details</h2><p>Prepare a credit card in the driver's name and tell us about every driver before booking. Give the actual age and length of time each driver has held a licence. Eligibility and any young or newly qualified driver charge depend on the rental company.</p><h2>Going abroad?</h2><p>Tell us which countries you plan to visit. Permission and insurance for travel outside the rental country must be checked in advance and may involve an additional charge.</p><p><a href='{{quote}}'>Request a quotation with insurance and deposit details</a></p>"
+  },
+  {
+    "key": "travel",
+    "slug": "collection-return-and-travel-abroad",
+    "hebrew_page": 24842,
+    "title": "Collection, return and driving abroad",
+    "seo_title": "Car Collection, Return & Travel Abroad | Poland Rent a Car",
+    "meta_description": "Plan airport or hotel car collection, return in another city and trips outside Poland. Check delivery charges, permission and payment arrangements in advance.",
+    "focus_keyword": "car hire Poland travel abroad",
+    "content": "<h2>Airport collection and return</h2><p>Enter the airport, local date and time, and your flight number if known. Collection at a terminal does not necessarily mean that the company has an airport desk. Follow the meeting and return instructions in your confirmation.</p><h2>Hotel and address delivery</h2><p>Provide the hotel name and full address. Delivery availability, charges and service hours depend on the company and location. Traffic can affect the representative's arrival time.</p><h2>Different collection and return locations</h2><p>Tell us both locations before requesting a quote. Return in another city or country can affect the price and requires confirmation. Arrangements within one city can also have location-specific delivery charges.</p><h2>Driving outside the rental country</h2><p>List every country you intend to visit. The company must confirm permission and the relevant insurance conditions. An international collection or return also needs an individual check.</p><p>CarFree has a Prague branch. For a rental based in the Czech Republic, cross-border travel means travel outside the Czech Republic. Routes between Prague and Poland need to be assessed separately.</p><h2>When is payment due?</h2><p>Payment arrangements are confirmed with the offer. Collection outside Poland may require advance payment. Do not assume that the payment terms for collection in Poland also apply to an international delivery.</p><p><a href='{{quote}}'>Send your route for a quotation</a></p>"
+  },
+  {
+    "key": "contact",
+    "slug": "contact",
+    "hebrew_page": 25217,
+    "title": "Contact Idan about car hire in Poland",
+    "seo_title": "Contact Idan — Car Hire in Poland | Poland Rent a Car",
+    "meta_description": "Ask Idan about car hire in Poland, compare rental companies or request a quotation. For an existing booking, include your reservation number and company name.",
+    "focus_keyword": "Poland Rent a Car contact",
+    "content": "<h2>Planning a trip?</h2><p>The quickest way to give us the information needed for a quotation is the rental request form. Include the dates, local times, locations, passengers, luggage and any travel abroad.</p><p><a href='{{quote}}'>Request a car hire quote</a></p><h2>Already have a reservation?</h2><p>When contacting Idan, include the rental company and reservation number. For roadside assistance or an urgent issue during the rental, use the rental company's support number shown on your voucher or rental agreement.</p><p><a href='mailto:idan.poland@gmail.com'>Email Idan</a> · <a href='tel:+48533100636'>+48 533 100 636</a></p><p>Rental company support availability is set out in your confirmation. It is separate from personal assistance with preparing your booking.</p>"
+  },
+  {
+    "key": "quote",
+    "slug": "request-quote",
+    "hebrew_page": 25453,
+    "title": "Request a car hire quote in Poland",
+    "seo_title": "Request a Car Hire Quote in Poland | Poland Rent a Car",
+    "meta_description": "Tell us your dates, collection and return locations, passengers and luggage. Get a car hire quotation with insurance, deposit and selected extras explained.",
+    "focus_keyword": "car hire quote Poland",
+    "content": "<p>Complete the short form so we can check suitable rental options. Use local collection and return times in the 24-hour format. Tell us about every planned country, younger or newly qualified driver, and any special requirements.</p><p>Submitting this form requests a quotation. It does not confirm a booking or guarantee availability.</p><!-- English form will be inserted after translation and validation checks. -->"
+  }
+]
