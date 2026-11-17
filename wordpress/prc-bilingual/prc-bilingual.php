@@ -2,11 +2,14 @@
 /**
  * Plugin Name: PRC Bilingual Form
  * Description: English presentation and saved client language for the existing PRC request form.
- * Version: 0.1.2
+ * Version: 0.2.0
  */
 defined('ABSPATH') || exit;
 
 final class PRC_Bilingual_Form {
+    public static function english_page() {
+        return is_page() && in_array(get_page_template_slug(),['prc-request-full-width.php','prc-english-page.php'],true);
+    }
     public static function catalog() {
         static $catalog;
         if ($catalog === null) $catalog = json_decode(file_get_contents(__DIR__ . '/content/form-en.json'), true);
@@ -19,19 +22,26 @@ final class PRC_Bilingual_Form {
     }
 
     public static function navigation() {
-        return json_decode(file_get_contents(__DIR__ . '/content/navigation.json'), true);
+        $defaults=json_decode(file_get_contents(__DIR__ . '/content/navigation.json'),true);
+        return array_merge($defaults,(array)get_option('prc_bilingual_navigation',[]));
     }
 
     public static function language_switcher($english) {
         $navigation = self::navigation();
-        $hebrew_url = home_url($navigation['hebrew_quote_path']);
-        $english_url = home_url($navigation['english_quote_path']);
+        $hebrew_url = home_url('/');
+        $english_url = home_url($navigation['home_path']);
         if (function_exists('pll_get_post')) {
             $id = get_queried_object_id();
             $hebrew_id = pll_get_post($id,'he');
             $english_id = pll_get_post($id,'en');
             if ($hebrew_id) $hebrew_url = get_permalink($hebrew_id);
             if ($english_id) $english_url = get_permalink($english_id);
+        } elseif (is_page()) {
+            $page=get_post(get_queried_object_id());
+            if ($page && has_shortcode($page->post_content,'poland_car_request_form')) {
+                $hebrew_url=home_url($navigation['hebrew_quote_path']);
+                $english_url=home_url($navigation['english_quote_path']);
+            }
         }
         return '<nav class="prc-language-switcher" aria-label="Language">' .
             '<a lang="he" dir="rtl" hreflang="he" href="' . esc_url($hebrew_url) . '"' . (!$english ? ' aria-current="page"' : '') . '>עברית</a>' .
@@ -78,6 +88,11 @@ final class PRC_Bilingual_Form {
                 $node->setAttribute($attribute, self::text($node->getAttribute($attribute)));
             }
         }
+        foreach ($xpath->query('//a[@href]') as $link) {
+            if ($link->getAttribute('href')===home_url('/privacy-policy/')) {
+                $link->setAttribute('href',home_url(self::navigation()['privacy_path']));
+            }
+        }
         foreach ($xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " prc-form-wrap ")]') as $wrapper) {
             $wrapper->setAttribute('lang', 'en');
             $wrapper->setAttribute('dir', 'ltr');
@@ -118,7 +133,7 @@ final class PRC_Bilingual_Form {
             }
             $time->parentNode->appendChild($select);
         }
-        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.1.2');
+        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.2.0');
         wp_add_inline_script('poland-car-request-form', 'window.PRCFormEnglish=' . wp_json_encode(self::catalog()) . ';', 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/form.js'), 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/pickers.js'), 'after');
@@ -164,7 +179,7 @@ final class PRC_Bilingual_Form {
         if (!class_exists('DOMDocument')) return new WP_Error('missing_dom', 'PHP DOM is required.');
         $checks = [];
         $html = '<div class="prc-form-wrap" lang="he" dir="rtl"><form id="prcRequestForm"><label>שם ושם משפחה</label><input name="driver_age" value="כן"><select><option>שדה תעופה</option></select><p>לא חושב עדיין</p></form></div>';
-        $html = str_replace('</form>', '<input id="prc_pickup_date_display" readonly><div class="prc-time-control"><input id="prc_pickup_time_display"></div></form>', $html);
+        $html = str_replace('</form>', '<input id="prc_pickup_date_display" readonly><div class="prc-time-control"><input id="prc_pickup_time_display"></div><a href="'.esc_url(home_url('/privacy-policy/')).'">מדיניות הפרטיות</a></form>', $html);
         $translated = self::render($html, 'poland_car_request_form', ['language'=>'en']);
         $checks['server_translation'] = strpos($translated, 'Full name') !== false && strpos($translated, 'lang="en"') !== false;
         $checks['submitted_values_preserved'] = strpos($translated, 'value="כן"') !== false && strpos($translated, 'value="שדה תעופה"') !== false;
@@ -174,6 +189,7 @@ final class PRC_Bilingual_Form {
         $checks['dynamic_footer_translation'] = self::text('הטופס שומר כל בקשה במערכת ושולח התראה למייל: TEST-DESTINATION') ===
             self::catalog()['הטופס שומר כל בקשה במערכת ושולח התראה למייל:'] . ' TEST-DESTINATION';
         $checks['dot_date_placeholder'] = strpos($translated, 'placeholder="DD.MM.YYYY"') !== false;
+        $checks['english_privacy_link'] = strpos($translated, 'href="'.esc_url(home_url(self::navigation()['privacy_path'])).'"') !== false;
         preg_match('/<select id="prc_pickup_half_hour"[^>]*>(.*?)<\/select>/s', $translated, $time_select);
         $checks['half_hour_options'] = isset($time_select[1]) && substr_count($time_select[1], '<option') === 49 &&
             strpos($time_select[1], 'value="00:30"') !== false && strpos($time_select[1], 'value="23:30"') !== false &&
@@ -208,19 +224,84 @@ add_filter('wp_redirect', ['PRC_Bilingual_Form', 'redirect'], 10, 2);
 
 add_filter('theme_page_templates', function ($templates) {
     $templates['prc-request-full-width.php'] = 'PRC English request — no sidebar';
+    $templates['prc-english-page.php'] = 'PRC English page — no sidebar';
     return $templates;
 });
 add_filter('template_include', function ($template) {
-    return is_page() && get_page_template_slug() === 'prc-request-full-width.php'
+    return PRC_Bilingual_Form::english_page()
         ? __DIR__ . '/request-full-width.php' : $template;
 });
 add_filter('language_attributes', function ($attributes) {
-    return is_page() && get_page_template_slug() === 'prc-request-full-width.php'
+    return PRC_Bilingual_Form::english_page()
         ? 'lang="en" dir="ltr"' : $attributes;
 });
 add_filter('body_class', function ($classes) {
-    if (is_page() && get_page_template_slug() === 'prc-request-full-width.php') $classes[] = 'prc-english-page';
+    if (PRC_Bilingual_Form::english_page()) $classes[] = 'prc-english-page';
     return $classes;
+});
+add_action('wp_enqueue_scripts',function(){
+    if (PRC_Bilingual_Form::english_page() || (is_page() && function_exists('pll_current_language'))) {
+        wp_enqueue_style('prc-bilingual',plugin_dir_url(__FILE__).'form.css',[],'0.2.0');
+    }
+});
+add_filter('wp_nav_menu_items',function($items){
+    if (is_admin() || PRC_Bilingual_Form::english_page()) return $items;
+    // Replace the old English-only menu shortcut with the paired language selector.
+    $items=preg_replace('~<li\b[^>]*>\s*<a\b[^>]*href=["\x27][^"\x27]*/english/["\x27][^>]*>\s*En\s*</a>\s*</li>~i','',$items);
+    return $items.'<li class="prc-language-menu">'.PRC_Bilingual_Form::language_switcher(false).'</li>';
+});
+add_filter('the_content',function($content){
+    return PRC_Bilingual_Form::english_page()
+        ? preg_replace('~(<table\b.*?</table>)~is','<div class="prc-table-scroll">$1</div>',$content) : $content;
+},30);
+add_filter('aioseo_facebook_tags',function($tags){
+    if (PRC_Bilingual_Form::english_page()) {
+        $tags['og:locale']='en_GB';
+        $tags['og:site_name']=PRC_Bilingual_Form::navigation()['brand'];
+    }
+    return $tags;
+});
+add_filter('aioseo_schema_output',function($graphs){
+    if (!PRC_Bilingual_Form::english_page()) return $graphs;
+    $navigation=PRC_Bilingual_Form::navigation();
+    foreach ($graphs as &$graph) {
+        if (isset($graph['inLanguage'])) $graph['inLanguage']='en';
+        if (in_array($graph['@type'] ?? '',['Organization','WebSite'],true)) {
+            $graph['description']=$navigation['tagline'];
+        }
+        if (($graph['@type'] ?? '')==='BreadcrumbList') {
+            if (empty($graph['itemListElement'])) continue;
+            foreach ($graph['itemListElement'] as &$item) {
+                if (($item['position'] ?? 0)===1 && isset($item['item'])) {
+                    $item['item']=home_url($navigation['home_path']);
+                    $item['name']='Home';
+                }
+            }
+            unset($item);
+        }
+    }
+    unset($graph);
+    return $graphs;
+});
+require_once __DIR__.'/stage-one.php';
+add_action('init',function(){
+    if (get_option('prc_bilingual_navigation',null)===null) {
+        add_option('prc_bilingual_navigation',json_decode(file_get_contents(__DIR__.'/content/navigation.json'),true),'',false);
+    }
+});
+add_action('customize_register',function($customizer){
+    $customizer->add_section('prc_english_site',['title'=>'PRC — English site','priority'=>160]);
+    $labels=['brand'=>'Site name','tagline'=>'Footer description','contact_email'=>'Contact email','phone'=>'Phone',
+        'footer_heading'=>'Footer links heading','footer_contact_heading'=>'Footer contact heading',
+        'footer_privacy_label'=>'Privacy link label','footer_guides_label'=>'Guides link label',
+        'footer_companies_label'=>'Company comparison link label'];
+    $navigation=PRC_Bilingual_Form::navigation();
+    foreach ($labels as $key=>$label) {
+        $setting='prc_bilingual_navigation['.$key.']';
+        $customizer->add_setting($setting,['type'=>'option','capability'=>'manage_options','default'=>$navigation[$key],
+            'sanitize_callback'=>$key==='contact_email' ? 'sanitize_email' : 'sanitize_text_field']);
+        $customizer->add_control($setting,['section'=>'prc_english_site','label'=>$label,'type'=>$key==='contact_email' ? 'email' : 'text']);
+    }
 });
 
 add_action('wp_abilities_api_categories_init', function () {

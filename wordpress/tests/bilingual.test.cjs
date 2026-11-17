@@ -10,6 +10,7 @@ const pickers = fs.readFileSync('wordpress/prc-bilingual/pickers.js','utf8');
 test('bilingual PHP parses and content has six unique draft pages with complete SEO', () => {
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/prc-bilingual.php','utf8'));
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/request-full-width.php','utf8'));
+  new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/stage-one.php','utf8'));
   const pages = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/en-pages.json','utf8'));
   assert.equal(pages.length,6);
   assert.equal(new Set(pages.map(p=>p.slug)).size,6);
@@ -17,6 +18,23 @@ test('bilingual PHP parses and content has six unique draft pages with complete 
     assert.ok(page.seo_title.length < 75);
     assert.ok(page.meta_description.length >= 70 && page.meta_description.length <= 165);
     assert.ok(page.focus_keyword && page.content);
+    assert.doesNotMatch(page.content,/[\u0590-\u05ff]/);
+  }
+});
+
+test('foundation pages have unique translation pairs and complete English content', () => {
+  const stage=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/stage-one.json','utf8'));
+  assert.equal(new Set(stage.pairs.map(x=>x.he)).size,stage.pairs.length);
+  assert.equal(new Set(stage.pairs.map(x=>x.en)).size,stage.pairs.length);
+  for(const pair of stage.pairs) {
+    assert.ok(stage.hebrew_pages.includes(pair.he));
+    assert.ok(stage.english_pages.includes(pair.en));
+  }
+  for(const page of stage.menu) assert.ok(stage.publish_pages.includes(page.page));
+  const pages=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/foundation-pages.json','utf8'));
+  assert.deepEqual(pages.map(x=>x.key),['guides','privacy']);
+  for(const page of pages) {
+    assert.ok(page.content && page.seo_title && page.meta_description.length<=165);
     assert.doesNotMatch(page.content,/[\u0590-\u05ff]/);
   }
 });

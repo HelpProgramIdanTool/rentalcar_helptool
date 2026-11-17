@@ -1,69 +1,75 @@
 # Poland Rent a Car — Hebrew and English
 
-Started 17 November 2026 at Idan's request. The target is poland-rent-car.com.
-Idan selected Polylang's free base. Existing Hebrew URLs must remain unchanged;
-the existing English landing page /english/ must retain its address.
+## First stage completed — 17 November 2026
 
-## Completed
+Idan explicitly redirected work to completing the English home, menus, footer,
+language switcher and Car Rental Guides before adapting the article archive.
+This foundation is now published on poland-rent-car.com.
 
-- Hostinger reconnected. Hostinger AI installed with explicit user approval.
-- Read installed plugins, current site settings, pages, menus and original form.
-- Polylang 3.9.2 installed, not activated/configured.
-- Six English drafts created in WordPress: 25956 home, 25957 company comparison,
-  25958 insurance/deposit, 25959 collection/return/travel abroad, 25960 contact,
-  25961 quote request. SEO title, description, focus keyword and social metadata
-  written and returned by AIOSEO without skipped fields.
-- Text, metadata, editor links and form translation source saved under
-  wordpress/prc-bilingual. No fabricated price or deposit amounts.
-- Separate English-form add-on prepared. It retains the original shortcode,
-  validation, storage, deduplication and notification recipient. No real requests
-  or emails have been submitted by this task.
-- Application import reads explicit Client language markers. Prepared locally,
-  not installed on Render. 23 importer tests and five Node tests pass.
+| Page | WordPress ID | Public address |
+| --- | --- | --- |
+| English home | 25371 | /english/ |
+| Company comparison | 25957 | /english/compare-rental-companies/ |
+| Insurance/deposit overview | 25958 | /english/insurance-and-deposit/ |
+| Collection/return/abroad overview | 25959 | /english/collection-return-and-travel-abroad/ |
+| Contact | 25960 | /english/contact/ |
+| Quotation form | 25961 | /english/request-quote/ |
+| Car Rental Guides | 25970 | /english/car-rental-guides/ |
+| English privacy policy | 25971 | /english/privacy-policy/ |
 
-## Add-on installed and checked
+The old English-home preview 25956 remains an unpublished draft. The English
+privacy policy translates the existing Hebrew policy rather than inventing new
+legal obligations. Guides links to the available English overviews; detailed
+adaptation of the Hebrew article archive has not started.
 
-After the initial automatic approval rejection, Idan explicitly approved installing
-and checking prc-bilingual on poland-rent-car.com. The add-on was deployed and is
-active as 0.1.0. All nine admin-only health checks passed; synthetic private requests
-were cleaned up, with no mail sent. Quote draft 25961 now renders the original
-shortcode in English with 14 categories and no untranslated visible Hebrew text.
-The English request page was then published at Idan's explicit request, using
-the new no-sidebar template in add-on 0.1.1:
-https://poland-rent-car.com/english/request-quote/ . Five other pages remain drafts.
-Anonymous HTTP checks passed for HTTP 200, absence of sidebar markup, English
-document/form, 14 categories, language/return-page fields, responsive CSS and
-self-canonical. LiteSpeed caches were purged and all nine health checks passed.
-On 17 November Idan confirmed receipt of a submitted request and successful quote
-creation, then requested automatic English quotation language, DD.MM.YYYY dates,
-30-minute times and work on headings/switcher. Add-on 0.1.2 now provides dot-date
-inputs and 48 time choices per side (00:00–23:30), retaining the handler's original
-internal date representation and validation. English request page has its own
-English header and paired Hebrew/English form links; the Hebrew form also exposes
-the paired switcher. Both public URLs and all 11 server checks pass. The shared
-theme footer and other page navigation still await full language setup.
-Polylang is still inactive. App importer changes
-were installed in release 2026.11.17.2 (737 passing tests), confirmed by Render log
-for commit 08753ba and public login HTTP 200/version 2026.11.17.2. A new user
-request-to-English-quotation check after this deployment is not yet confirmed.
-Visual/mobile interaction remains unverified.
+## Languages, navigation and layout
 
-## Remaining work
+- Polylang 3.9.2 is active: Hebrew default (he_IL), English (en_GB).
+- Content-based language resolution (force_lang=0) preserves existing addresses;
+  its supported compatibility option is enabled. Browser-language redirects are off.
+  Recheck this mode before any future Polylang upgrade.
+- True translation pairs: home, form, contact, guides index and privacy. Combined
+  overviews without matching Hebrew content are not assigned false equivalents;
+  their switcher falls back to the other language's home.
+- English WordPress navigation menu ID 97 is editable in the normal menu admin.
+- PRC Bilingual Form 0.2.0 provides shared English header/footer and two no-sidebar
+  page templates. English pages do not render the Hebrew theme chrome.
+- Footer wording and contact details are stored in a WordPress option and editable
+  in Appearance → Customize → PRC — English site. JSON supplies initial defaults.
+- All public English pages have English SEO titles/descriptions, self-canonicals,
+  English document/schema language and Open Graph locale. Polylang supplies
+  reciprocal hreflang only for actual pairs. Hebrew menu language links are paired.
 
-1. Completed: deploy add-on and check server health. A health check is not a live
-   submission or proof that a real notification email arrived.
-2. Completed: replace quote draft's placeholder with the original English shortcode.
-3. Back up WordPress pages, SEO, menus and settings before Polylang activation.
-   A Render backup does not back up WordPress.
-4. Configure Hebrew default/English, preserve current paths and /english/, assign
-   languages to existing content correctly; do not assign English backup-app
-   disclosure pages to Hebrew. Pair only actual equivalent translations.
-5. Build English desktop/mobile menus and footer; add the native-name switcher.
-6. Verify AIOSEO language/schema, self-canonicals, reciprocal hreflang, sitemap,
-   logo links, translated field errors, receipt and retained data after errors.
-7. Install importer patch on Render together with pending invoice-email fix using
-   the normal fresh-backup and versioned-release workflow.
-8. Review/publish the complete English route and read public output back. Until
-   then, do not claim the site is bilingual or that the English form is live.
+## Preservation and verification
 
-See wordpress/prc-bilingual/README.md for implementation details and draft links.
+Before changes, an admin-only snapshot preserved 34 pages, the affected SEO fields,
+selected language/front-page settings and both original menus. Protected WordPress
+option: prc_bilingual_stage_one_backup. Local copy:
+private_uploads/prc-foundation-backup-20261117.json (ignored by Git).
+This is a scoped rollback snapshot, not a full hosting/database backup.
+
+Anonymous checks verified all eight English pages and reciprocal language pairs.
+All 22 previous Hebrew addresses still return HTTP 200 at their original URLs.
+English home, form, guides and privacy appear in the XML sitemap. The English form
+keeps all 14 categories, DD.MM.YYYY presentation and 48 half-hour time choices.
+The server checks validate rendering, retained values, saved language and retry
+headers without sending mail; synthetic private test requests are deleted.
+Eight local Node tests pass. Combined published-script verification also passed
+for exact dates/times and two rental days; no request was submitted by the agent.
+
+No connected browser was available. Real desktop/mobile visual interaction remains
+unverified; HTTP/DOM checks must not be described as a real-phone visual test.
+
+## Application status
+
+Render 2026.11.17.2 is live (737 passing tests), verified by public HTTP 200 and
+version output. It includes explicit English website-language import and supplier
+invoice details. Idan confirmed a post-deployment encrypted backup with remote
+read-back. Historical customer reservations and sent letters were not changed.
+
+## Next stage
+
+Follow docs/tasks/english-editorial-plan.md: adapt insurance, deposit and cross-border
+travel first, verifying current supplier rules. Do not substitute literal translation
+or present historic supplier amounts as universally current. Existing Hebrew articles
+remain available. No indexation or AI-citation guarantees are made.

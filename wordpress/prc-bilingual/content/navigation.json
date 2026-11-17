@@ -5,5 +5,16 @@
   "hebrew_quote_path": "/request-form/",
   "quote_label": "Get a quote",
   "contact_label": "Contact Idan",
-  "contact_email": "idan.poland@gmail.com"
+  "contact_email": "idan.poland@gmail.com",
+  "phone": "+48 533 100 636",
+  "tagline": "Car hire in Poland with clear conditions and personal support.",
+  "guides_path": "/english/car-rental-guides/",
+  "privacy_path": "/english/privacy-policy/",
+  "contact_path": "/english/contact/",
+  "companies_path": "/english/compare-rental-companies/",
+  "footer_heading": "Plan your rental",
+  "footer_contact_heading": "Contact Idan",
+  "footer_privacy_label": "Privacy Policy",
+  "footer_guides_label": "Car Rental Guides",
+  "footer_companies_label": "Compare rental companies"
 }

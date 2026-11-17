@@ -1,38 +1,49 @@
 [
   {
     "key": "home",
-    "id": 25956,
-    "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25956&action=edit",
-    "status": "draft",
-    "seo_written": true
+    "id": 25371,
+    "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25371&action=edit",
+    "status": "publish",
+    "seo_written": true,
+    "source_preview_id": 25956,
+    "view_url": "https://poland-rent-car.com/english/",
+    "template": "prc-english-page.php"
   },
   {
     "key": "companies",
     "id": 25957,
     "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25957&action=edit",
-    "status": "draft",
-    "seo_written": true
+    "status": "publish",
+    "seo_written": true,
+    "view_url": "https://poland-rent-car.com/english/compare-rental-companies/",
+    "template": "prc-english-page.php"
   },
   {
     "key": "insurance",
     "id": 25958,
     "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25958&action=edit",
-    "status": "draft",
-    "seo_written": true
+    "status": "publish",
+    "seo_written": true,
+    "view_url": "https://poland-rent-car.com/english/insurance-and-deposit/",
+    "template": "prc-english-page.php"
   },
   {
     "key": "travel",
     "id": 25959,
     "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25959&action=edit",
-    "status": "draft",
-    "seo_written": true
+    "status": "publish",
+    "seo_written": true,
+    "view_url": "https://poland-rent-car.com/english/collection-return-and-travel-abroad/",
+    "template": "prc-english-page.php"
   },
   {
     "key": "contact",
     "id": 25960,
     "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25960&action=edit",
-    "status": "draft",
-    "seo_written": true
+    "status": "publish",
+    "seo_written": true,
+    "view_url": "https://poland-rent-car.com/english/contact/",
+    "template": "prc-english-page.php"
   },
   {
     "key": "quote",
@@ -42,5 +53,23 @@
     "seo_written": true,
     "view_url": "https://poland-rent-car.com/english/request-quote/",
     "template": "prc-request-full-width.php"
+  },
+  {
+    "key": "guides",
+    "id": 25970,
+    "status": "publish",
+    "view_url": "https://poland-rent-car.com/english/car-rental-guides/",
+    "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25970&action=edit",
+    "template": "prc-english-page.php",
+    "seo_written": true
+  },
+  {
+    "key": "privacy",
+    "id": 25971,
+    "status": "publish",
+    "view_url": "https://poland-rent-car.com/english/privacy-policy/",
+    "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25971&action=edit",
+    "template": "prc-english-page.php",
+    "seo_written": true
   }
 ]
