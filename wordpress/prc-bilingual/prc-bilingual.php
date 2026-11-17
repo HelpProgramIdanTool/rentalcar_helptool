@@ -21,7 +21,15 @@ final class PRC_Bilingual_Form {
     public static function text($value) {
         $key = preg_replace('/\s+/u', ' ', trim($value));
         $catalog = self::catalog();
-        if (!isset($catalog[$key])) return $value;
+        if (!isset($catalog[$key])) {
+            // A paragraph can contain a translated sentence followed by a dynamic address.
+            foreach ($catalog as $source => $translated) {
+                if (strlen($source) > 60 && strpos($key, $source . ' ') === 0) {
+                    return $translated . ' ' . substr($key, strlen($source) + 1);
+                }
+            }
+            return $value;
+        }
         preg_match('/^(\s*).*?(\s*)$/us', $value, $spaces);
         return $spaces[1] . $catalog[$key] . $spaces[2];
     }
@@ -113,6 +121,8 @@ final class PRC_Bilingual_Form {
         $checks['language_field'] = strpos($translated, 'name="prc_client_language" value="en"') !== false;
         $checks['hebrew_unchanged'] = self::render($html, 'poland_car_request_form', ['language'=>'he']) === $html;
         $checks['inline_spaces'] = self::text(' מדיניות הפרטיות ') === ' Privacy Policy ';
+        $checks['dynamic_footer_translation'] = self::text('הטופס שומר כל בקשה במערכת ושולח התראה למייל: TEST-DESTINATION') ===
+            self::catalog()['הטופס שומר כל בקשה במערכת ושולח התראה למייל:'] . ' TEST-DESTINATION';
         $before = $_POST;
         $post_id = 0;
         try {

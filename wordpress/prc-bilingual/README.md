@@ -8,8 +8,8 @@ No live content or URL changes have been made by this rollout yet.
 Six corresponding drafts have been created in WordPress, IDs 25956–25961;
 `content/draft-pages.json` records their editor links. Their SEO and social-preview
 metadata were written to AIOSEO with no skipped fields. All are unpublished.
-These are drafts. The quote-page placeholder must be replaced with the translated,
-tested original form before publication. Do not insert a generic contact form.
+These are drafts. Quote draft 25961 now contains the translated original shortcode
+`[poland_car_request_form language="en"]`. Do not insert a generic contact form.
 
 `prc-bilingual.php`, `form.js`, `form.css` and `content/form-en.json` implement a
 separate add-on to the existing shortcode, not a replacement handler. Explicit
@@ -22,15 +22,19 @@ field labels stay Hebrew for the existing application parser, with an explicit
 `Client language: English` header. The application importer patch is prepared but
 still needs the next Render update before language selection becomes automatic.
 
-Installation of this add-on was rejected by automatic approval review because it
-adds executable code to production. A separate user approval has been requested.
-Do not bypass that decision with file upload, another plugin or a different API.
+Installation was initially rejected by automatic approval review; Idan then
+explicitly approved installing and checking this add-on on poland-rent-car.com.
+It is now installed and active as version 0.1.0. Polylang remains inactive.
 Hostinger AI was installed with separate approval; Polylang installation was approved.
 
 An admin-only `prc-bilingual/health` ability checks server rendering, input values,
 saved language and retry headers. It creates and removes one synthetic private
-request; it never calls wp_mail. This server check and visual/mobile verification
-have NOT run yet. They remain release gates.
+request; it never calls wp_mail. All nine server checks passed after deployment:
+rendered translation, preserved values, language field, unchanged Hebrew, inline
+spaces, dynamic footer translation, saved language, retry language, unrelated mail.
+The complete rendered draft includes 14 categories, the English language field and
+no untranslated visible Hebrew text. No real customer requests were altered.
+Visual/mobile verification has NOT run yet and remains a release gate.
 
 Local verification: five Node tests pass (PHP syntax, content/SEO fields, 14
 categories, dynamic English messages, unchanged Hebrew values and presentation).

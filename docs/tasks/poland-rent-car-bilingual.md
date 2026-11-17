@@ -21,18 +21,21 @@ the existing English landing page /english/ must retain its address.
 - Application import reads explicit Client language markers. Prepared locally,
   not installed on Render. 23 importer tests and five Node tests pass.
 
-## Immediate dependency
+## Add-on installed and checked
 
-Automatic approval review rejected deploying the local prc-bilingual add-on:
-new executable code on production needs separate user approval. The approval
-question is pending. Do not retry by another route without that approval.
+After the initial automatic approval rejection, Idan explicitly approved installing
+and checking prc-bilingual on poland-rent-car.com. The add-on was deployed and is
+active as 0.1.0. All nine admin-only health checks passed; synthetic private requests
+were cleaned up, with no mail sent. Quote draft 25961 now renders the original
+shortcode in English with 14 categories and no untranslated visible Hebrew text.
+All English pages remain drafts. Polylang is still inactive. App importer changes
+are still pending Render deployment. Visual/mobile interaction remains unverified.
 
 ## Remaining work
 
-1. After approval, deploy only the add-on folder, activate it, run its admin-only
-   health ability and inspect English form output. A health check is not a live
+1. Completed: deploy add-on and check server health. A health check is not a live
    submission or proof that a real notification email arrived.
-2. Replace quote draft's placeholder with the original English-enabled shortcode.
+2. Completed: replace quote draft's placeholder with the original English shortcode.
 3. Back up WordPress pages, SEO, menus and settings before Polylang activation.
    A Render backup does not back up WordPress.
 4. Configure Hebrew default/English, preserve current paths and /english/, assign
