@@ -6,3 +6,15 @@
 .prc-form-wrap[lang="en"] .prc-car-card { direction:ltr; }
 .prc-form-wrap[lang="en"] .prc-form-card { min-width:0; }
 .prc-form-wrap[lang="en"] .prc-step-pill { white-space:normal; }
+.prc-request-page { direction:ltr; text-align:left; }
+.prc-request-container { width:100%; max-width:1160px; margin:0 auto; padding:32px 24px; box-sizing:border-box; }
+.prc-request-page .prc-form-wrap { max-width:100%; margin-inline:0; }
+.prc-request-page .prc-form-wrap *, .prc-request-page .prc-form-wrap *::before,
+.prc-request-page .prc-form-wrap *::after { box-sizing:border-box; }
+@media (max-width:600px) {
+  .prc-request-container { padding:24px 12px; }
+  .prc-request-page h1 { font-size:28px; line-height:1.2; overflow-wrap:break-word; }
+  .prc-request-page .prc-form-wrap { padding-inline:0; }
+  .prc-request-page .prc-steps { display:flex; flex-wrap:wrap; gap:6px; }
+  .prc-request-page .prc-step-pill { min-width:0; }
+}

@@ -2,12 +2,16 @@
 
 Idan approved Polylang's free base on 17 November 2026. Hostinger AI installation
 was separately approved and completed. Polylang 3.9.2 is installed, not activated.
-No live content or URL changes have been made by this rollout yet.
+The English request page was published at Idan's explicit request on 17 November.
+URL: https://poland-rent-car.com/english/request-quote/ (page 25961).
+It uses the add-on's registered no-sidebar page template, with the theme header
+and footer retained and responsive page gutters. Only this page is published.
 
 `content/en-pages.json` holds reviewable first-release text and SEO metadata.
 Six corresponding drafts have been created in WordPress, IDs 25956–25961;
 `content/draft-pages.json` records their editor links. Their SEO and social-preview
-metadata were written to AIOSEO with no skipped fields. All are unpublished.
+metadata were written to AIOSEO with no skipped fields. Five remain unpublished;
+the request form page is published for Idan to review on the real site.
 These are drafts. Quote draft 25961 now contains the translated original shortcode
 `[poland_car_request_form language="en"]`. Do not insert a generic contact form.
 
@@ -24,7 +28,7 @@ still needs the next Render update before language selection becomes automatic.
 
 Installation was initially rejected by automatic approval review; Idan then
 explicitly approved installing and checking this add-on on poland-rent-car.com.
-It is now installed and active as version 0.1.0. Polylang remains inactive.
+It is now installed and active as version 0.1.1. Polylang remains inactive.
 Hostinger AI was installed with separate approval; Polylang installation was approved.
 
 An admin-only `prc-bilingual/health` ability checks server rendering, input values,
@@ -35,6 +39,12 @@ spaces, dynamic footer translation, saved language, retry language, unrelated ma
 The complete rendered draft includes 14 categories, the English language field and
 no untranslated visible Hebrew text. No real customer requests were altered.
 Visual/mobile verification has NOT run yet and remains a release gate.
+
+After publication, anonymous HTTP checks passed: HTTP 200, registered full-width
+template, no sidebar markup, English document/form, all 14 categories, saved-language
+and return-page fields, responsive stylesheet and self-canonical. LiteSpeed cache
+was purged. All nine server health checks passed again, with no mail sent.
+The shared theme menu/footer are still Hebrew pending full Polylang setup.
 
 Local verification: five Node tests pass (PHP syntax, content/SEO fields, 14
 categories, dynamic English messages, unchanged Hebrew values and presentation).

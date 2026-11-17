@@ -8,6 +8,7 @@ const script = fs.readFileSync('wordpress/prc-bilingual/form.js','utf8');
 
 test('bilingual PHP parses and content has six unique draft pages with complete SEO', () => {
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/prc-bilingual.php','utf8'));
+  new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/request-full-width.php','utf8'));
   const pages = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/en-pages.json','utf8'));
   assert.equal(pages.length,6);
   assert.equal(new Set(pages.map(p=>p.slug)).size,6);

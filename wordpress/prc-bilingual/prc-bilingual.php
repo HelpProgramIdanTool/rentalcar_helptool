@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PRC Bilingual Form
  * Description: English presentation and saved client language for the existing PRC request form.
- * Version: 0.1.0
+ * Version: 0.1.1
  */
 defined('ABSPATH') || exit;
 
@@ -70,7 +70,7 @@ final class PRC_Bilingual_Form {
                 $form->appendChild($input);
             }
         }
-        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.1.0');
+        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.1.1');
         wp_add_inline_script('poland-car-request-form', 'window.PRCFormEnglish=' . wp_json_encode(self::catalog()) . ';', 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/form.js'), 'before');
         $result = '';
@@ -150,6 +150,19 @@ add_filter('do_shortcode_tag', ['PRC_Bilingual_Form', 'render'], 20, 3);
 add_action('added_post_meta', ['PRC_Bilingual_Form', 'save_language'], 10, 4);
 add_filter('wp_mail', ['PRC_Bilingual_Form', 'email_language']);
 add_filter('wp_redirect', ['PRC_Bilingual_Form', 'redirect'], 10, 2);
+
+add_filter('theme_page_templates', function ($templates) {
+    $templates['prc-request-full-width.php'] = 'PRC English request — no sidebar';
+    return $templates;
+});
+add_filter('template_include', function ($template) {
+    return is_page() && get_page_template_slug() === 'prc-request-full-width.php'
+        ? __DIR__ . '/request-full-width.php' : $template;
+});
+add_filter('language_attributes', function ($attributes) {
+    return is_page() && get_page_template_slug() === 'prc-request-full-width.php'
+        ? 'lang="en" dir="ltr"' : $attributes;
+});
 
 add_action('wp_abilities_api_categories_init', function () {
     wp_register_ability_category('prc', ['label'=>'PRC rental forms','description'=>'Rental form checks']);

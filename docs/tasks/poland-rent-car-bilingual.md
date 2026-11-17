@@ -28,7 +28,14 @@ and checking prc-bilingual on poland-rent-car.com. The add-on was deployed and i
 active as 0.1.0. All nine admin-only health checks passed; synthetic private requests
 were cleaned up, with no mail sent. Quote draft 25961 now renders the original
 shortcode in English with 14 categories and no untranslated visible Hebrew text.
-All English pages remain drafts. Polylang is still inactive. App importer changes
+The English request page was then published at Idan's explicit request, using
+the new no-sidebar template in add-on 0.1.1:
+https://poland-rent-car.com/english/request-quote/ . Five other pages remain drafts.
+Anonymous HTTP checks passed for HTTP 200, absence of sidebar markup, English
+document/form, 14 categories, language/return-page fields, responsive CSS and
+self-canonical. LiteSpeed caches were purged and all nine health checks passed.
+The theme's shared menu/footer are still Hebrew pending full language setup.
+Polylang is still inactive. App importer changes
 are still pending Render deployment. Visual/mobile interaction remains unverified.
 
 ## Remaining work

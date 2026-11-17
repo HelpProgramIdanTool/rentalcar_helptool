@@ -38,7 +38,9 @@
     "key": "quote",
     "id": 25961,
     "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25961&action=edit",
-    "status": "draft",
-    "seo_written": true
+    "status": "publish",
+    "seo_written": true,
+    "view_url": "https://poland-rent-car.com/english/request-quote/",
+    "template": "prc-request-full-width.php"
   }
 ]
