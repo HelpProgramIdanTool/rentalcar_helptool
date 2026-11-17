@@ -1,4 +1,5 @@
 {
+  "DD/MM/YYYY": "DD.MM.YYYY",
   "הבקשה התקבלה בהצלחה": "Your request has been received",
   "פתח לוח שנה": "Open calendar",
   "בחר שעה": "Choose time",
@@ -55,7 +56,7 @@
   "מקום החזרה": "Return location",
   "תאריך החזרה": "Return date",
   "שעת החזרה": "Return time",
-  "24 שעות בלבד, לדוגמה 08:00, 14:45, 23:55": "24-hour time, for example 08:00, 14:45 or 23:55",
+  "24 שעות בלבד, לדוגמה 08:00, 14:45, 23:55": "24-hour time, every 30 minutes: 00:00, 00:30, …, 23:30",
   "הודעה או פירוט נוסף לגבי מקום הקבלה / החזרה": "Hotel, address or other collection / return details",
   "מספר ימי שכירות משוער:": "Estimated rental days:",
   "לא חושב עדיין": "Not calculated yet",

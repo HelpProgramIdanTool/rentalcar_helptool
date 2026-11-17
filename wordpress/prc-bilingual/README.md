@@ -28,7 +28,7 @@ still needs the next Render update before language selection becomes automatic.
 
 Installation was initially rejected by automatic approval review; Idan then
 explicitly approved installing and checking this add-on on poland-rent-car.com.
-It is now installed and active as version 0.1.1. Polylang remains inactive.
+It is now installed and active as version 0.1.2. Polylang remains inactive.
 Hostinger AI was installed with separate approval; Polylang installation was approved.
 
 An admin-only `prc-bilingual/health` ability checks server rendering, input values,
@@ -44,7 +44,11 @@ After publication, anonymous HTTP checks passed: HTTP 200, registered full-width
 template, no sidebar markup, English document/form, all 14 categories, saved-language
 and return-page fields, responsive stylesheet and self-canonical. LiteSpeed cache
 was purged. All nine server health checks passed again, with no mail sent.
-The shared theme menu/footer are still Hebrew pending full Polylang setup.
+Version 0.1.2 adds editable DD.MM.YYYY date presentation (original slash-format
+submission retained), accessible calendar overlay and 48 half-hour time choices.
+English request page now has an English header and paired language links; the
+Hebrew form has paired links too. The footer and other pages await full Polylang
+setup. Public checks and all 11 server health checks passed. Seven Node tests pass.
 
 Local verification: five Node tests pass (PHP syntax, content/SEO fields, 14
 categories, dynamic English messages, unchanged Hebrew values and presentation).

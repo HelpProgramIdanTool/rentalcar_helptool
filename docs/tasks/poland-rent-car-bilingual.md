@@ -34,9 +34,17 @@ https://poland-rent-car.com/english/request-quote/ . Five other pages remain dra
 Anonymous HTTP checks passed for HTTP 200, absence of sidebar markup, English
 document/form, 14 categories, language/return-page fields, responsive CSS and
 self-canonical. LiteSpeed caches were purged and all nine health checks passed.
-The theme's shared menu/footer are still Hebrew pending full language setup.
+On 17 November Idan confirmed receipt of a submitted request and successful quote
+creation, then requested automatic English quotation language, DD.MM.YYYY dates,
+30-minute times and work on headings/switcher. Add-on 0.1.2 now provides dot-date
+inputs and 48 time choices per side (00:00–23:30), retaining the handler's original
+internal date representation and validation. English request page has its own
+English header and paired Hebrew/English form links; the Hebrew form also exposes
+the paired switcher. Both public URLs and all 11 server checks pass. The shared
+theme footer and other page navigation still await full language setup.
 Polylang is still inactive. App importer changes
-are still pending Render deployment. Visual/mobile interaction remains unverified.
+are prepared in release 2026.11.17.2 (737 passing tests), pending Render deployment.
+Visual/mobile interaction remains unverified.
 
 ## Remaining work
 

@@ -240,7 +240,7 @@ def parse_inquiry(raw):
             warnings.append("Уточните название и точный адрес отеля перед отправкой предложения.")
         date = sections.get((side, "תאריך"), "")
         parsed_date = ""
-        for date_format in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        for date_format in ("%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y", "%d-%m-%Y"):
             try:
                 parsed_date = datetime.strptime(date, date_format).strftime("%d-%m-%Y")
                 break

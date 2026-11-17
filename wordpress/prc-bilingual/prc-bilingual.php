@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PRC Bilingual Form
  * Description: English presentation and saved client language for the existing PRC request form.
- * Version: 0.1.1
+ * Version: 0.1.2
  */
 defined('ABSPATH') || exit;
 
@@ -16,6 +16,26 @@ final class PRC_Bilingual_Form {
     public static function english($atts = []) {
         if (isset($atts['language'])) return $atts['language'] === 'en';
         return function_exists('pll_current_language') && pll_current_language('slug') === 'en';
+    }
+
+    public static function navigation() {
+        return json_decode(file_get_contents(__DIR__ . '/content/navigation.json'), true);
+    }
+
+    public static function language_switcher($english) {
+        $navigation = self::navigation();
+        $hebrew_url = home_url($navigation['hebrew_quote_path']);
+        $english_url = home_url($navigation['english_quote_path']);
+        if (function_exists('pll_get_post')) {
+            $id = get_queried_object_id();
+            $hebrew_id = pll_get_post($id,'he');
+            $english_id = pll_get_post($id,'en');
+            if ($hebrew_id) $hebrew_url = get_permalink($hebrew_id);
+            if ($english_id) $english_url = get_permalink($english_id);
+        }
+        return '<nav class="prc-language-switcher" aria-label="Language">' .
+            '<a lang="he" dir="rtl" hreflang="he" href="' . esc_url($hebrew_url) . '"' . (!$english ? ' aria-current="page"' : '') . '>עברית</a>' .
+            '<a lang="en" hreflang="en" href="' . esc_url($english_url) . '"' . ($english ? ' aria-current="page"' : '') . '>English</a></nav>';
     }
 
     public static function text($value) {
@@ -35,7 +55,8 @@ final class PRC_Bilingual_Form {
     }
 
     public static function render($output, $tag, $atts) {
-        if ($tag !== 'poland_car_request_form' || !self::english((array) $atts)) return $output;
+        if ($tag !== 'poland_car_request_form') return $output;
+        if (!self::english((array) $atts)) return is_page() ? self::language_switcher(false) . $output : $output;
         if (!class_exists('DOMDocument')) {
             return '<p role="alert">The English form is temporarily unavailable. Please contact us for a quotation.</p>';
         }
@@ -70,9 +91,37 @@ final class PRC_Bilingual_Form {
                 $form->appendChild($input);
             }
         }
-        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.1.1');
+        foreach (['pickup','dropoff'] as $side) {
+            $date = $document->getElementById('prc_' . $side . '_date_display');
+            if ($date) {
+                $date->removeAttribute('readonly');
+                $date->setAttribute('placeholder','DD.MM.YYYY');
+                $date->setAttribute('inputmode','numeric');
+                $date->setAttribute('maxlength','10');
+                $date->setAttribute('pattern','[0-9]{2}\\.[0-9]{2}\\.[0-9]{4}');
+            }
+            $time = $document->getElementById('prc_' . $side . '_time_display');
+            if (!$time) continue;
+            $select = $document->createElement('select');
+            $select->setAttribute('id','prc_' . $side . '_half_hour');
+            $select->setAttribute('class','prc-half-hour');
+            $select->setAttribute('required','required');
+            $select->setAttribute('aria-label',$side === 'pickup' ? 'Collection time' : 'Return time');
+            $option = $document->createElement('option','Choose time');
+            $option->setAttribute('value','');
+            $select->appendChild($option);
+            for ($minutes = 0; $minutes < 1440; $minutes += 30) {
+                $value = sprintf('%02d:%02d',intdiv($minutes,60),$minutes % 60);
+                $option = $document->createElement('option',$value);
+                $option->setAttribute('value',$value);
+                $select->appendChild($option);
+            }
+            $time->parentNode->appendChild($select);
+        }
+        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.1.2');
         wp_add_inline_script('poland-car-request-form', 'window.PRCFormEnglish=' . wp_json_encode(self::catalog()) . ';', 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/form.js'), 'before');
+        wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/pickers.js'), 'after');
         $result = '';
         $root = $document->getElementById('prc-translation-root');
         foreach ($root->childNodes as $node) $result .= $document->saveHTML($node);
@@ -115,6 +164,7 @@ final class PRC_Bilingual_Form {
         if (!class_exists('DOMDocument')) return new WP_Error('missing_dom', 'PHP DOM is required.');
         $checks = [];
         $html = '<div class="prc-form-wrap" lang="he" dir="rtl"><form id="prcRequestForm"><label>שם ושם משפחה</label><input name="driver_age" value="כן"><select><option>שדה תעופה</option></select><p>לא חושב עדיין</p></form></div>';
+        $html = str_replace('</form>', '<input id="prc_pickup_date_display" readonly><div class="prc-time-control"><input id="prc_pickup_time_display"></div></form>', $html);
         $translated = self::render($html, 'poland_car_request_form', ['language'=>'en']);
         $checks['server_translation'] = strpos($translated, 'Full name') !== false && strpos($translated, 'lang="en"') !== false;
         $checks['submitted_values_preserved'] = strpos($translated, 'value="כן"') !== false && strpos($translated, 'value="שדה תעופה"') !== false;
@@ -123,6 +173,11 @@ final class PRC_Bilingual_Form {
         $checks['inline_spaces'] = self::text(' מדיניות הפרטיות ') === ' Privacy Policy ';
         $checks['dynamic_footer_translation'] = self::text('הטופס שומר כל בקשה במערכת ושולח התראה למייל: TEST-DESTINATION') ===
             self::catalog()['הטופס שומר כל בקשה במערכת ושולח התראה למייל:'] . ' TEST-DESTINATION';
+        $checks['dot_date_placeholder'] = strpos($translated, 'placeholder="DD.MM.YYYY"') !== false;
+        preg_match('/<select id="prc_pickup_half_hour"[^>]*>(.*?)<\/select>/s', $translated, $time_select);
+        $checks['half_hour_options'] = isset($time_select[1]) && substr_count($time_select[1], '<option') === 49 &&
+            strpos($time_select[1], 'value="00:30"') !== false && strpos($time_select[1], 'value="23:30"') !== false &&
+            strpos($time_select[1], 'value="00:15"') === false;
         $before = $_POST;
         $post_id = 0;
         try {
@@ -162,6 +217,10 @@ add_filter('template_include', function ($template) {
 add_filter('language_attributes', function ($attributes) {
     return is_page() && get_page_template_slug() === 'prc-request-full-width.php'
         ? 'lang="en" dir="ltr"' : $attributes;
+});
+add_filter('body_class', function ($classes) {
+    if (is_page() && get_page_template_slug() === 'prc-request-full-width.php') $classes[] = 'prc-english-page';
+    return $classes;
 });
 
 add_action('wp_abilities_api_categories_init', function () {

@@ -6,12 +6,31 @@
 .prc-form-wrap[lang="en"] .prc-car-card { direction:ltr; }
 .prc-form-wrap[lang="en"] .prc-form-card { min-width:0; }
 .prc-form-wrap[lang="en"] .prc-step-pill { white-space:normal; }
+.prc-form-wrap[lang="en"] .prc-calendar-control.prc-direct-date .prc-picker-display { display:block; padding-right:48px!important; padding-left:12px!important; }
+.prc-form-wrap[lang="en"] .prc-calendar-control.prc-direct-date .prc-picker-icon { display:block; left:auto; right:8px; }
+.prc-form-wrap[lang="en"] .prc-calendar-control.prc-direct-date .prc-native-picker { position:absolute; left:auto; right:8px; top:50%; transform:translateY(-50%); width:36px; height:36px; min-height:36px; opacity:0; pointer-events:auto; cursor:pointer; }
+.prc-form-wrap[lang="en"] .prc-time-control > .prc-picker-display,
+.prc-form-wrap[lang="en"] .prc-time-control > .prc-picker-icon,
+.prc-form-wrap[lang="en"] .prc-time-popover { display:none!important; }
+.prc-form-wrap[lang="en"] .prc-half-hour { width:100%; min-height:48px; direction:ltr; }
 .prc-request-page { direction:ltr; text-align:left; }
+.prc-english-page #main-header,.prc-english-page #top-header { display:none!important; }
+.prc-english-page #page-container { padding-top:0!important; }
+.prc-english-header { max-width:1160px; margin:0 auto; padding:20px 24px; display:flex; gap:24px; flex-wrap:wrap; align-items:center; border-bottom:1px solid #e5e7eb; }
+.prc-english-brand { font-size:22px; font-weight:700; color:#163960; }
+.prc-english-nav { display:flex; gap:18px; flex-wrap:wrap; }
+.prc-language-switcher { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:12px 0; }
+.prc-english-header .prc-language-switcher { margin:0 0 0 auto; }
+.prc-language-switcher a { display:inline-block; padding:8px 12px; border:1px solid #cbd5e1; border-radius:7px; line-height:1.4; text-decoration:none; background:#fff; color:#163960; }
+.prc-language-switcher a[aria-current="page"] { background:#163960; color:#fff; border-color:#163960; }
+.prc-language-switcher a:focus-visible { outline:3px solid #f5b841; outline-offset:3px; }
 .prc-request-container { width:100%; max-width:1160px; margin:0 auto; padding:32px 24px; box-sizing:border-box; }
 .prc-request-page .prc-form-wrap { max-width:100%; margin-inline:0; }
 .prc-request-page .prc-form-wrap *, .prc-request-page .prc-form-wrap *::before,
 .prc-request-page .prc-form-wrap *::after { box-sizing:border-box; }
 @media (max-width:600px) {
+  .prc-english-header { padding:16px 12px; gap:12px; }
+  .prc-english-brand { width:100%; }
   .prc-request-container { padding:24px 12px; }
   .prc-request-page h1 { font-size:28px; line-height:1.2; overflow-wrap:break-word; }
   .prc-request-page .prc-form-wrap { padding-inline:0; }

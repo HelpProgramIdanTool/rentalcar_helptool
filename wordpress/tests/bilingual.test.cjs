@@ -5,6 +5,7 @@ const {JSDOM} = require('../../tmp/wordpress-qa/node_modules/jsdom');
 const Engine = require('../../tmp/wordpress-qa/node_modules/php-parser');
 const catalog = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/form-en.json','utf8'));
 const script = fs.readFileSync('wordpress/prc-bilingual/form.js','utf8');
+const pickers = fs.readFileSync('wordpress/prc-bilingual/pickers.js','utf8');
 
 test('bilingual PHP parses and content has six unique draft pages with complete SEO', () => {
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/prc-bilingual.php','utf8'));
@@ -70,4 +71,42 @@ test('Hebrew alerts, validity and form presentation remain Hebrew', () => {
   input.setCustomValidity('יש לבחור תאריך קבלה.');
   assert.equal(input.validationMessage,'יש לבחור תאריך קבלה.');
   assert.equal(document.querySelector('#message').textContent,'לא חושב עדיין');
+});
+
+async function pickerPage() {
+  const controls=['pickup','dropoff'].map(side=>`<label for="prc_${side}_time_display">Time</label><input id="prc_${side}_date_display"><input id="prc_${side}_date_native" type="date"><input id="prc_${side}_date"><input id="prc_${side}_time"><input id="prc_${side}_time_display"><select id="prc_${side}_half_hour" required><option value=""></option><option value="00:30">00:30</option><option value="23:30">23:30</option></select>`).join('');
+  const dom=new JSDOM('<div class="prc-form-wrap" lang="en">'+controls+'</div>',{runScripts:'outside-only'});
+  dom.window.eval(pickers);
+  dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+  await new Promise(resolve=>dom.window.setTimeout(resolve,10));
+  return dom;
+}
+
+test('dot dates accept actual calendar days and keep original server date format', async () => {
+  const dom=await pickerPage(),doc=dom.window.document;
+  const display=doc.getElementById('prc_pickup_date_display');
+  display.value='29.02.2028';
+  display.dispatchEvent(new dom.window.Event('input'));
+  assert.equal(doc.getElementById('prc_pickup_date_native').value,'2028-02-29');
+  assert.equal(doc.getElementById('prc_pickup_date').value,'29/02/2028');
+  display.value='29.02.2030';
+  display.dispatchEvent(new dom.window.Event('input'));
+  assert.equal(doc.getElementById('prc_pickup_date').value,'');
+  assert.match(display.validationMessage,/valid date/);
+  const native=doc.getElementById('prc_pickup_date_native');
+  native.value='2030-12-23';
+  native.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(display.value,'23.12.2030');
+  assert.equal(display.validationMessage,'');
+});
+
+test('time choices pass exact 24-hour values to existing controls', async () => {
+  const dom=await pickerPage(),doc=dom.window.document;
+  for (const value of ['00:30','23:30']) {
+    const select=doc.getElementById('prc_dropoff_half_hour');
+    select.value=value;
+    select.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(doc.getElementById('prc_dropoff_time').value,value);
+    assert.equal(doc.getElementById('prc_dropoff_time_display').value,value);
+  }
 });

@@ -43,6 +43,12 @@ GPS: לא
 
 
 class ParserTests(SimpleTestCase):
+    def test_english_site_dot_dates_keep_day_month_order(self):
+        raw='Client language: English\n'+SAMPLE.replace('2026-09-26','26.09.2026').replace('2026-10-03','03.10.2026')
+        data,_,_=parse_inquiry(raw)
+        self.assertEqual(data['preferred_language'],'English')
+        self.assertEqual(data['pickup_date'],'26-09-2026')
+        self.assertEqual(data['return_date'],'03-10-2026')
     def test_explicit_site_language_is_preserved_without_changing_form_values(self):
         for marker,expected in [('English','English'),('Hebrew','Hebrew'),('unknown','Hebrew')]:
             data,requirements,_ = parse_inquiry('Client language: '+marker+'\n'+SAMPLE)
@@ -304,6 +310,27 @@ class ParserTests(SimpleTestCase):
 
 
 class ImportViewTests(TestCase):
+    def test_english_request_import_creates_english_quote(self):
+        from django.core import mail
+        supplier=Supplier.objects.create(supplier_code='EN-TEST',supplier_name='English Test supplier')
+        group=VehicleGroup.objects.create(supplier=supplier,group_code='TEST',group_name='Test van',seats=9,transmission='AUTOMATIC')
+        price_list=PriceList.objects.create(supplier=supplier,name='Test',version='1',effective_from='2026-01-01',status='ACTIVE')
+        season=PriceSeason.objects.create(price_list=price_list,season_code='ALL',season_name='Test season',rental_date_from='2026-01-01')
+        day_range=PriceDayRange.objects.create(price_list=price_list,range_code='ALL',label='Test days',days_from=1)
+        VehicleRate.objects.create(season=season,day_range=day_range,vehicle_group=group,daily_rate_gross=100)
+        sample='Client language: English\n'+SAMPLE.replace('2026-09-26','26.09.2030').replace('2026-10-03','03.10.2030')
+        imported=self.client.post(reverse('quotes:import_inquiry'), {'text':sample})
+        fields=imported.json()['fields']
+        self.assertEqual(fields['preferred_language'],'English')
+        fields['imported_inquiry']='1'
+        fields.pop('cross_border_requested',None)
+        response=self.client.post(reverse('quotes:new_inquiry'),fields)
+        quote=Quote.objects.get()
+        self.assertEqual(quote.language,'English')
+        self.assertEqual(quote.customer.preferred_language,'English')
+        self.assertEqual(response.status_code,302)
+        self.assertFalse(mail.outbox)
+
     def test_free_customer_email_fills_form_fields_without_creating_records(self):
         raw = ('איסוף ב16.11 בקראקוב בשדה תעופה בשעה 15.00\n'
                'החזרה ב18.11 בקראקוב בתוך העיר(jasnogorska) בשעה 15.00\n'
