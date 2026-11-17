@@ -43,7 +43,9 @@ English header and paired Hebrew/English form links; the Hebrew form also expose
 the paired switcher. Both public URLs and all 11 server checks pass. The shared
 theme footer and other page navigation still await full language setup.
 Polylang is still inactive. App importer changes
-are prepared in release 2026.11.17.2 (737 passing tests), pending Render deployment.
+were installed in release 2026.11.17.2 (737 passing tests), confirmed by Render log
+for commit 08753ba and public login HTTP 200/version 2026.11.17.2. A new user
+request-to-English-quotation check after this deployment is not yet confirmed.
 Visual/mobile interaction remains unverified.
 
 ## Remaining work
