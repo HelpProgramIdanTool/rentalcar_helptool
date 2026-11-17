@@ -274,6 +274,9 @@ msgstr "Foteliki dziecięce"
 msgid "Детское кресло"
 msgstr "Fotelik dziecięcy"
 
+msgid "Для автоматического импорта сохраняйте названия и порядок полей поставщика."
+msgstr "Aby umożliwić automatyczny import, zachowaj nazwy i kolejność pól dostawcy."
+
 msgid "Для одного дня укажите одинаковые даты. Обе границы периода включены. Даты и время — по Варшаве."
 msgstr "Dla jednego dnia wybierz tę samą datę. Obie daty są uwzględnione. Daty i godziny według czasu Warszawy."
 
@@ -315,6 +318,9 @@ msgstr "Rezerwacje"
 
 msgid "Закрыта"
 msgstr "Zamknięta"
+
+msgid "Заменить текущий черновик данными заказа. Прежний текст останется в истории."
+msgstr "Zastąp bieżący szkic danymi rezerwacji. Poprzedni tekst pozostanie w historii."
 
 msgid "Заметка"
 msgstr "Notatka"
@@ -846,6 +852,9 @@ msgstr "Najstarsze najpierw"
 
 msgid "Собрать оферту"
 msgstr "Przygotuj ofertę"
+
+msgid "Собрать по формату поставщика"
+msgstr "Przygotuj według formatu dostawcy"
 
 msgid "Создал"
 msgstr "Utworzył"

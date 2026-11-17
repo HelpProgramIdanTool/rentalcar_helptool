@@ -274,6 +274,9 @@ msgstr "Child seats"
 msgid "Детское кресло"
 msgstr "Child seat"
 
+msgid "Для автоматического импорта сохраняйте названия и порядок полей поставщика."
+msgstr "For automatic import, keep the supplier's field names and order."
+
 msgid "Для одного дня укажите одинаковые даты. Обе границы периода включены. Даты и время — по Варшаве."
 msgstr "For a single day, choose the same date twice. Both dates are included. Dates and times use Warsaw time."
 
@@ -315,6 +318,9 @@ msgstr "Reservations"
 
 msgid "Закрыта"
 msgstr "Closed"
+
+msgid "Заменить текущий черновик данными заказа. Прежний текст останется в истории."
+msgstr "Replace the current draft with reservation data. The previous text stays in history."
 
 msgid "Заметка"
 msgstr "Note"
@@ -846,6 +852,9 @@ msgstr "Oldest first"
 
 msgid "Собрать оферту"
 msgstr "Build offer"
+
+msgid "Собрать по формату поставщика"
+msgstr "Rebuild in supplier format"
 
 msgid "Создал"
 msgstr "Created by"

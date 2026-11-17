@@ -40,6 +40,10 @@ class Supplier(models.Model):
         help_text="Короткие отметки в оферте по языкам: Hebrew, Russian, English.")
     booking_email = models.CharField(max_length=1000, blank=True, validators=[validate_email_addresses],
         help_text="Один или несколько email через ; — письмо получат все адресаты.")
+    new_booking_email_template = models.TextField('Формат письма нового заказа',blank=True,
+        help_text='Пусто — прежний формат. Переменные: $driver_names, $customer, $address, $phone, $email, $pickup_date, $pickup_location, $flight_number, $return_date, $return_location, $vehicle_class, $days, $services, $deposit, $price_calculation. UPDATE не меняется.')
+    new_booking_email_options = models.JSONField('Настройки формата нового заказа',default=dict,blank=True,
+        help_text='included_services, service_names, skip_service_codes, airport_service_label, city_names.')
     changes_email = models.CharField(max_length=1000, blank=True, validators=[validate_email_addresses],
         help_text="Email для изменений через ;. Если пусто, используются адреса для заказов.")
     settlement_email = models.CharField(max_length=1000, blank=True, validators=[validate_email_addresses],
@@ -68,6 +72,16 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.supplier_name
+
+    def clean(self):
+        super().clean()
+        from .booking_email_format import validate_booking_email_format
+        if self.new_booking_email_options is None:
+            self.new_booking_email_options = {}
+        try:
+            validate_booking_email_format(self.new_booking_email_template,self.new_booking_email_options)
+        except ValueError as error:
+            raise ValidationError({'new_booking_email_template':str(error)})
 
 
 class SupplierLocation(models.Model):

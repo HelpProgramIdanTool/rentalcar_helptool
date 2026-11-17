@@ -5,6 +5,7 @@
 <a href="{% url 'quotes:booking_detail' booking.pk %}">← {{ booking.booking_number }}</a>
 <h1>{% if change_mode %}{% translate "Изменение заказа" %}{% else %}{% translate "Письмо поставщику" %}{% endif %} — {{ booking.supplier }}</h1>
 {% for message in messages %}<p role="status">{{ message }}</p>{% endfor %}
+{% if format_error %}<p class="errorlist" role="alert">{{ format_error }}</p>{% endif %}
 <p>Проверьте данные и заполните пометки в квадратных скобках. Редактирование письма не меняет расчёт заказа. Сохраните черновик, чтобы вернуться к нему позже.</p>
 {% if draft_saved %}<p>Открыт сохранённый черновик. Если условия заказа изменились, проверьте текст письма.</p>{% endif %}
 <form method="post">{% csrf_token %}{{ form.errors }}
@@ -15,6 +16,7 @@
 <textarea name="body" id="supplier-body" rows="20" style="width:100%;font:15px Arial" required>{{ body }}</textarea>
 <p style="display:flex;gap:12px;flex-wrap:wrap"><button id="supplier-copy" type="button">{% translate "Скопировать" %}</button><button type="submit" name="action" value="send">{% translate "Выслать из системы" %}</button><button type="submit" name="action" value="mark_manual">{% translate "Отметить отправку вручную" %}</button><button type="submit" name="action" value="save">{% translate "Сохранить черновик" %}</button></p></form>
 <p id="supplier-feedback" role="status"></p>
+{% if structured_new %}<p>{% translate "Для автоматического импорта сохраняйте названия и порядок полей поставщика." %}</p><details><summary>{% translate "Собрать по формату поставщика" %}</summary><form method="post">{% csrf_token %}<label><input type="checkbox" name="confirm_format_reset" value="yes" required> {% translate "Заменить текущий черновик данными заказа. Прежний текст останется в истории." %}</label><button name="action" value="load_supplier_format">{% translate "Собрать по формату поставщика" %}</button></form></details>{% endif %}
 {% if change_mode %}<p>Проверьте изменения в тексте. «{% translate "Выслать из системы" %}» отправит письмо поставщику и переведёт заказ в ожидание обновлённого подтверждения. Если вы сами отправили письмо, нажмите «{% translate "Отметить отправку вручную" %}». {% translate "Номер" %} заказа поставщика останется прежним.</p>{% else %}<p>Копирование и сохранение черновика не отправляют письмо. «{% translate "Выслать из системы" %}» отправляет текст на адрес выше и переводит новый заказ в ожидание подтверждения. {% translate "Номер" %} резервации внесите после ответа фирмы.</p>{% endif %}
 {% if deliveries %}<h2>{% translate "История" %} отправки</h2><ul>{% for delivery in deliveries %}<li>{{ delivery.created_at|date:'d-m-Y H:i' }} · {{ delivery.recipient }} · {% if delivery.status == 'SENT' %}Передано почтовому серверу{% elif delivery.status == 'MANUAL' %}Отмечено как отправленное вручную{% elif delivery.status == 'FAILED' %}Отправка не подтверждена — проверьте почту{% else %}Отправка начата — результат ещё не подтверждён{% endif %}<details><summary>{{ delivery.subject }}</summary><pre style="white-space:pre-wrap">{{ delivery.body }}</pre></details></li>{% endfor %}</ul>{% endif %}
 <script>

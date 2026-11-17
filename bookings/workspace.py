@@ -15,12 +15,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
-from django.template.loader import render_to_string
 
 from employees.models import Employee
 from config.email_addresses import parse_email_addresses
 from .models import Booking, BookingHistoryEvent, BookingVoucher, SupplierEmailDelivery
-from .message_content import price_breakdown, supplier_location, booking_price_error, young_driver_names
+from .message_content import booking_price_error
+from .supplier_format import render_supplier_booking, new_booking_html, has_new_booking_format
 
 
 class ReservationForm(forms.Form):
@@ -333,17 +333,18 @@ def supplier_message(request, pk):
     subject = (f"Change request {booking.supplier_booking_number} - {driver_label}" if change_mode
                else f"Car rental booking request - {driver_label}")
     draft = booking.history_events.filter(description=draft_description).order_by("-pk").first()
+    generated_body = ''
+    format_error = ''
+    if not draft:
+        try:
+            generated_body = render_supplier_booking(booking,kind='UPDATE' if change_mode else 'NEW',
+                extras=extras,driver_fallback='[driver names]')
+        except forms.ValidationError as error:
+            format_error = ' '.join(error.messages)
     initial = draft.changes["message"] if draft else {
         "recipient": (booking.supplier.changes_email or booking.supplier.booking_email) if change_mode else booking.supplier.booking_email,
         "subject": subject,
-        "body": ((f"Please update existing reservation {booking.supplier_booking_number}.\nPlease confirm the changes and send an updated voucher.\n\n" if change_mode else "") + render_to_string("bookings/supplier_message.txt", {
-            "booking": booking, "driver_names": names or booking.customer_name_snapshot or "[driver names]",
-            "young_driver_names": young_driver_names(booking),
-            "price_breakdown": price_breakdown(booking, extras),
-            "pickup_location": supplier_location(booking, "pickup"),
-            "return_location": supplier_location(booking, "return"),
-            "extras": [item for item in extras if item.included_in_total],
-        }).strip()),
+        "body": ((f"Please update existing reservation {booking.supplier_booking_number}.\nPlease confirm the changes and send an updated voucher.\n\n" if change_mode else "") + generated_body),
     }
     if draft:
         initial = dict(initial)
@@ -356,7 +357,23 @@ def supplier_message(request, pk):
         for original, translated in extra_translations.items():
             body = body.replace(original + " x ", translated + " x ")
         initial["body"] = body
+    structured_new = has_new_booking_format(booking,'UPDATE' if change_mode else 'NEW')
+    if request.method == 'POST' and request.POST.get('action') == 'load_supplier_format':
+        if not structured_new or request.POST.get('confirm_format_reset') != 'yes':
+            messages.error(request,'Подтвердите замену черновика форматом поставщика.')
+        else:
+            try:
+                refreshed = {**initial,'body':render_supplier_booking(booking,kind='NEW',extras=extras)}
+                booking.log_history(BookingHistoryEvent.EventType.DETAILS_CHANGED,draft_description,
+                    changes={'message':refreshed,'operator_user_id':request.user.pk,'loaded_supplier_format':True},
+                    created_by=Employee.objects.filter(login_user=request.user).first())
+                messages.success(request,'Черновик собран по формату поставщика. Проверьте его; письмо не отправлено.')
+            except forms.ValidationError as error:
+                messages.error(request,' '.join(error.messages))
+        return redirect('quotes:supplier_message',pk=booking.pk)
     form = SupplierMessageForm(request.POST or None, initial=initial)
+    if format_error and request.method == 'POST':
+        form.add_error(None,format_error)
     send_token = signing.dumps({"booking": booking.pk, "user": request.user.pk, "token": str(uuid4())}, salt="supplier-send")
     if request.method == "POST" and request.POST.get("action") in ("send", "mark_manual"):
         form.fields["recipient"].required = True
@@ -382,8 +399,11 @@ def supplier_message(request, pk):
                         draft_description, changes={"message": form.cleaned_data, "operator_user_id": request.user.pk},
                         created_by=Employee.objects.filter(login_user=request.user).first())
                     try:
-                        count = (1 if request.POST.get("action") == "mark_manual" else
-                            EmailMultiAlternatives(subject=delivery.subject, body=delivery.body, to=parse_email_addresses(delivery.recipient)).send())
+                        email = EmailMultiAlternatives(subject=delivery.subject,body=delivery.body,to=parse_email_addresses(delivery.recipient))
+                        structured = new_booking_html(booking,'UPDATE' if change_mode else 'NEW',delivery.body)
+                        if structured:
+                            email.attach_alternative(structured,'text/html')
+                        count = 1 if request.POST.get('action') == 'mark_manual' else email.send()
                         if count != 1:
                             raise SMTPException("Message not accepted")
                     except (SMTPException, OSError, ValueError) as error:
@@ -424,6 +444,8 @@ def supplier_message(request, pk):
         "form": form,
         "recipient": form["recipient"].value(), "subject": form["subject"].value(), "body": form["body"].value(),
         "draft_saved": bool(draft),
+        "format_error": format_error,
+        "structured_new": structured_new,
         "change_mode": change_mode,
         "send_token": send_token, "deliveries": booking.supplier_deliveries.order_by("-created_at")[:10],
     })
