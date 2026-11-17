@@ -12,6 +12,7 @@
           if (match) display.setCustomValidity('');
         }
         native.addEventListener('change',showDate);
+        display.addEventListener('click',event=>event.stopImmediatePropagation(),true);
         display.addEventListener('input', () => {
           const match=display.value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
           const date=match ? new Date(Date.UTC(+match[3],+match[2]-1,+match[1])) : null;
@@ -25,8 +26,8 @@
           native.value=iso;
           hidden.value=`${match[1]}/${match[2]}/${match[3]}`;
           display.setCustomValidity('');
-          native.dispatchEvent(new Event('change',{bubbles:true}));
           hidden.dispatchEvent(new Event('change',{bubbles:true}));
+          native.dispatchEvent(new Event('change',{bubbles:true}));
           showDate();
         });
         showDate();
@@ -43,6 +44,8 @@
           if (get('hour')) get('hour').value=parts[0] || '';
           if (get('minute')) get('minute').value=parts[1] || '';
           value.dispatchEvent(new Event('change',{bubbles:true}));
+          // The handler's minute change runs its Warsaw-time validation and final day count.
+          if (get('minute')) get('minute').dispatchEvent(new Event('change',{bubbles:true}));
         });
       }
     });

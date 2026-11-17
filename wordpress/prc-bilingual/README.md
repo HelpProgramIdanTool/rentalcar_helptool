@@ -49,6 +49,10 @@ submission retained), accessible calendar overlay and 48 half-hour time choices.
 English request page now has an English header and paired language links; the
 Hebrew form has paired links too. The footer and other pages await full Polylang
 setup. Public checks and all 11 server health checks passed. Seven Node tests pass.
+An additional check executed the published form's inline scripts together with the
+original form/date scripts in a DOM environment: 20.12.2030 00:30 to 21.12.2030
+23:30 kept the dot display, original server dates, exact times and two rental days.
+No request was submitted. This checks script interaction, not real phone rendering.
 
 Local verification: five Node tests pass (PHP syntax, content/SEO fields, 14
 categories, dynamic English messages, unchanged Hebrew values and presentation).
