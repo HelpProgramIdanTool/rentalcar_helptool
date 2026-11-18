@@ -69,6 +69,6 @@ add_action('template_redirect', function () {
     echo '<style>body{margin:0;background:#f5f7fa;color:#17283d;font:18px/1.65 system-ui,sans-serif}main{max-width:850px;margin:36px auto;padding:32px;background:white;border-radius:14px}a{color:#1454ac}nav{display:flex;flex-wrap:wrap;gap:18px}h1{line-height:1.2}h2{margin-top:32px;font-size:1.25em}.date{color:#536171;font-size:.9em}@media(max-width:650px){main{margin:0;padding:24px;border-radius:0}}</style></head><body><main>';
     echo '<nav aria-label="Backup information"><a href="/rentalcar-backups/">About</a><a href="/rentalcar-backups-privacy/">Privacy policy</a><a href="/rentalcar-backups-terms/">Terms of use</a></nav>';
     echo '<article>' . $post->post_content . '</article>';
-    echo '<footer><p><a href="https://poland-rent-car.com/">Poland Rent a Car</a> · <a href="mailto:idan.poland@gmail.com">Contact the operator</a></p></footer></main></body></html>';
+    echo '<footer><p><a href="https://poland-rent-car.com/">Poland Rent a Car</a> · <a href="mailto:idanrentacar@gmail.com">Contact the operator</a></p></footer></main></body></html>';
     exit;
 }, 0);

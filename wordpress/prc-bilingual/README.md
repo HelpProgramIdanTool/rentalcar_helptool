@@ -43,6 +43,11 @@ English. Render 2026.11.17.2 imports that marker into the English quote language
 
 ## Setup, SEO and preservation
 
+The public contact email is idanrentacar@gmail.com, confirmed by Idan on 18 November.
+contact-email.php provides an admin-only dry-run/apply update for the shared option
+and explicitly identified old owner addresses in site pages/theme layouts, retaining
+WordPress revisions. It excludes request records, SMTP and account/admin settings.
+
 stage-one.php exposes capability-protected, fixed-scope backup/configure/state
 abilities. content/stage-one.json lists the reviewed page IDs and real translation
 pairs. It never selects customer request records. Setup first requires a protected

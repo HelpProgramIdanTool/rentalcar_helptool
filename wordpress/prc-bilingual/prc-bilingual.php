@@ -339,6 +339,7 @@ add_filter('aioseo_schema_output',function($graphs){
     return $graphs;
 });
 require_once __DIR__.'/stage-one.php';
+require_once __DIR__.'/contact-email.php';
 add_action('init',function(){
     if (get_option('prc_bilingual_navigation',null)===null) {
         add_option('prc_bilingual_navigation',json_decode(file_get_contents(__DIR__.'/content/navigation.json'),true),'',false);

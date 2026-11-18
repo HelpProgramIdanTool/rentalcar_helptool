@@ -100,6 +100,19 @@ read-back. Historical customer reservations and sent letters were not changed.
 
 ## Next stage
 
+## Public contact email — 18 November 2026
+
+Idan explicitly set the website contact address to idanrentacar@gmail.com. Updated
+the shared navigation option, Divi header email, English/Hebrew contact text and
+old owner contact references in seven pages and two theme-header layouts. WordPress
+updates retain normal revisions. Source defaults and backup-info footer match.
+Anonymous checks passed on home, forms and contact pages in both languages and all
+three public backup-information pages; checked pages contain no old owner addresses.
+The audit reports no remaining content matches. Request records, SMTP, account and
+administrator email settings were not changed. No email was sent.
+
+## Next article stage
+
 Follow docs/tasks/english-editorial-plan.md: adapt insurance, deposit and cross-border
 travel first, verifying current supplier rules. Do not substitute literal translation
 or present historic supplier amounts as universally current. Existing Hebrew articles
