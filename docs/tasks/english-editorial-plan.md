@@ -4,6 +4,49 @@ Requested 17 November 2026: adapt most Hebrew articles for international English
 readers and make their practical information discoverable in search/AI answers.
 This is an editorial adaptation, not automatic publication of literal copies.
 
+## First articles — 18 November 2026
+
+Published English adaptations (WordPress pages, editable by Idan):
+
+- Insurance: `/english/car-rental-insurance/` (26007), paired with Hebrew 617.
+- Deposit: `/english/car-rental-deposit/` (26008), paired with Hebrew 647.
+- Cross-border travel: `/english/driving-rental-car-abroad/` (26009), paired with
+  Hebrew 24842; also incorporates the relevant distinction from notice 25423.
+
+The English menu and Guides index link directly to all three. Existing broad
+insurance/deposit and collection/return pages remain overviews and link onward.
+English home, company comparison, contact and guides explain Idan's representative
+role and personal VIP support, whichever supplier the customer selects. The form
+intro identifies who receives the request. VIP support is distinguished from a
+supplier's separately booked VIP ABROAD assistance package.
+
+No blanket cheapest-price claim, guaranteed upgrades or guaranteed incident
+outcome. Historic amounts and Israel-specific bank/licence assumptions were not
+copied. Deposit release and issuer processing are explained separately. The
+cross-border guide links beside the relevant text to Kaizen's published English
+fee schedule and ASFINAG's official vignette explanation. It distinguishes
+permission, damage protection, towing and replacement vehicles; prices for Idan's
+negotiated packages remain in the individual quote.
+
+Source: `wordpress/prc-bilingual/content/first-guides.json`. Scope-limited admin
+ability `prc-bilingual/stage-one-activate-guides` validates IDs/slugs/parents and
+existing translation pairs before linking them, snapshots the English menu and
+navigation, and does not rerun broad Polylang configuration. A private local
+snapshot of changed English page content is excluded from Git.
+
+Local checks cover unique topics, English content, complete SEO fields, links,
+translation pairs and menu coverage alongside the existing form checks. Browser
+visual verification remains unavailable in this session; public HTML checks do
+not establish real-device appearance.
+
+Verification: 11 local tests passed; all 15 live bilingual health checks passed
+(synthetic request removed, no mail sent). Public checks passed for the three
+articles, three Hebrew originals, English home/Guides/contact/form: HTTP 200,
+direct menu links, reciprocal article hreflang, self-canonical, descriptions,
+shared footer and sitemap inclusion. LiteSpeed caches were purged. Existing
+request-form markup includes an internal heading in addition to the page title;
+article single-H1 checks exclude that existing form markup.
+
 ## Audience and voice
 
 Start with international visitors renting in Poland, without assuming Israeli

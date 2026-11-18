@@ -71,5 +71,32 @@
     "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=25971&action=edit",
     "template": "prc-english-page.php",
     "seo_written": true
+  },
+  {
+    "key": "insurance-guide",
+    "id": 26007,
+    "status": "publish",
+    "seo_written": true,
+    "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=26007&action=edit",
+    "view_url": "https://poland-rent-car.com/english/car-rental-insurance/",
+    "template": "prc-english-page.php"
+  },
+  {
+    "key": "deposit-guide",
+    "id": 26008,
+    "status": "publish",
+    "seo_written": true,
+    "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=26008&action=edit",
+    "view_url": "https://poland-rent-car.com/english/car-rental-deposit/",
+    "template": "prc-english-page.php"
+  },
+  {
+    "key": "abroad-guide",
+    "id": 26009,
+    "status": "publish",
+    "seo_written": true,
+    "edit_url": "https://poland-rent-car.com/wp-admin/post.php?post=26009&action=edit",
+    "view_url": "https://poland-rent-car.com/english/driving-rental-car-abroad/",
+    "template": "prc-english-page.php"
   }
 ]

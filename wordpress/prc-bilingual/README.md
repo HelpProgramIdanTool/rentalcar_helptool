@@ -1,9 +1,21 @@
 # Poland Rent a Car — bilingual foundation
 
-Deployed version 0.2.2 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
+Deployed version 0.2.3 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
 default and English is the second language. Existing addresses are preserved.
 
 ## Published
+
+First adapted articles (18 November 2026), linked from the English menu and Guides:
+
+- /english/car-rental-insurance/ (26007; Hebrew source 617).
+- /english/car-rental-deposit/ (26008; Hebrew source 647).
+- /english/driving-rental-car-abroad/ (26009; Hebrew source 24842).
+
+`content/first-guides.json` records the reviewed publication copy; published text
+is editable in WordPress. The scoped `stage-one-activate-guides` admin ability
+links these translations, snapshots the English menu/navigation, adds direct
+menu links and updates the English footer's representative-service description.
+It does not rerun site-wide language configuration or rewrite Hebrew articles.
 
 - /english/ — existing landing page updated in place (25371).
 - /english/compare-rental-companies/ (25957).
@@ -65,7 +77,7 @@ fall back to the Hebrew home in the switcher and do not claim a false pairing.
 
 ## Checks
 
-Version 0.2.2 explicitly sets English body/header/menu direction to LTR and aligns
+Version 0.2.3 explicitly sets English body/header/menu direction to LTR and aligns
 them left, including when WordPress keeps its rtl body class. A computed-style
 regression test covers that inherited-RTL case. Ten local tests pass. Public home
 and request-page checks confirm dir=ltr and the updated versioned stylesheet.

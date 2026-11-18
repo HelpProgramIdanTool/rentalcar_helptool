@@ -106,13 +106,54 @@ final class PRC_Bilingual_Stage_One {
             'options'=>array_intersect_key($options,array_flip(['force_lang','hide_default','default_lang','browser'])),
             'pages'=>$pages];
     }
+
+    public static function activate_guides() {
+        if (!function_exists('pll_set_post_language')) return new WP_Error('polylang_required','Polylang is required.');
+        $guides=json_decode(file_get_contents(__DIR__.'/content/first-guides.json'),true);
+        $menu_id=(int)get_option('prc_english_menu_id');
+        if (!$menu_id || !wp_get_nav_menu_object($menu_id)) return new WP_Error('menu_required','English menu is required.');
+        // Validate the entire batch before touching languages, pairs or navigation.
+        foreach ($guides as $guide) {
+            $post=get_post($guide['id']);
+            if (!$post || $post->post_type!=='page' || $post->post_name!==$guide['slug'] || (int)$post->post_parent!==25371)
+                return new WP_Error('invalid_guide','Unexpected guide page.');
+            $paired=pll_get_post($guide['hebrew_page'],'en');
+            if ($paired && (int)$paired!==(int)$guide['id']) return new WP_Error('pair_conflict','Existing translation must not be replaced.');
+        }
+        $snapshot=get_option('prc_first_guides_backup');
+        if (!$snapshot) {
+            add_option('prc_first_guides_backup',[
+                'created_at'=>gmdate('c'),'menu'=>wp_get_nav_menu_items($menu_id),
+                'navigation'=>get_option('prc_bilingual_navigation',[])
+            ],'',false);
+        }
+        foreach ($guides as $guide) {
+            pll_set_post_language($guide['id'],'en');
+            pll_save_post_translations(['he'=>$guide['hebrew_page'],'en'=>$guide['id']]);
+        }
+        $existing=wp_get_nav_menu_items($menu_id) ?: [];
+        foreach (self::config()['menu'] as $index=>$entry) {
+            $item_id=0;
+            foreach ($existing as $item) if ((int)$item->object_id===(int)$entry['page']) $item_id=(int)$item->ID;
+            $result=wp_update_nav_menu_item($menu_id,$item_id,[
+                'menu-item-title'=>$entry['title'],'menu-item-object'=>'page','menu-item-object-id'=>$entry['page'],
+                'menu-item-type'=>'post_type','menu-item-status'=>'publish','menu-item-position'=>$index+1]);
+            if (is_wp_error($result)) return $result;
+        }
+        $navigation=(array)get_option('prc_bilingual_navigation',[]);
+        $defaults=json_decode(file_get_contents(__DIR__.'/content/navigation.json'),true);
+        $navigation['tagline']=$defaults['tagline'];
+        update_option('prc_bilingual_navigation',$navigation,false);
+        return ['success'=>true,'guides'=>array_column($guides,'id'),'menu'=>$menu_id];
+    }
 }
 
 add_action('wp_abilities_api_init',function(){
     foreach (['backup'=>'Save a rollback snapshot of public page content, selected language settings and menus; returns the protected snapshot.',
               'configure'=>'Configure approved Hebrew/English page languages and translation pairs while preserving existing addresses; requires a saved backup.',
-              'state'=>'Read bilingual page language, address and publication state.'] as $method=>$description) {
-        wp_register_ability('prc-bilingual/stage-one-'.$method,[
+              'state'=>'Read bilingual page language, address and publication state.',
+              'activate_guides'=>'Link the three approved English guides to their Hebrew originals and add direct English menu links; preserves other language settings and saves a menu snapshot.'] as $method=>$description) {
+        wp_register_ability('prc-bilingual/stage-one-'.str_replace('_','-',$method),[
             'label'=>'Bilingual foundation: '.$method,'description'=>$description,'category'=>'prc',
             'input_schema'=>['type'=>'object'],
             'permission_callback'=>function(){return current_user_can('manage_options');},

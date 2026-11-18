@@ -7,6 +7,28 @@ const catalog = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/form
 const script = fs.readFileSync('wordpress/prc-bilingual/form.js','utf8');
 const pickers = fs.readFileSync('wordpress/prc-bilingual/pickers.js','utf8');
 
+test('first guides have distinct topics, paired originals and navigable English content', () => {
+  const guides=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/first-guides.json','utf8'));
+  const stage=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/stage-one.json','utf8'));
+  assert.deepEqual(guides.map(p=>p.hebrew_page),[617,647,24842]);
+  assert.equal(new Set(guides.map(p=>p.slug)).size,3);
+  for(const p of guides) {
+    assert.ok(p.meta_description.length>=70 && p.meta_description.length<=165);
+    assert.ok(p.seo_title.length<75 && p.focus_keyword);
+    assert.doesNotMatch(p.content,/[\u0590-\u05ff]|\{\{|â€|Â·/);
+    assert.ok(stage.pairs.some(pair=>pair.he===p.hebrew_page && pair.en===p.id));
+    assert.ok(stage.menu.some(item=>item.page===p.id));
+    const doc=new JSDOM(p.content).window.document;
+    assert.equal(doc.querySelectorAll('h1').length,0);
+    assert.equal(doc.querySelectorAll('.prc-personal-support').length,1);
+    assert.ok(doc.querySelectorAll('h3').length>=3);
+    for(const related of guides) assert.ok(doc.querySelector('a[href="/english/'+related.slug+'/"]'));
+    assert.ok(doc.querySelector('a[href="/english/request-quote/"]'));
+  }
+  assert.match(guides[2].content,/towing|recovery/);
+  assert.match(guides[1].content,/card issuer/);
+});
+
 test('English header stays left-aligned when WordPress body inherits Hebrew RTL', () => {
   const css=fs.readFileSync('wordpress/prc-bilingual/form.css','utf8');
   const dom=new JSDOM('<style>body.rtl{direction:rtl;text-align:right}</style><style>'+css+'</style><body class="rtl prc-english-page"><header class="prc-english-header"><nav class="prc-english-nav"><ul class="prc-nav-list"><li>Home</li><li>Get a quote</li></ul></nav></header></body>');
