@@ -1,9 +1,21 @@
 # Poland Rent a Car — bilingual foundation
 
-Deployed version 0.2.3 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
+Deployed version 0.2.4 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
 default and English is the second language. Existing addresses are preserved.
 
 ## Published
+
+Idan's approved portrait (`assets/idan-portrait.jpg`, original DSC08781.JPG) now
+appears in a shared author card on Hebrew and English public pages. Home, contact
+and quote pages show the introduction first; other pages show it after the article.
+Quote forms use a smaller card. Privacy policies are excluded. The main-content
+filter excludes feeds, admin and secondary loops and prevents duplicate cards.
+Localized copy is initialized from `content/author.json` and editable through
+Customizer → PRC — Idan (en/he), stored as WordPress options. The picture is an
+unaltered original; circular display uses CSS. Hosting may optimise JPEG transfer.
+Public verification checked ten pages with one correctly localized card each,
+two privacy pages without it and the served image dimensions/appearance. Local
+suite: 12 tests passed. Real-device visual review remains outstanding.
 
 First adapted articles (18 November 2026), linked from the English menu and Guides:
 

@@ -1,0 +1,21 @@
+{
+  "excluded_pages": [25480, 25971],
+  "intro_pages": [579, 25371, 25217, 25960, 25453, 25961],
+  "form_pages": [25453, 25961],
+  "en": {
+    "name": "Idan",
+    "role": "Your rental-company representative in Poland",
+    "description": "A real person behind your booking. I explain the offers and help you communicate with the rental company, whichever option you choose.",
+    "form_description": "Your request comes directly to me. I will help you choose an offer and clarify the conditions.",
+    "contact_label": "Contact Idan",
+    "alt": "Idan, your car rental representative in Poland"
+  },
+  "he": {
+    "name": "עידן",
+    "role": "הנציג האישי שלכם מול חברות השכרת הרכב בפולין",
+    "description": "מאחורי ההזמנה שלכם יש אדם. אני מסביר את ההצעות ומסייע בקשר עם חברת ההשכרה, בכל אפשרות שתבחרו.",
+    "form_description": "הבקשה שלכם מגיעה ישירות אליי. אעזור לכם לבחור הצעה ולהבין את התנאים.",
+    "contact_label": "יצירת קשר עם עידן",
+    "alt": "עידן, הנציג האישי שלכם להשכרת רכב בפולין"
+  }
+}

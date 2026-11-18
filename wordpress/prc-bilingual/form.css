@@ -51,6 +51,23 @@ body.prc-english-page { direction:ltr!important; text-align:left; }
 .prc-personal-support h2 { margin-top:0; }
 .prc-guide-links { display:flex; flex-wrap:wrap; gap:8px 12px; margin:24px 0; }
 .prc-editorial-note { font-size:14px; color:#526579; margin-top:28px; }
+.prc-author-card { display:flex; align-items:center; gap:24px; padding:24px; margin:24px 0 32px; background:#f2f7fb; border:1px solid #dbe4ed; border-radius:12px; font-family:Arial,Helvetica,sans-serif; color:#24354a; line-height:1.6; clear:both; }
+.prc-author-card[dir="ltr"] { direction:ltr; text-align:left; }
+.prc-author-card[dir="rtl"] { direction:rtl; text-align:right; }
+.prc-author-card .prc-author-portrait { display:block; flex:0 0 144px; width:144px; height:144px; max-width:144px; object-fit:cover; border-radius:50%; }
+.prc-author-card .prc-author-copy { flex:1; min-width:0; }
+.prc-author-card p { margin:0 0 8px!important; padding:0; }
+.prc-author-card .prc-author-name { font-size:24px; font-weight:700; color:#163960; }
+.prc-author-card .prc-author-role { font-weight:700; }
+.prc-author-card a { color:#163960; text-decoration:underline; text-underline-offset:3px; }
+.prc-author-card--compact { padding:16px; gap:16px; }
+.prc-author-card--compact .prc-author-portrait { flex-basis:80px; width:80px; height:80px; max-width:80px; }
+@media (max-width:600px) {
+  .prc-author-card { align-items:flex-start; gap:14px; padding:16px; }
+  .prc-author-card .prc-author-portrait { flex-basis:80px; width:80px; height:80px; max-width:80px; }
+  .prc-author-card--compact .prc-author-portrait { flex-basis:64px; width:64px; height:64px; max-width:64px; }
+  .prc-author-card .prc-author-name { font-size:21px; }
+}
 .prc-english-page .entry-content h3 { font-size:20px; line-height:1.4; margin:24px 0 10px; color:#163960; }
 .prc-table-scroll { overflow-x:auto; margin:24px 0; }
 .prc-table-scroll table { border-collapse:collapse; width:100%; min-width:640px; }

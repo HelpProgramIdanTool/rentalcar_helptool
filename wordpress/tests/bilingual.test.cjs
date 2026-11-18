@@ -7,6 +7,24 @@ const catalog = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/form
 const script = fs.readFileSync('wordpress/prc-bilingual/form.js','utf8');
 const pickers = fs.readFileSync('wordpress/prc-bilingual/pickers.js','utf8');
 
+test('portrait module parses and supports readable English and Hebrew author cards',()=>{
+  new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/author.php','utf8'));
+  const data=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/author.json','utf8'));
+  for(const language of ['en','he']) {
+    for(const key of ['name','role','description','form_description','alt','contact_label']) assert.ok(data[language][key]);
+  }
+  assert.match(data.he.description,/[\u0590-\u05ff]/);
+  assert.doesNotMatch(data.en.description,/[\u0590-\u05ff]/);
+  const css=fs.readFileSync('wordpress/prc-bilingual/form.css','utf8');
+  const dom=new JSDOM('<style>'+css+'</style><section class="prc-author-card" dir="rtl"><img class="prc-author-portrait"><div class="prc-author-copy">'+data.he.description+'</div></section>');
+  const card=dom.window.getComputedStyle(dom.window.document.querySelector('section'));
+  assert.equal(card.direction,'rtl');assert.equal(card.textAlign,'right');
+  const img=dom.window.getComputedStyle(dom.window.document.querySelector('img'));
+  assert.equal(img.objectFit,'cover');
+  const bytes=fs.readFileSync('wordpress/prc-bilingual/assets/idan-portrait.jpg');
+  assert.equal(bytes.readUInt16BE(0),0xffd8);assert.ok(bytes.length<200000);
+});
+
 test('first guides have distinct topics, paired originals and navigable English content', () => {
   const guides=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/first-guides.json','utf8'));
   const stage=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/stage-one.json','utf8'));
