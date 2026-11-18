@@ -60,6 +60,28 @@ for exact dates/times and two rental days; no request was submitted by the agent
 No connected browser was available. Real desktop/mobile visual interaction remains
 unverified; HTTP/DOM checks must not be described as a real-phone visual test.
 
+## Appearance correction — 18 November 2026
+
+Idan reported unreadable active Hebrew language text, a second selector below the
+header and inconsistent Hebrew/English footers. Add-on 0.2.1 is deployed:
+
+- Removed the extra selector prepended to the Hebrew form. Existing desktop/drawer
+  header menus keep their selectors; there are no selectors in the page content.
+- Protected selected and unselected link colors from Divi's higher-priority menu
+  rules. Published active text/background contrast is 11.74:1.
+- Both languages use footer.php and the same CSS. Hebrew uses RTL; contact details
+  have one shared saved source. Hebrew labels are editable in the Customizer's
+  PRC — עברית section. The previous Hebrew theme footer is retained but hidden,
+  so disabling the add-on restores it.
+- Hebrew menu modules fall back to the Hebrew primary menu instead of the most
+  recently created English menu when no menu is selected.
+- Nine local tests and all 15 server checks pass, with no mail sent. Anonymous
+  page checks confirmed a single shared footer per page, no selector in content,
+  matching footer structures and contact links, and RTL/LTR direction.
+
+No connected browser was available for real-device screenshots; these checks cover
+published HTML, explicit color priority and contrast, not real-phone visual output.
+
 ## Application status
 
 Render 2026.11.17.2 is live (737 passing tests), verified by public HTTP 200 and

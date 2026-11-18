@@ -1,6 +1,6 @@
 # Poland Rent a Car — bilingual foundation
 
-Deployed version 0.2.0 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
+Deployed version 0.2.1 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
 default and English is the second language. Existing addresses are preserved.
 
 ## Published
@@ -60,8 +60,17 @@ fall back to the Hebrew home in the switcher and do not claim a false pairing.
 
 ## Checks
 
+Version 0.2.1 fixes Divi overrides on active language colors and removes the
+form-level Hebrew selector. Both languages render footer.php with shared CSS;
+the Hebrew theme footer is reversibly hidden. Hebrew footer labels live in the
+prc_bilingual_navigation_he option (Customizer → PRC — עברית). Brand, phone and
+email stay in the shared navigation option. Empty Hebrew menu selections resolve
+to the Hebrew primary menu, not the latest English menu. Public regression checks
+confirm no in-content switcher, matching footer structures, correct directions and
+11.74:1 active-button contrast. Nine local tests and 15 server checks pass.
+
 Run node --test --test-isolation=none wordpress/tests/bilingual.test.cjs.
-Eight tests cover PHP syntax, content/translation mapping, 14 categories, errors,
+Nine tests cover PHP syntax, content/translation mapping, 14 categories, errors,
 unchanged Hebrew values, dot dates and exact times. The admin-only health ability
 checks server rendering, language storage/retry headers and English privacy links;
 it creates/removes one synthetic private request and sends no mail.

@@ -2,13 +2,16 @@
 /**
  * Plugin Name: PRC Bilingual Form
  * Description: English presentation and saved client language for the existing PRC request form.
- * Version: 0.2.0
+ * Version: 0.2.1
  */
 defined('ABSPATH') || exit;
 
 final class PRC_Bilingual_Form {
     public static function english_page() {
         return is_page() && in_array(get_page_template_slug(),['prc-request-full-width.php','prc-english-page.php'],true);
+    }
+    public static function hebrew_page() {
+        return !is_admin() && !self::english_page() && function_exists('pll_current_language') && pll_current_language('slug')==='he';
     }
     public static function catalog() {
         static $catalog;
@@ -21,9 +24,28 @@ final class PRC_Bilingual_Form {
         return function_exists('pll_current_language') && pll_current_language('slug') === 'en';
     }
 
-    public static function navigation() {
+    public static function navigation($english=true) {
         $defaults=json_decode(file_get_contents(__DIR__ . '/content/navigation.json'),true);
-        return array_merge($defaults,(array)get_option('prc_bilingual_navigation',[]));
+        $navigation=array_merge($defaults,(array)get_option('prc_bilingual_navigation',[]));
+        if (!$english) {
+            $hebrew=json_decode(file_get_contents(__DIR__.'/content/navigation-he.json'),true);
+            $navigation=array_merge($navigation,$hebrew,(array)get_option('prc_bilingual_navigation_he',[]));
+        }
+        return $navigation;
+    }
+
+    public static function footer_html($english=true) {
+        $navigation=self::navigation($english);
+        $language=$english ? 'en' : 'he';
+        $direction=$english ? 'ltr' : 'rtl';
+        ob_start();
+        include __DIR__.'/footer.php';
+        return ob_get_clean();
+    }
+
+    public static function switcher_style($active) {
+        return $active ? 'color:#fff!important;background-color:#163960!important;opacity:1!important;'
+            : 'color:#163960!important;background-color:#fff!important;opacity:1!important;';
     }
 
     public static function language_switcher($english) {
@@ -44,8 +66,8 @@ final class PRC_Bilingual_Form {
             }
         }
         return '<nav class="prc-language-switcher" aria-label="Language">' .
-            '<a lang="he" dir="rtl" hreflang="he" href="' . esc_url($hebrew_url) . '"' . (!$english ? ' aria-current="page"' : '') . '>עברית</a>' .
-            '<a lang="en" hreflang="en" href="' . esc_url($english_url) . '"' . ($english ? ' aria-current="page"' : '') . '>English</a></nav>';
+            '<a lang="he" dir="rtl" hreflang="he" href="' . esc_url($hebrew_url) . '" style="'.esc_attr(self::switcher_style(!$english)).'"' . (!$english ? ' aria-current="page"' : '') . '>עברית</a>' .
+            '<a lang="en" hreflang="en" href="' . esc_url($english_url) . '" style="'.esc_attr(self::switcher_style($english)).'"' . ($english ? ' aria-current="page"' : '') . '>English</a></nav>';
     }
 
     public static function text($value) {
@@ -66,7 +88,7 @@ final class PRC_Bilingual_Form {
 
     public static function render($output, $tag, $atts) {
         if ($tag !== 'poland_car_request_form') return $output;
-        if (!self::english((array) $atts)) return is_page() ? self::language_switcher(false) . $output : $output;
+        if (!self::english((array) $atts)) return $output;
         if (!class_exists('DOMDocument')) {
             return '<p role="alert">The English form is temporarily unavailable. Please contact us for a quotation.</p>';
         }
@@ -133,7 +155,7 @@ final class PRC_Bilingual_Form {
             }
             $time->parentNode->appendChild($select);
         }
-        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.2.0');
+        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.2.1');
         wp_add_inline_script('poland-car-request-form', 'window.PRCFormEnglish=' . wp_json_encode(self::catalog()) . ';', 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/form.js'), 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/pickers.js'), 'after');
@@ -190,6 +212,22 @@ final class PRC_Bilingual_Form {
             self::catalog()['הטופס שומר כל בקשה במערכת ושולח התראה למייל:'] . ' TEST-DESTINATION';
         $checks['dot_date_placeholder'] = strpos($translated, 'placeholder="DD.MM.YYYY"') !== false;
         $checks['english_privacy_link'] = strpos($translated, 'href="'.esc_url(home_url(self::navigation()['privacy_path'])).'"') !== false;
+        $hebrew_footer=self::footer_html(false);
+        $english_footer=self::footer_html(true);
+        $tags=function($html){
+            $document=new DOMDocument();
+            $previous=libxml_use_internal_errors(true);
+            $document->loadHTML('<?xml encoding="UTF-8">'.$html,LIBXML_NONET);
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+            $names=[];
+            foreach ($document->getElementsByTagName('*') as $node) $names[]=$node->nodeName;
+            return $names;
+        };
+        $checks['shared_footer_structure']=$tags($hebrew_footer)===$tags($english_footer);
+        $checks['hebrew_footer_rtl']=strpos($hebrew_footer,'lang="he" dir="rtl"')!==false;
+        $checks['active_hebrew_switcher_colors']=strpos(self::language_switcher(false),
+            'style="color:#fff!important;background-color:#163960!important;opacity:1!important;" aria-current="page">עברית')!==false;
         preg_match('/<select id="prc_pickup_half_hour"[^>]*>(.*?)<\/select>/s', $translated, $time_select);
         $checks['half_hour_options'] = isset($time_select[1]) && substr_count($time_select[1], '<option') === 49 &&
             strpos($time_select[1], 'value="00:30"') !== false && strpos($time_select[1], 'value="23:30"') !== false &&
@@ -237,11 +275,28 @@ add_filter('language_attributes', function ($attributes) {
 });
 add_filter('body_class', function ($classes) {
     if (PRC_Bilingual_Form::english_page()) $classes[] = 'prc-english-page';
+    if (PRC_Bilingual_Form::hebrew_page()) $classes[] = 'prc-hebrew-page';
     return $classes;
 });
 add_action('wp_enqueue_scripts',function(){
     if (PRC_Bilingual_Form::english_page() || (is_page() && function_exists('pll_current_language'))) {
-        wp_enqueue_style('prc-bilingual',plugin_dir_url(__FILE__).'form.css',[],'0.2.0');
+        wp_enqueue_style('prc-bilingual',plugin_dir_url(__FILE__).'form.css',[],'0.2.1');
+    }
+});
+add_filter('wp_nav_menu_args',function($args){
+    if (!PRC_Bilingual_Form::hebrew_page()) return $args;
+    $menu=wp_get_nav_menu_object($args['menu'] ?? 0);
+    if (!$menu || (function_exists('pll_get_term_language') && pll_get_term_language($menu->term_id,'slug')==='en')) {
+        $locations=get_nav_menu_locations();
+        if (!empty($locations['primary-menu'])) $args['menu']=$locations['primary-menu'];
+    }
+    return $args;
+});
+add_action('get_footer',function(){
+    static $printed=false;
+    if (!$printed && PRC_Bilingual_Form::hebrew_page()) {
+        $printed=true;
+        echo PRC_Bilingual_Form::footer_html(false);
     }
 });
 add_filter('wp_nav_menu_items',function($items){
@@ -288,6 +343,9 @@ add_action('init',function(){
     if (get_option('prc_bilingual_navigation',null)===null) {
         add_option('prc_bilingual_navigation',json_decode(file_get_contents(__DIR__.'/content/navigation.json'),true),'',false);
     }
+    if (get_option('prc_bilingual_navigation_he',null)===null) {
+        add_option('prc_bilingual_navigation_he',json_decode(file_get_contents(__DIR__.'/content/navigation-he.json'),true),'',false);
+    }
 });
 add_action('customize_register',function($customizer){
     $customizer->add_section('prc_english_site',['title'=>'PRC — English site','priority'=>160]);
@@ -301,6 +359,15 @@ add_action('customize_register',function($customizer){
         $customizer->add_setting($setting,['type'=>'option','capability'=>'manage_options','default'=>$navigation[$key],
             'sanitize_callback'=>$key==='contact_email' ? 'sanitize_email' : 'sanitize_text_field']);
         $customizer->add_control($setting,['section'=>'prc_english_site','label'=>$label,'type'=>$key==='contact_email' ? 'email' : 'text']);
+    }
+    $customizer->add_section('prc_hebrew_site',['title'=>'PRC — עברית','priority'=>161]);
+    $hebrew=PRC_Bilingual_Form::navigation(false);
+    foreach ($labels as $key=>$label) {
+        if (in_array($key,['brand','contact_email','phone'],true)) continue;
+        $setting='prc_bilingual_navigation_he['.$key.']';
+        $customizer->add_setting($setting,['type'=>'option','capability'=>'manage_options','default'=>$hebrew[$key],
+            'sanitize_callback'=>'sanitize_text_field']);
+        $customizer->add_control($setting,['section'=>'prc_hebrew_site','label'=>$label,'type'=>'text']);
     }
 });
 

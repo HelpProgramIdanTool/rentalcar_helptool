@@ -11,6 +11,7 @@ test('bilingual PHP parses and content has six unique draft pages with complete 
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/prc-bilingual.php','utf8'));
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/request-full-width.php','utf8'));
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/stage-one.php','utf8'));
+  new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/footer.php','utf8'));
   const pages = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/en-pages.json','utf8'));
   assert.equal(pages.length,6);
   assert.equal(new Set(pages.map(p=>p.slug)).size,6);
@@ -20,6 +21,18 @@ test('bilingual PHP parses and content has six unique draft pages with complete 
     assert.ok(page.focus_keyword && page.content);
     assert.doesNotMatch(page.content,/[\u0590-\u05ff]/);
   }
+});
+
+test('Hebrew footer labels are translated and contact details have one shared source', () => {
+  const en=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/navigation.json','utf8'));
+  const he=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/navigation-he.json','utf8'));
+  for(const key of ['tagline','footer_heading','footer_contact_heading','footer_privacy_label','footer_guides_label','footer_companies_label']) {
+    assert.ok(en[key] && he[key]);
+    assert.match(he[key],/[\u0590-\u05ff]/);
+  }
+  assert.equal(he.privacy_path,'/privacy-policy/');
+  assert.equal(he.guides_path,'/info/');
+  for(const key of ['phone','contact_email','brand']) assert.equal(Object.hasOwn(he,key),false);
 });
 
 test('foundation pages have unique translation pairs and complete English content', () => {
