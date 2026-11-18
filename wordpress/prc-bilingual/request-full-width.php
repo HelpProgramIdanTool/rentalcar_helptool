@@ -11,10 +11,10 @@ $navigation=PRC_Bilingual_Form::navigation();
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 <a class="prc-skip-link" href="#main-content">Skip to content</a>
-<header class="prc-english-header">
+<header class="prc-english-header" dir="ltr">
     <a class="prc-english-brand" href="<?php echo esc_url(home_url($navigation['home_path'])); ?>"><?php echo esc_html($navigation['brand']); ?></a>
     <?php echo PRC_Bilingual_Form::language_switcher(true); ?>
-    <nav class="prc-english-nav" aria-label="Main navigation">
+    <nav class="prc-english-nav" aria-label="Main navigation" dir="ltr">
         <?php if (get_option('prc_english_menu_id')) : ?>
             <?php wp_nav_menu(['menu'=>(int)get_option('prc_english_menu_id'),'container'=>false,'menu_class'=>'prc-nav-list','fallback_cb'=>false,'depth'=>1]); ?>
         <?php else : ?>

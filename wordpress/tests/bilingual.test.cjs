@@ -7,6 +7,21 @@ const catalog = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/form
 const script = fs.readFileSync('wordpress/prc-bilingual/form.js','utf8');
 const pickers = fs.readFileSync('wordpress/prc-bilingual/pickers.js','utf8');
 
+test('English header stays left-aligned when WordPress body inherits Hebrew RTL', () => {
+  const css=fs.readFileSync('wordpress/prc-bilingual/form.css','utf8');
+  const dom=new JSDOM('<style>body.rtl{direction:rtl;text-align:right}</style><style>'+css+'</style><body class="rtl prc-english-page"><header class="prc-english-header"><nav class="prc-english-nav"><ul class="prc-nav-list"><li>Home</li><li>Get a quote</li></ul></nav></header></body>');
+  for(const selector of ['body','header','nav','ul']) {
+    const style=dom.window.getComputedStyle(dom.window.document.querySelector(selector));
+    assert.equal(style.direction,'ltr');
+    assert.equal(style.textAlign,'left');
+  }
+  for(const selector of ['header','ul']) {
+    const style=dom.window.getComputedStyle(dom.window.document.querySelector(selector));
+    assert.equal(style.flexDirection,'row');
+    assert.equal(style.justifyContent,'flex-start');
+  }
+});
+
 test('bilingual PHP parses and content has six unique draft pages with complete SEO', () => {
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/prc-bilingual.php','utf8'));
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/request-full-width.php','utf8'));

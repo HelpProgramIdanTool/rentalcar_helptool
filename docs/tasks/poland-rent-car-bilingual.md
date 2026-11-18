@@ -84,6 +84,15 @@ published HTML, explicit color priority and contrast, not real-phone visual outp
 
 ## Application status
 
+## English alignment correction — 18 November 2026
+
+Idan's screenshot showed English header/menu inheriting RTL layout. Add-on 0.2.2
+sets explicit LTR direction on English body, header, navigation and menu list,
+left text alignment and normal row order. Header and nav also have dir=ltr.
+Ten local tests pass, including computed styles with a deliberately RTL WordPress
+body. Public English home and quotation page return 200 with updated CSS 0.2.2.
+LiteSpeed cache was purged. Real-device screenshot verification remains unavailable.
+
 Render 2026.11.17.2 is live (737 passing tests), verified by public HTTP 200 and
 version output. It includes explicit English website-language import and supplier
 invoice details. Idan confirmed a post-deployment encrypted backup with remote
