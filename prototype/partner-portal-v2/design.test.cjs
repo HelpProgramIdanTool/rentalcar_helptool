@@ -62,15 +62,49 @@ test('change request is directed to Idan and keeps existing booking unchanged',(
  assert.match(d.querySelector('main').textContent,/מאושרת/);
  dom.window.close();
 });
-test('nine-step guided presentation navigates login, partner workflow and owner access',()=>{
+test('ten-step guided presentation navigates login, partner workflow and owner access',()=>{
  const dom=page(),d=dom.window.document;
  d.querySelector('#present').click();
  assert.equal(d.querySelector('#tour').hidden,false);
- for(let i=0;i<8;i++)d.querySelector('#tour-next').click();
- assert.match(d.querySelector('#tour-count').textContent,/9 \/ 9/);
+ for(let i=0;i<9;i++)d.querySelector('#tour-next').click();
+ assert.match(d.querySelector('#tour-count').textContent,/10 \/ 10/);
  assert.equal(dom.window.location.hash,'#owner');
  d.querySelector('#tour-next').click();assert.equal(d.querySelector('#tour').hidden,true);
  dom.window.close();
+});
+
+test('company comparison is alongside vehicle selection and not on dashboard',()=>{
+ const home=page('home');assert.equal(home.window.document.querySelector('.company-compare'),null);home.window.close();
+ const options=page('options');assert.equal(options.window.document.querySelector('.company-compare').open,true);options.window.close();
+});
+
+test('specific offer button carries chosen vehicle through details and final confirmation',()=>{
+ const dom=page('review'),d=dom.window.document,w=dom.window;
+ const render=()=>w.dispatchEvent(new w.HashChangeEvent('hashchange'));
+ assert.equal(d.querySelector('[name="book-choice"]'),null);
+ d.querySelector('[data-option="mm-suv"]').click();render();
+ assert.match(d.querySelector('.chosen-vehicle').textContent,/MM Cars/);
+ const values={driver:'TEST DRIVER',phone:'0000000',email:'test@example.invalid',invoiceName:'TEST INVOICE',invoiceAddress:'TEST ADDRESS'};
+ d.querySelector('#invoice-toggle').checked=true;change(w,d.querySelector('#invoice-toggle'));
+ for(const [name,value] of Object.entries(values))d.querySelector('[name="'+name+'"]').value=value;
+ d.querySelector('#book-form input[type="checkbox"][required]').checked=true;
+ d.querySelector('#book-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));render();
+ assert.equal(w.location.hash,'#confirm');
+ assert.match(d.querySelector('main').textContent,/TEST INVOICE/);
+ assert.match(d.querySelector('main').textContent,/MM Cars/);
+ w.location.hash='#book';render();assert.equal(d.querySelector('[name="email"]').value,'test@example.invalid');
+ w.location.hash='#confirm';render();d.querySelector('[data-action="confirm-booking"]').click();render();
+ assert.equal(w.location.hash,'#detail-new');assert.match(d.querySelector('main').textContent,/ממתינה לאישור/);
+ dom.window.close();
+});
+
+test('new price list blocks only the expired supplier option before order details',()=>{
+ const dom=page('review'),d=dom.window.document;
+ d.querySelector('[data-action="expiry"]').click();
+ d.querySelector('[data-option="one-suv"]').click();
+ assert.equal(dom.window.location.hash,'#review');assert.match(d.querySelector('#dialog-content').textContent,/מחיר חדש/);
+ d.querySelector('[data-option="mm-suv"]').click();
+ assert.equal(dom.window.location.hash,'#book');dom.window.close();
 });
 
 test('owner can switch cabinets and the selected cabinet does not mix another partner history',()=>{
