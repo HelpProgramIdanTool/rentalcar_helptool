@@ -1,5 +1,34 @@
 # Partner cabinet — design and browser presentation
 
+## Current version: one scrolling workspace (19 November 2026)
+
+Idan rejected the separate-screen flow and low contrast. `index.html` now loads
+`cities.js`, `workspace.js`, `workspace-main.js`, and `workspace.css`. The entire
+journey, company comparison/vehicle selection, saved offer and driver/invoice
+form remain mounted on ONE page. Choosing a vehicle scrolls to its order form;
+the final review expands below it. Input edits invalidate that review. The
+header links jump within the page. Stronger navy/blue section headings, yellow
+number markers, darker input borders and primary actions replace the pale layout.
+
+Both date fields have a real native calendar input and editable DD.MM.YYYY text,
+kept in sync. Time lists contain all 48 half-hour values. Each city list includes
+the union of the operator's fallback cities and active local OfferCity records:
+24 public names, plus OTHER. No prices, customers or secrets were exported.
+Regenerate the list with `uv --cache-dir .uv-cache run python scripts/export_partner_design_cities.py`.
+Cities/services are separate; address, foreign-country, invoice and extra-driver
+fields expand as required. Unknown routes are directed to Idan in the design.
+
+Current tests: `node --test --test-isolation=none prototype/partner-portal-v2/workspace.test.cjs`
+(six checks: persistent single-page fields, complete city union, native calendar
+sync/half-hour controls, no duplicate groups, inline invoice/order and invalid
+dates/review invalidation). Live HTTP/JSDOM confirms all scripts load and both
+native calendars are present. Actual browser screenshots/device checks remain
+unavailable. The five-point presentation now explains the same scrolling page.
+
+The earlier screen-based `design.js` and its tests remain as a historical design
+reference only and are no longer loaded by index.html. Details below describe
+that earlier iteration, not the current active entry point.
+
 Approved workflow: `docs/tasks/partner-portal.md`, 18 November 2026.
 Design reference: the Hebrew/English poland-rent-car.com foundation and Idan's
 approved DSC08781 portrait. Interface in Hebrew; ten-step presentation commentary
