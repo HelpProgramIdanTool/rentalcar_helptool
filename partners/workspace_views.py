@@ -88,7 +88,17 @@ def workspace_action(request):
             return JsonResponse({'record':record_json(r)})
         try:options,revision=workspace_options(trip)
         except ValidationError as e:return JsonResponse({'error':e.messages[0]},status=400)
-        if action=='calculate':return JsonResponse({'options':options,'manual':not bool(options)})
+        if action=='calculate':
+            from .services import automatic_allowed, available_groups
+            message=''
+            if not options:
+                if not automatic_allowed(trip):
+                    message='פרטי הנסיעה או הצהרות הנהגים דורשים בדיקה אישית של עידן. שמרו פנייה לבדיקה.'
+                elif not available_groups().exists():
+                    message='קבוצות הרכב טרם הוגדרו להצגה בקבינט. יש לפנות לעידן להשלמת ההגדרות.'
+                else:
+                    message='לא נמצא תמחור מלא לתאריכים ולמסלול שנבחרו, כולל תוספות ופיקדון. שמרו פנייה לעידן לבדיקה.'
+            return JsonResponse({'options':options,'manual':not bool(options),'message':message})
         if not isinstance(data.get('selected'),list):return JsonResponse({'error':'נא לבחור אפשרויות.'},status=400)
         selected=set(map(str,data['selected']))
         chosen=[o for o in options if o['id'] in selected]

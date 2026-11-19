@@ -44,6 +44,9 @@ class ServerWorkspaceTests(TestCase):
         page=self.client.get(reverse('partners:workspace'))
         self.assertContains(page,'לתת הצעה')
         self.assertContains(page,'data-date-target')
+        self.assertContains(page,'id="copy-offer"')
+        self.assertContains(page,'id="copy-fallback"')
+        self.assertContains(page,'id="send-form"')
         result=self.action(action='calculate',trip=self.trip_data())
         self.assertEqual(result.status_code,200)
         option=next(o for o in result.json()['options'] if o['id']==str(self.group.pk))
@@ -53,6 +56,33 @@ class ServerWorkspaceTests(TestCase):
         self.assertTrue(PartnerWorkspaceRecord.objects.filter(pk=saved['id'],partner=self.partner).exists())
         rows=self.client.get(reverse('partners:workspace_records')).json()['records']
         self.assertEqual(rows[0]['customer_name'],'TEST-CUSTOMER')
+
+    def test_invalid_trip_dates_are_rejected_without_saving_or_calculating(self):
+        from unittest.mock import patch
+        yesterday=(timezone.localdate()-timedelta(days=1)).strftime('%d.%m.%Y')
+        cases=[({'pickup_date':yesterday},'pickup_date'),
+               ({'pickup_date':'31.02.2027'},'pickup_date'),
+               ({'return_date':'01.01.2020'},'return_date')]
+        with patch('partners.workspace_views.workspace_options') as calculate:
+            for changes,field in cases:
+                for action in ['calculate','save']:
+                    response=self.action(action=action,trip=self.trip_data(**changes),selected=[str(self.group.pk)])
+                    self.assertEqual(response.status_code,400,response.content)
+                    self.assertIn(field,response.json()['errors'])
+            calculate.assert_not_called()
+        self.assertFalse(PartnerWorkspaceRecord.objects.exists())
+
+    def test_empty_results_explain_missing_configuration_or_manual_route(self):
+        self.group.form_categories.clear()
+        result=self.action(action='calculate',trip=self.trip_data())
+        self.assertEqual(result.status_code,200)
+        self.assertEqual(result.json()['options'],[])
+        self.assertTrue(result.json()['message'])
+        missing_configuration=result.json()['message']
+        result=self.action(action='calculate',trip=self.trip_data(driver_ok=False))
+        self.assertEqual(result.json()['options'],[])
+        self.assertTrue(result.json()['message'])
+        self.assertNotEqual(result.json()['message'],missing_configuration)
 
     def test_test_order_is_idempotent_saved_with_invoice_and_never_sent(self):
         quote=self.quote()
