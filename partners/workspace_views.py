@@ -8,9 +8,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .views import partner_only, context, configuration
-from .forms import TripForm
+from .forms import WorkspaceTripForm
 from .models import PartnerAccess, PartnerWorkspaceRecord
-from .workspace_services import serialise_trip, workspace_options, price_valid, versions
+from .workspace_services import serialise_trip, workspace_options, price_valid, versions, render_workspace_offer
 from django import forms
 
 
@@ -56,7 +56,7 @@ def workspace(request):
     if not request.partner.is_test:return HttpResponseForbidden('הגישה לגרסת הבדיקה מופעלת רק לחשבון בדיקה.')
     initial={'pickup_city':'Kraków','return_city':'Kraków','pickup_service':'AIRPORT','return_service':'AIRPORT',
              'pickup_time':'10:00','return_time':'10:00','drivers':1,'seats':0}
-    return render(request,'partners/workspace.html',context(request,form=TripForm(initial=initial),order_form=TestOrderForm()))
+    return render(request,'partners/workspace.html',context(request,form=WorkspaceTripForm(initial=initial),order_form=TestOrderForm()))
 
 
 @partner_only
@@ -67,6 +67,7 @@ def records(request):
 
 @partner_only
 @require_POST
+@transaction.atomic
 def workspace_action(request):
     if not request.partner.is_test:return HttpResponseForbidden()
     if len(request.body)>40000:return JsonResponse({'error':'הבקשה גדולה מדי.'},status=400)
@@ -77,7 +78,7 @@ def workspace_action(request):
     action=data.get('action')
     if action in ('calculate','save','manual'):
         if not isinstance(data.get('trip',{}),dict):return JsonResponse({'error':'נתוני נסיעה לא תקינים.'},status=400)
-        form=TripForm(data.get('trip',{}))
+        form=WorkspaceTripForm(data.get('trip',{}))
         if action!='manual' and not form.is_valid():return JsonResponse({'errors':form.errors.get_json_data()},status=400)
         trip=serialise_trip(form.cleaned_data,request.partner) if form.is_valid() else data.get('trip',{})
         if action=='manual':
@@ -106,6 +107,8 @@ def workspace_action(request):
         r=PartnerWorkspaceRecord.objects.create(partner=request.partner,kind='QUOTE',status='QUOTED',trip=trip,
             options=chosen,price_versions=revision,customer_name=str(data.get('customer_name',''))[:200],created_by=request.user,
             details={'partner_email':request.partner.email,'send_customer':False,'mail_sent':False})
+        r.details={**r.details,'preview_html':render_workspace_offer(r,request.user)}
+        r.save(update_fields=['details','updated_at'])
         return JsonResponse({'record':record_json(r)})
     with transaction.atomic():
         try:record_id=UUID(str(data.get('id')))

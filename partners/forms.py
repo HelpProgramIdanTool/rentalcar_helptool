@@ -83,8 +83,26 @@ class TripForm(forms.Form):
         data['foreign_route'] = foreign
         if foreign:
             data['cross_border'] = True
-        if data.get('cross_border') and not data.get('countries'):
+        if getattr(self, 'require_countries', True) and data.get('cross_border') and not data.get('countries'):
             self.add_error('countries', 'נא לציין את המדינות הנוספות, כולל מדינת קבלה או החזרה מחוץ לפולין.')
+        return data
+
+
+class WorkspaceTripForm(TripForm):
+    """Partner workspace has a single EU/Switzerland travel flag, no GPS request."""
+    require_countries = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields.pop('gps')
+        self.fields.pop('countries')
+        self.fields['cross_border'].label = 'יציאה למדינות האיחוד האירופי / שווייץ'
+
+    def clean(self):
+        data = super().clean()
+        # Ignore old clients and forged POST values as well as hidden UI fields.
+        data['gps'] = False
+        data['countries'] = ''
         return data
 
 

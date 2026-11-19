@@ -4,6 +4,34 @@ from .services import calculate_options, automatic_allowed
 from suppliers.models import PriceList
 
 
+def render_workspace_offer(record, user):
+    """Render the operator's full offer, rolling back all temporary working rows.
+
+    Only the resulting HTML is retained in the separate test workspace record.
+    Never send mail or leave test customers/quotes in the operator's database.
+    """
+    from django.db import transaction
+    from django.template.loader import render_to_string
+    from .models import PartnerDraft, PortalConfiguration
+    from types import SimpleNamespace
+    from .services import prepare_quote
+    from quotes.views import _quote_preview_context
+    with transaction.atomic():
+        draft = PartnerDraft.objects.create(partner=record.partner, trip=record.trip,
+            selected_groups=[int(option['id']) for option in record.options])
+        quote = prepare_quote(draft, {
+            'customer_name': record.customer_name,
+            'customer_email': '',
+        }, PortalConfiguration.objects.first() or SimpleNamespace(owner_email=''), user)
+        # Number belongs to the test record, never to a live quote.
+        quote.quote_number = record.number
+        context = _quote_preview_context(quote, is_email=True)
+        context['guides'] = []
+        html = render_to_string('quotes/quote_preview.html', context)
+        transaction.set_rollback(True)
+    return html
+
+
 def price_valid(issued_at, now, saved_versions, current_versions):
     return now < issued_at + timedelta(days=7) or saved_versions == current_versions
 

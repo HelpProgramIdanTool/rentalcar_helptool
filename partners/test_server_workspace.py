@@ -47,6 +47,9 @@ class ServerWorkspaceTests(TestCase):
         self.assertContains(page,'id="copy-offer"')
         self.assertContains(page,'id="copy-fallback"')
         self.assertContains(page,'id="send-form"')
+        self.assertContains(page,'id="offer-preview"')
+        self.assertNotContains(page,'name="gps"')
+        self.assertNotContains(page,'name="countries"')
         result=self.action(action='calculate',trip=self.trip_data())
         self.assertEqual(result.status_code,200)
         option=next(o for o in result.json()['options'] if o['id']==str(self.group.pk))
@@ -56,6 +59,25 @@ class ServerWorkspaceTests(TestCase):
         self.assertTrue(PartnerWorkspaceRecord.objects.filter(pk=saved['id'],partner=self.partner).exists())
         rows=self.client.get(reverse('partners:workspace_records')).json()['records']
         self.assertEqual(rows[0]['customer_name'],'TEST-CUSTOMER')
+        self.assertIn('TEST-GROUP-HE',saved['details']['preview_html'])
+        self.assertIn(saved['number'],saved['details']['preview_html'])
+        from quotes.models import Quote
+        from customers.models import Customer
+        from .models import PartnerDraft
+        self.assertFalse(Quote.objects.exists())
+        self.assertFalse(Customer.objects.exists())
+        self.assertFalse(PartnerDraft.objects.exists())
+        self.assertEqual(len(mail.outbox),0)
+
+    def test_workspace_ignores_gps_and_does_not_require_destination_countries(self):
+        from .forms import WorkspaceTripForm
+        form=WorkspaceTripForm(self.trip_data(cross_border=True,gps=True,countries='IGNORED'))
+        self.assertTrue(form.is_valid(),form.errors)
+        self.assertTrue(form.cleaned_data['cross_border'])
+        self.assertFalse(form.cleaned_data['gps'])
+        self.assertEqual(form.cleaned_data['countries'],'')
+        form=WorkspaceTripForm(self.trip_data(cross_border=True))
+        self.assertTrue(form.is_valid(),form.errors)
 
     def test_invalid_trip_dates_are_rejected_without_saving_or_calculating(self):
         from unittest.mock import patch
