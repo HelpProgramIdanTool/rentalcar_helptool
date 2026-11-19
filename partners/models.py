@@ -7,6 +7,8 @@ class PartnerAccess(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='partner_access')
     display_name = models.CharField(max_length=200)
     email = models.EmailField()
+    phone = models.CharField(max_length=60, blank=True)
+    is_test = models.BooleanField(default=False, help_text='Тестовый кабинет: письма и реальные бронирования запрещены.')
     pricing_sub_agent = models.ForeignKey('employees.SubAgent', null=True, blank=True, on_delete=models.PROTECT,
         help_text='Выбрать только если в ручной оферте этому партнёру уже применяется такой режим цен. Пусто — обычные цены.')
     is_active = models.BooleanField(default=True)
@@ -17,6 +19,7 @@ class PartnerAccess(models.Model):
 
 class PortalConfiguration(models.Model):
     owner_email = models.EmailField(blank=True)
+    workspace_copy_email = models.EmailField(blank=True)
     email_language = models.CharField(max_length=30, default='Hebrew', choices=[('Hebrew','עברית')])
     content = models.JSONField(default=dict)
 
@@ -67,3 +70,28 @@ class PartnerLoginAttempt(models.Model):
     username_key = models.CharField(max_length=64, db_index=True)
     ip_key = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
+class PartnerWorkspaceRecord(models.Model):
+    """Persisted workspace test data, isolated from actual bookings and statistics."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    partner = models.ForeignKey(PartnerAccess, on_delete=models.PROTECT, related_name='workspace_records')
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.PROTECT, related_name='orders')
+    kind = models.CharField(max_length=12, choices=[('QUOTE','Оферта'),('ORDER','Тестовый заказ'),('MANUAL','Ручной запрос'),('CHANGE','Изменение / отмена')])
+    status = models.CharField(max_length=20, default='DRAFT')
+    customer_name = models.CharField(max_length=200, blank=True)
+    trip = models.JSONField(default=dict)
+    options = models.JSONField(default=list)
+    price_versions = models.JSONField(default=dict)
+    details = models.JSONField(default=dict)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    is_test = models.BooleanField(default=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def number(self):
+        return 'TEST-'+self.kind+'-'+self.pk.hex[:8].upper()

@@ -1,10 +1,10 @@
 from django.contrib import admin
-from .models import PartnerAccess, PortalConfiguration, SupplierSummary, PartnerDraft, PartnerDelivery
+from .models import PartnerAccess, PortalConfiguration, SupplierSummary, PartnerDraft, PartnerDelivery, PartnerWorkspaceRecord
 
 
 @admin.register(PartnerAccess)
 class PartnerAccessAdmin(admin.ModelAdmin):
-    list_display = ['display_name', 'email', 'user', 'is_active']
+    list_display = ['display_name', 'email', 'user', 'is_test', 'is_active']
     search_fields = ['display_name', 'email']
 
 
@@ -28,3 +28,13 @@ class PartnerDeliveryAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(PartnerWorkspaceRecord)
+class PartnerWorkspaceRecordAdmin(admin.ModelAdmin):
+    list_display=['number','partner','kind','status','customer_name','is_test','created_at']
+    list_filter=['kind','status','partner']
+    search_fields=['customer_name','partner__display_name']
+    readonly_fields=['id','partner','parent','kind','customer_name','trip','options','price_versions','details','created_by','is_test','created_at','updated_at']
+    def has_add_permission(self,request):return False
+    def has_delete_permission(self,request,obj=None):return False

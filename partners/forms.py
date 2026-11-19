@@ -52,7 +52,10 @@ class TripForm(forms.Form):
                 self.fields[key].label = label
         # No free-text foreign city: nonstandard routes go to Idan.
         self.cities = {c.name:c for c in OfferCity.objects.filter(is_active=True)}
-        choices = [('', 'בחרו עיר'), *[(c.name, c.label) for c in self.cities.values()]]
+        configured = set(OfferCity.objects.values_list('name',flat=True))
+        fallback = {name:name for name,label in FirstInquiryForm.CITY_CHOICES if name and name!='OTHER' and name not in configured}
+        fallback.update({c.name:c.label for c in self.cities.values()})
+        choices = [('', 'בחרו עיר'), *list(fallback.items())]
         for side in ('pickup', 'return'):
             self.fields[side+'_city'].choices = choices
         for field in self.fields.values():
