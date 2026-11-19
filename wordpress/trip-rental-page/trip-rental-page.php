@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Trip2Poland Rental Page
  * Description: Responsive Hebrew rental car request form with request storage, Gmail delivery, automatic retries, failed-email recovery and strict rental date validation.
- * Version: 1.6.2
+ * Version: 1.6.3
  * Author: Idan / ChatGPT
  * Text Domain: poland-car-request-form
  */
@@ -839,7 +839,7 @@ final class Trip_Car_Request_Form {
             'abroad_countries' => $this->text('abroad_countries'),
             'child_seats'      => $this->text('child_seats'),
             'child_seat_count' => $this->text('child_seat_count'),
-            'gps'              => $this->text('gps'),
+            'gps'              => 'לא',
             'snow_chains'      => $this->text('snow_chains'),
             'priorities'       => $this->text_array('priorities'),
             'notes'            => $this->textarea('notes'),
@@ -899,7 +899,6 @@ final class Trip_Car_Request_Form {
             "תוספות:\n" .
             "כיסאות / בוסטרים: {$d['child_seats']}\n" .
             "מספר כיסאות / בוסטרים: {$d['child_seat_count']}\n" .
-            "GPS: {$d['gps']}\n" .
             "שרשראות שלג: {$d['snow_chains']}\n\n" .
 
             "מה חשוב ללקוח:\n" .

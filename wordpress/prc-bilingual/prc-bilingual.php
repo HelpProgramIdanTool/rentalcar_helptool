@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PRC Bilingual Form
  * Description: English presentation and saved client language for the existing PRC request form.
- * Version: 0.2.4
+ * Version: 0.2.5
  */
 defined('ABSPATH') || exit;
 
@@ -86,8 +86,36 @@ final class PRC_Bilingual_Form {
         return $spaces[1] . $catalog[$key] . $spaces[2];
     }
 
+    public static function remove_public_gps($output) {
+        if (!preg_match('/name=["\x27]gps["\x27]/i',$output) || !class_exists('DOMDocument')) return $output;
+        $document=new DOMDocument('1.0','UTF-8');
+        $previous=libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="UTF-8"><div id="prc-gps-root">'.$output.'</div>',LIBXML_HTML_NOIMPLIED|LIBXML_HTML_NODEFDTD|LIBXML_NONET);
+        libxml_clear_errors();libxml_use_internal_errors($previous);
+        $xpath=new DOMXPath($document);
+        $fields=iterator_to_array($xpath->query('//*[@name="gps"]'));
+        foreach ($fields as $field) {
+            $card=$field;
+            while ($card && $card->nodeName!=='form' && $card->getAttribute('id')!=='prc-gps-root') {
+                if (strpos(' '.$card->getAttribute('class').' ',' prc-simple-card ')!==false) break;
+                $card=$card->parentNode instanceof DOMElement ? $card->parentNode : null;
+            }
+            if ($card && strpos(' '.$card->getAttribute('class').' ',' prc-simple-card ')!==false) {
+                if ($card->parentNode) $card->parentNode->removeChild($card);
+            } elseif ($field->parentNode) $field->parentNode->removeChild($field);
+        }
+        // Preserve the existing handler's optional-field contract without offering GPS.
+        foreach ($xpath->query('//form[@id="prcRequestForm"]') as $form) {
+            $hidden=$document->createElement('input');$hidden->setAttribute('type','hidden');
+            $hidden->setAttribute('name','gps');$hidden->setAttribute('value','לא');$form->appendChild($hidden);
+        }
+        $result='';foreach ($document->getElementById('prc-gps-root')->childNodes as $node) $result.=$document->saveHTML($node);
+        return $result;
+    }
+
     public static function render($output, $tag, $atts) {
         if ($tag !== 'poland_car_request_form') return $output;
+        $output=self::remove_public_gps($output);
         if (!self::english((array) $atts)) return $output;
         if (!class_exists('DOMDocument')) {
             return '<p role="alert">The English form is temporarily unavailable. Please contact us for a quotation.</p>';
@@ -155,7 +183,7 @@ final class PRC_Bilingual_Form {
             }
             $time->parentNode->appendChild($select);
         }
-        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.2.4');
+        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.2.5');
         wp_add_inline_script('poland-car-request-form', 'window.PRCFormEnglish=' . wp_json_encode(self::catalog()) . ';', 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/form.js'), 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/pickers.js'), 'after');
@@ -169,6 +197,9 @@ final class PRC_Bilingual_Form {
         if ($key !== '_prc_request_id' || get_post_type($post_id) !== 'prc_request') return;
         $english = isset($_POST['prc_client_language']) && $_POST['prc_client_language'] === 'en';
         add_post_meta($post_id, '_prc_client_language', $english ? 'English' : 'Hebrew', true);
+        if (isset($_POST['action']) && $_POST['action']==='poland_car_request_submit') {
+            add_post_meta($post_id,'_prc_no_public_gps',true,true);
+        }
     }
 
     public static function email_language($mail) {
@@ -180,7 +211,11 @@ final class PRC_Bilingual_Form {
         $id = isset($query['post']) ? absint($query['post']) : 0;
         if (!$id || get_post_type($id) !== 'prc_request' || get_post_meta($id, '_prc_request_id', true) !== trim($match[1])) return $mail;
         $language = get_post_meta($id, '_prc_client_language', true) === 'English' ? 'English' : 'Hebrew';
-        $mail['message'] = 'Client language: ' . $language . "\n" . $mail['message'];
+        // The public form no longer offers GPS. Keep the importer compatible with
+        // the field's absence; remove only the handler's first labelled extras row.
+        $body=get_post_meta($id,'_prc_no_public_gps',true)
+            ? preg_replace('/^GPS:[^\r\n]*(?:\r?\n|$)/mi','',$mail['message'],1) : $mail['message'];
+        $mail['message'] = 'Client language: ' . $language . "\n" . $body;
         return $mail;
     }
 
@@ -207,6 +242,12 @@ final class PRC_Bilingual_Form {
         $checks['submitted_values_preserved'] = strpos($translated, 'value="כן"') !== false && strpos($translated, 'value="שדה תעופה"') !== false;
         $checks['language_field'] = strpos($translated, 'name="prc_client_language" value="en"') !== false;
         $checks['hebrew_unchanged'] = self::render($html, 'poland_car_request_form', ['language'=>'he']) === $html;
+        $gps_sample='<form id="prcRequestForm"><div class="prc-simple-card"><h3>GPS</h3><input type="radio" name="gps" value="כן"></div><div class="prc-simple-card"><input name="snow_chains" value="כן"></div></form>';
+        foreach (['he','en'] as $language) {
+            $clean=self::render($gps_sample,'poland_car_request_form',['language'=>$language]);
+            $checks['no_public_gps_'.$language]=strpos($clean,'<h3>GPS</h3>')===false &&
+                strpos($clean,'type="hidden" name="gps" value="לא"')!==false && strpos($clean,'name="snow_chains"')!==false;
+        }
         $checks['inline_spaces'] = self::text(' מדיניות הפרטיות ') === ' Privacy Policy ';
         $checks['dynamic_footer_translation'] = self::text('הטופס שומר כל בקשה במערכת ושולח התראה למייל: TEST-DESTINATION') ===
             self::catalog()['הטופס שומר כל בקשה במערכת ושולח התראה למייל:'] . ' TEST-DESTINATION';
@@ -280,7 +321,7 @@ add_filter('body_class', function ($classes) {
 });
 add_action('wp_enqueue_scripts',function(){
     if (PRC_Bilingual_Form::english_page() || (is_page() && function_exists('pll_current_language'))) {
-        wp_enqueue_style('prc-bilingual',plugin_dir_url(__FILE__).'form.css',[],'0.2.4');
+        wp_enqueue_style('prc-bilingual',plugin_dir_url(__FILE__).'form.css',[],'0.2.5');
     }
 });
 add_filter('wp_nav_menu_args',function($args){
@@ -341,6 +382,9 @@ add_filter('aioseo_schema_output',function($graphs){
 require_once __DIR__.'/stage-one.php';
 require_once __DIR__.'/contact-email.php';
 require_once __DIR__.'/author.php';
+// GPS is no longer a public-form option; do not accept cached/forged selections.
+add_action('admin_post_poland_car_request_submit',function(){$_POST['gps']='לא';},1);
+add_action('admin_post_nopriv_poland_car_request_submit',function(){$_POST['gps']='לא';},1);
 add_action('init',function(){
     if (get_option('prc_bilingual_navigation',null)===null) {
         add_option('prc_bilingual_navigation',json_decode(file_get_contents(__DIR__.'/content/navigation.json'),true),'',false);

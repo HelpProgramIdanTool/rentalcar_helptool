@@ -43,6 +43,13 @@ GPS: לא
 
 
 class ParserTests(SimpleTestCase):
+    def test_website_request_without_gps_is_valid_and_does_not_add_navigation(self):
+        data,requirements,warnings=parse_inquiry(SAMPLE.replace('GPS: לא\n',''))
+        self.assertNotIn('NAVIGATION',data['extra_choices'])
+        self.assertFalse(any('GPS' in warning or 'NAVIGATION' in warning for warning in warnings))
+        legacy,_,_=parse_inquiry(SAMPLE.replace('GPS: לא','GPS: כן'))
+        self.assertIn('NAVIGATION',legacy['extra_choices'])
+
     def test_english_site_dot_dates_keep_day_month_order(self):
         raw='Client language: English\n'+SAMPLE.replace('2026-09-26','26.09.2026').replace('2026-10-03','03.10.2026')
         data,_,_=parse_inquiry(raw)

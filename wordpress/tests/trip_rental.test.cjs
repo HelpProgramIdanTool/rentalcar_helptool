@@ -27,6 +27,8 @@ assert.deepEqual(p['car_group[]'],['TEST-CATEGORY-A','TEST-CATEGORY-B']);
 assert.equal(p.trip_car_request_nonce[0],'TEST-NONCE');
 assert.equal(JSON.parse(p.trip_ui[0]).returnAddress,'TEST-HOTEL');
 p=submit({pickupCity:'OTHER',pickupOtherCity:'TEST-CITY',pickupCountry:'TEST-COUNTRY'});
+assert.doesNotMatch(fs.readFileSync(path.join(root,'page.html'),'utf8'),/name="gps"/);
+assert.equal(submit({gps:'on'}).gps[0],'לא');
 assert.equal(p.pickup_city[0],'TEST-CITY, TEST-COUNTRY');
 const validate=require('../trip-rental-page/validation.js');
 const now=Date.parse('2026-11-13T10:00:00Z');
