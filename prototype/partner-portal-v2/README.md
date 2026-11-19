@@ -1,5 +1,44 @@
 # Partner cabinet — design and browser presentation
 
+## Active controls and real local calculation — 19 November
+
+Run `uv --cache-dir .uv-cache run python scripts/preview_partner_portal_v2.py`.
+The current address is **http://127.0.0.1:8782/** (older 8778/8780 previews can be
+stale). Three header buttons: create offer, offers, orders. Creating an offer
+keeps its scrolling form; the other buttons show separate lists without clearing
+the form. A visible calendar button opens an explicit month/day dialog; it no
+longer relies on an invisible native picker receiving a click.
+
+`workspace-controls.js` loads `/api/prices` using the existing
+`partners.services.calculate_options` calculator, including full totals/deposits
+and configured gearbox filtering. These are **local price-list values, not a
+verification of the latest Render data**. The Python adapter opens the source
+SQLite database read-only, backs it up into ignored
+`private_uploads/partner-design-prices/preview.sqlite3`, applies migrations ONLY
+there and restores the owner's privately reviewed category mapping if present.
+Nothing updates the source DB, working orders or Render. No rates are embedded
+in source or committed to Git. API errors do not expose DB tracebacks. The API
+binds to localhost, accepts JSON only, rejects foreign browser origins and does
+not enable cross-origin access. The server still sends no mail or real bookings.
+
+Price changes in the form invalidate the previous calculation and block its use
+for ordering. Responses arriving after form changes are rejected. Prices follow
+the selected option into its driver form and inline final check. If local prices
+cannot be calculated, a visible error is shown rather than invented amounts.
+Static/offline opening cannot calculate prices; use the local Python server.
+
+Current front-end checks: ten tests across `controls.test.cjs` and
+`workspace.test.cjs`, using invented API response values, never real prices.
+HTTP/JSDOM exercises the served page and real local calculator separately. The
+older sections below describe earlier design iterations, not the live controls.
+
+Adapter checks: `uv --cache-dir .uv-cache run python manage.py test partners.test_design_prices`.
+Three database-free checks verify total/deposit/labels come from the shared
+calculator using invented values, automatic/manual filtering, rejection of an
+unknown city and non-half-hour time. Live HTTP/JSDOM verified three main areas,
+31 visible calendar-day buttons and priced rows loaded from the local API.
+Parallel asset loading uses an expanded local-server request queue.
+
 ## Current version: one scrolling workspace (19 November 2026)
 
 Idan rejected the separate-screen flow and low contrast. `index.html` now loads
