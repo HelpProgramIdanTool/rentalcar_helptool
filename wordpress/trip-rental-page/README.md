@@ -1,5 +1,11 @@
 # Trip2Poland rental page
 
+19 November 2026: plugin 1.6.3 deployed, page.js asset 7.3. GPS removed from
+public choices, summary and restore selection. New POST data sets GPS to no;
+notifications omit the field. The rental program's manual GPS service remains.
+Live recipient/date checks passed and the public page has no selectable GPS
+input. No test requests or emails were sent during verification.
+
 Approved v7 design at `/rent-a-car-in-poland/`, page 85.
 The page contains `[trip_car_request_form]`.
 

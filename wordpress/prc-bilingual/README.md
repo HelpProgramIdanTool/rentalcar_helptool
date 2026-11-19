@@ -1,7 +1,14 @@
 # Poland Rent a Car — bilingual foundation
 
-Deployed version 0.2.4 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
+Deployed version 0.2.5 on poland-rent-car.com. Polylang 3.9.2 is active; Hebrew is
 default and English is the second language. Existing addresses are preserved.
+
+19 November: GPS choice removed from the public Hebrew and English forms.
+The handler keeps a hidden canonical no answer and ignores cached public GPS
+selections. New notifications omit that field; historical request messages are
+not stripped unless they carry the new no-public-GPS marker. Navigation remains
+available to operators in the rental program. All 17 live health checks passed,
+including removal in both languages. Public forms verified after cache purge.
 
 ## Published
 
