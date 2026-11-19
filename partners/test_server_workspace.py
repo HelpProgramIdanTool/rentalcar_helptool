@@ -14,6 +14,21 @@ from .workspace_services import price_valid
 
 
 class PriceValidityTests(SimpleTestCase):
+    def test_each_child_seat_requires_one_parameter_and_accepts_any_of_four(self):
+        from .workspace_views import TestOrderForm
+        base={'driver_name':'TEST DRIVER','phone':'0000','email':'test@example.invalid'}
+        for key,value in [('age','0'),('height','95'),('weight','15'),('type_number','TEST TYPE')]:
+            form=TestOrderForm({**base,'child_seat_1_'+key:value},seat_count=1)
+            self.assertTrue(form.is_valid(),form.errors)
+            self.assertEqual(form.cleaned_data['child_seat_details'][0][key],value)
+        form=TestOrderForm({**base,'child_seat_1_age':'4'},seat_count=2)
+        self.assertFalse(form.is_valid())
+        self.assertIn('child_seat_2_age',form.errors)
+        form=TestOrderForm({**base,'child_seat_1_age':'-1','child_seat_1_type_number':'TEST TYPE'},seat_count=1)
+        self.assertFalse(form.is_valid())
+        form=TestOrderForm({**base,'child_seat_1_type_number':'   '},seat_count=1)
+        self.assertFalse(form.is_valid())
+
     def test_first_week_protects_old_price_and_later_requires_matching_supplier_versions(self):
         start=timezone.now()
         self.assertTrue(price_valid(start,start+timedelta(days=6),[1],[2]))
@@ -30,7 +45,7 @@ class ServerWorkspaceTests(TestCase):
         for partner in [self.partner,self.other]:
             partner.is_test=True;partner.save(update_fields=['is_test'])
 
-    def trip_data(self,**changes):return fixtures.PartnerFlowTests.trip_data(self,**changes)
+    def trip_data(self,**changes):return fixtures.PartnerFlowTests.trip_data(self,**{'customer_first_name':'TEST-CUSTOMER',**changes})
 
     def action(self,**payload):
         return self.client.post(reverse('partners:workspace_action'),json.dumps(payload),content_type='application/json')
@@ -79,6 +94,23 @@ class ServerWorkspaceTests(TestCase):
         form=WorkspaceTripForm(self.trip_data(cross_border=True))
         self.assertTrue(form.is_valid(),form.errors)
 
+    def test_customer_requires_one_valid_contact_detail_and_preserves_it(self):
+        from .forms import WorkspaceTripForm
+        empty=dict(customer_first_name='',customer_last_name='',customer_email='',customer_phone='')
+        response=self.action(action='calculate',trip=self.trip_data(**empty))
+        self.assertEqual(response.status_code,400)
+        self.assertIn('customer_first_name',response.json()['errors'])
+        for key,value in [('customer_first_name','TEST FIRST'),('customer_last_name','TEST LAST'),
+                          ('customer_email','test@example.invalid'),('customer_phone','000123')]:
+            form=WorkspaceTripForm(self.trip_data(**{**empty,key:value}))
+            self.assertTrue(form.is_valid(),form.errors)
+        form=WorkspaceTripForm(self.trip_data(customer_email='broken-email'))
+        self.assertFalse(form.is_valid())
+        response=self.action(action='save',trip=self.trip_data(**{**empty,'customer_phone':'000123'}),selected=[str(self.group.pk)])
+        self.assertEqual(response.status_code,200,response.content)
+        self.assertEqual(response.json()['record']['trip']['customer_phone'],'000123')
+        self.assertEqual(response.json()['record']['customer_name'],'000123')
+
     def test_invalid_trip_dates_are_rejected_without_saving_or_calculating(self):
         from unittest.mock import patch
         yesterday=(timezone.localdate()-timedelta(days=1)).strftime('%d.%m.%Y')
@@ -120,6 +152,27 @@ class ServerWorkspaceTests(TestCase):
         self.assertEqual(first.json()['record']['status'],'WAITING')
         from bookings.models import Booking
         self.assertEqual(Booking.all_objects.count(),0)
+        self.assertEqual(len(mail.outbox),0)
+
+    def test_child_seat_count_comes_from_saved_quote_and_details_are_preserved(self):
+        quote=self.quote()
+        record=PartnerWorkspaceRecord.objects.get(pk=quote['id'])
+        record.trip={**record.trip,'seats':2}
+        record.save(update_fields=['trip'])
+        details={'driver_name':'TEST DRIVER','phone':'0000','email':'test@example.invalid','child_seat_1_age':'3'}
+        payload=dict(action='order',id=quote['id'],option=str(self.group.pk),details=details)
+        response=self.action(**payload)
+        self.assertEqual(response.status_code,400)
+        self.assertIn('child_seat_2_age',response.json()['errors'])
+        self.assertFalse(PartnerWorkspaceRecord.objects.filter(kind='ORDER').exists())
+        details['child_seat_2_type_number']='TEST BOOSTER'
+        details['child_seat_1_weight']='14'
+        response=self.action(**payload)
+        self.assertEqual(response.status_code,200,response.content)
+        seats=response.json()['record']['details']['child_seat_details']
+        self.assertEqual(len(seats),2)
+        self.assertEqual(seats[0]['weight'],'14')
+        self.assertEqual(seats[1]['type_number'],'TEST BOOSTER')
         self.assertEqual(len(mail.outbox),0)
         self.assertEqual(self.action(action='simulate_send',id=quote['id'],send_customer=True,customer_email='client@example.invalid').status_code,200)
         self.assertEqual(len(mail.outbox),0)

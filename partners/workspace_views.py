@@ -27,6 +27,7 @@ class TestOrderForm(forms.Form):
     remarks=forms.CharField(max_length=2000,required=False)
 
     def __init__(self,*args,**kwargs):
+        self.seat_count = kwargs.pop('seat_count', 0)
         super().__init__(*args,**kwargs)
         labels={'driver_name':'שם הנהג באנגלית','phone':'טלפון','email':'מייל איש הקשר',
                 'additional_driver':'שם נהג נוסף באנגלית — אם יש','flight':'מספר טיסה',
@@ -35,12 +36,29 @@ class TestOrderForm(forms.Form):
         for name,field in self.fields.items():
             field.label=labels[name]
             field.error_messages.update(required='נא למלא שדה זה.',invalid='נא לבדוק את הערך שהוזן.')
+        for index in range(1, self.seat_count + 1):
+            for key, label, field in [
+                ('age', 'גיל בשנים', forms.DecimalField(min_value=0, max_value=18, decimal_places=2, required=False)),
+                ('height', 'גובה בס״מ', forms.DecimalField(min_value=1, max_value=250, decimal_places=2, required=False)),
+                ('weight', 'משקל בק״ג', forms.DecimalField(min_value=1, max_value=150, decimal_places=2, required=False)),
+                ('type_number', 'סוג הכיסא / בוסטר', forms.CharField(max_length=100, required=False)),
+            ]:
+                field.label = f'כיסא {index} — {label}'
+                field.error_messages['invalid'] = 'נא לבדוק את הנתון של הילד.'
+                self.fields[f'child_seat_{index}_{key}'] = field
 
     def clean(self):
         data=super().clean()
         if data.get('invoice'):
             for key in ['invoice_name','invoice_address']:
                 if not data.get(key):self.add_error(key,'יש להשלים את פרטי החשבונית.')
+        data['child_seat_details'] = []
+        for index in range(1, self.seat_count + 1):
+            seat = {key: data.pop(f'child_seat_{index}_{key}', None)
+                    for key in ('age', 'height', 'weight', 'type_number')}
+            if not any(value is not None and str(value).strip() for value in seat.values()):
+                self.add_error(f'child_seat_{index}_age', f'כיסא {index}: יש למלא לפחות גיל, גובה, משקל או סוג כיסא.')
+            data['child_seat_details'].append({key: str(value) if value is not None else '' for key,value in seat.items()})
         return data
 
 
@@ -105,8 +123,9 @@ def workspace_action(request):
         chosen=[o for o in options if o['id'] in selected]
         if not chosen or {o['id'] for o in chosen}!=selected:return JsonResponse({'error':'נא לבחור אפשרויות זמינות ולחשב מחדש.'},status=400)
         r=PartnerWorkspaceRecord.objects.create(partner=request.partner,kind='QUOTE',status='QUOTED',trip=trip,
-            options=chosen,price_versions=revision,customer_name=str(data.get('customer_name',''))[:200],created_by=request.user,
-            details={'partner_email':request.partner.email,'send_customer':False,'mail_sent':False})
+            options=chosen,price_versions=revision,customer_name=(' '.join(filter(None,[trip.get('customer_first_name'),trip.get('customer_last_name')])) or trip.get('customer_email') or trip.get('customer_phone') or '')[:200],created_by=request.user,
+            details={'partner_email':request.partner.email,'customer_email':trip.get('customer_email',''),
+                     'customer_phone':trip.get('customer_phone',''),'send_customer':False,'mail_sent':False})
         r.details={**r.details,'preview_html':render_workspace_offer(r,request.user)}
         r.save(update_fields=['details','updated_at'])
         return JsonResponse({'record':record_json(r)})
@@ -133,7 +152,7 @@ def workspace_action(request):
             if not price_valid(r.created_at,timezone.now(),r.price_versions.get(key),current):
                 return JsonResponse({'error':'עברו 7 ימים ומחירון החברה השתנה. יש לחשב הצעה חדשה ולאשר את המחיר.'},status=409)
             if not isinstance(data.get('details',{}),dict):return JsonResponse({'error':'נא לבדוק פרטי נהג.'},status=400)
-            form=TestOrderForm(data.get('details',{}))
+            form=TestOrderForm(data.get('details',{}),seat_count=int(r.trip.get('seats',0)))
             if not form.is_valid():return JsonResponse({'errors':form.errors.get_json_data()},status=400)
             existing=r.orders.filter(kind='ORDER',details__option_id=selected['id']).first()
             if existing:return JsonResponse({'record':record_json(existing),'duplicate':True})

@@ -91,6 +91,10 @@ class TripForm(forms.Form):
 class WorkspaceTripForm(TripForm):
     """Partner workspace has a single EU/Switzerland travel flag, no GPS request."""
     require_countries = False
+    customer_first_name = forms.CharField(max_length=100, required=False, label='שם פרטי של הלקוח')
+    customer_last_name = forms.CharField(max_length=100, required=False, label='שם משפחה של הלקוח')
+    customer_email = forms.EmailField(required=False, label='מייל הלקוח')
+    customer_phone = forms.CharField(max_length=60, required=False, label='טלפון הלקוח')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -100,6 +104,8 @@ class WorkspaceTripForm(TripForm):
 
     def clean(self):
         data = super().clean()
+        if not any(data.get(key) for key in ('customer_first_name', 'customer_last_name', 'customer_email', 'customer_phone')):
+            self.add_error('customer_first_name', 'נא למלא לפחות פרט אחד: שם פרטי, שם משפחה, מייל או טלפון.')
         # Ignore old clients and forged POST values as well as hidden UI fields.
         data['gps'] = False
         data['countries'] = ''
