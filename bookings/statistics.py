@@ -6,6 +6,8 @@ from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseBadRequest
+from django.db.models import Count, Q
+from django.db.models.functions import TruncMonth
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -100,6 +102,20 @@ def statistics(request):
         return HttpResponseBadRequest('Укажите год от 2000 до 9998.')
     active = Booking.objects.exclude(status__in=[Booking.Status.DRAFT,
         Booking.Status.CANCELLED, Booking.Status.NO_SHOW])
+    basis=request.GET.get('booking_date_basis','pickup')
+    if basis not in ('pickup','return'):
+        return HttpResponseBadRequest('Выберите дату получения или возврата.')
+    field=basis+'_datetime'
+    year_bookings=active.filter(**{field+'__date__gte':date(year,1,1),field+'__date__lt':date(year+1,1,1)})
+    confirmed=[Booking.Status.CONFIRMED,Booking.Status.ACTIVE,Booking.Status.COMPLETED,Booking.Status.SETTLED]
+    counts=dict(count=Count('pk'),confirmed=Count('pk',filter=Q(status__in=confirmed)),
+                waiting=Count('pk',filter=Q(status=Booking.Status.WAITING_CONFIRMATION)),
+                changes=Count('pk',filter=Q(status=Booking.Status.UPDATE_PENDING)))
+    supplier_counts=list(year_bookings.order_by('supplier__supplier_name','supplier_id').values('supplier_id','supplier__supplier_name').annotate(**counts))
+    month_counts=list(year_bookings.annotate(month=TruncMonth(field)).values('month').annotate(count=Count('pk')).order_by('month'))
+    years={today.year,today.year+1,year}
+    for date_field in ('pickup_datetime','return_datetime'):
+        years.update(y for y in Booking.objects.order_by().values_list(date_field+'__year',flat=True).distinct() if y and 2000<=y<=9998)
     selected = active.filter(return_datetime__date__gte=date(year, 1, 1),
                              return_datetime__date__lt=date(year + 1, 1, 1))
     records = []
@@ -134,6 +150,8 @@ def statistics(request):
             currency=item['booking'].currency, gross=item['booking'].total_price_gross,
             return_date=today, month=today.month) for item in unresolved], today)['totals'])
     context.update(active_menu='statistics', year=year, updated=timezone.now(),
+        year_choices=sorted(years),booking_date_basis=basis,booking_counts=year_bookings.aggregate(**counts),
+        booking_suppliers=supplier_counts,booking_months=month_counts,
         reports=supplier_summary(batches), missing_dates=active.filter(return_datetime=None).count(),
         drafts=Booking.objects.filter(status=Booking.Status.DRAFT, return_datetime__year=year).count())
     return render(request, 'bookings/statistics.html', context)

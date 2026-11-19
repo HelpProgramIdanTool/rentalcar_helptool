@@ -356,3 +356,17 @@ Cancelled	Anulowana	Cancelled
 Для автоматического импорта сохраняйте названия и порядок полей поставщика.	Aby umożliwić automatyczny import, zachowaj nazwy i kolejność pól dostawcy.	For automatic import, keep the supplier's field names and order.
 Собрать по формату поставщика	Przygotuj według formatu dostawcy	Rebuild in supplier format
 Заменить текущий черновик данными заказа. Прежний текст останется в истории.	Zastąp bieżący szkic danymi rezerwacji. Poprzedni tekst pozostanie w historii.	Replace the current draft with reservation data. The previous text stays in history.
+Заказы по дате	Rezerwacje według daty	Bookings by date
+Уже оформлено заказов на	Już zarezerwowano na rok	Bookings already made for
+По дате	Według daty	By date of
+получения автомобиля	odbioru samochodu	vehicle collection
+возврата автомобиля	zwrotu samochodu	vehicle return
+Черновики, отменённые, неявки и архивные заказы в эту сводку не входят.	Zestawienie nie obejmuje wersji roboczych, anulowanych, nieodebranych i zarchiwizowanych rezerwacji.	Draft, cancelled, no-show and archived bookings are excluded.
+Всего заказов	Łącznie rezerwacji	Total bookings
+Подтверждены / в работе / завершены	Potwierdzone / w realizacji / zakończone	Confirmed / active / completed
+Ожидают подтверждения	Oczekują na potwierdzenie	Awaiting confirmation
+Изменения на подтверждении	Zmiany oczekujące na potwierdzenie	Changes awaiting confirmation
+За выбранный год заказов пока нет.	Brak rezerwacji na wybrany rok.	No bookings for the selected year yet.
+Количество заказов по месяцам	Liczba rezerwacji według miesięcy	Booking count by month
+Оборот ниже по-прежнему относится к году возврата автомобиля.	Obrót poniżej nadal dotyczy roku zwrotu samochodu.	Turnover below continues to use the vehicle return year.
+Учитывается дата из карточки заказа. Записи без выбранной даты не распределяются по годам.	Uwzględniana jest data z rezerwacji. Rekordy bez wybranej daty nie są przypisywane do lat.	The date stored in the booking is used. Records without that date are not assigned to a year.

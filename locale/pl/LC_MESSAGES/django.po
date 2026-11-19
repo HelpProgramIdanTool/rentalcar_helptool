@@ -160,6 +160,9 @@ msgstr "Wszystkie firmy"
 msgid "Всего"
 msgstr "Łącznie"
 
+msgid "Всего заказов"
+msgstr "Łącznie rezerwacji"
+
 msgid "Всего операций"
 msgstr "Łącznie operacji"
 
@@ -301,6 +304,9 @@ msgstr "Inne miasto / kraj"
 msgid "Журнал версий"
 msgstr "Historia wersji"
 
+msgid "За выбранный год заказов пока нет."
+msgstr "Brak rezerwacji na wybrany rok."
+
 msgid "Заказ"
 msgstr "Rezerwacja"
 
@@ -315,6 +321,9 @@ msgstr "Rezerwacji"
 
 msgid "Заказы"
 msgstr "Rezerwacje"
+
+msgid "Заказы по дате"
+msgstr "Rezerwacje według daty"
 
 msgid "Закрыта"
 msgstr "Zamknięta"
@@ -339,6 +348,9 @@ msgstr "Zmiana rezerwacji"
 
 msgid "Изменения"
 msgstr "Zmiany"
+
+msgid "Изменения на подтверждении"
+msgstr "Zmiany oczekujące na potwierdzenie"
 
 msgid "Изменить"
 msgstr "Zmień"
@@ -420,6 +432,9 @@ msgstr "Liczba kierowców"
 
 msgid "Количество детских кресел"
 msgstr "Liczba fotelików"
+
+msgid "Количество заказов по месяцам"
+msgstr "Liczba rezerwacji według miesięcy"
 
 msgid "Количество новых или молодых водителей"
 msgstr "Liczba nowych lub młodych kierowców"
@@ -565,6 +580,9 @@ msgstr "Aktualizuj teraz"
 msgid "Обновлено"
 msgstr "Zaktualizowano"
 
+msgid "Оборот ниже по-прежнему относится к году возврата автомобиля."
+msgstr "Obrót poniżej nadal dotyczy roku zwrotu samochodu."
+
 msgid "Обратите внимание"
 msgstr "Uwaga"
 
@@ -573,6 +591,9 @@ msgstr "Taryfa ogólna"
 
 msgid "Ожидание с"
 msgstr "Oczekiwanie od"
+
+msgid "Ожидают подтверждения"
+msgstr "Oczekują na potwierdzenie"
 
 msgid "Операции"
 msgstr "Operacje"
@@ -694,6 +715,9 @@ msgstr "Wiadomość do dostawcy"
 msgid "Пн"
 msgstr "Pon"
 
+msgid "По дате"
+msgstr "Według daty"
+
 msgid "По дату"
 msgstr "Do daty"
 
@@ -720,6 +744,9 @@ msgstr "Dobierz samochody"
 
 msgid "Подтвердил"
 msgstr "Potwierdził"
+
+msgid "Подтверждены / в работе / завершены"
+msgstr "Potwierdzone / w realizacji / zakończone"
 
 msgid "Позднее получение"
 msgstr "Późny odbiór"
@@ -1006,11 +1033,17 @@ msgstr "Wymagają uwagi"
 msgid "Уже записано"
 msgstr "Już zapisano"
 
+msgid "Уже оформлено заказов на"
+msgstr "Już zarezerwowano na rok"
+
 msgid "Уникальных заказов"
 msgstr "Unikalne rezerwacje"
 
 msgid "Условия"
 msgstr "Warunki"
+
+msgid "Учитывается дата из карточки заказа. Записи без выбранной даты не распределяются по годам."
+msgstr "Uwzględniana jest data z rezerwacji. Rekordy bez wybranej daty nie są przypisywane do lat."
 
 msgid "ФИО"
 msgstr "Imię i nazwisko"
@@ -1045,6 +1078,9 @@ msgstr "Szkic"
 msgid "Черновики"
 msgstr "Szkice"
 
+msgid "Черновики, отменённые, неявки и архивные заказы в эту сводку не входят."
+msgstr "Zestawienie nie obejmuje wersji roboczych, anulowanych, nieodebranych i zarchiwizowanych rezerwacji."
+
 msgid "Чехия"
 msgstr "Czechy"
 
@@ -1063,6 +1099,9 @@ msgstr "Język klienta"
 msgid "Язык оферты"
 msgstr "Język oferty"
 
+msgid "возврата автомобиля"
+msgstr "zwrotu samochodu"
+
 msgid "дн."
 msgstr "dni"
 
@@ -1071,6 +1110,9 @@ msgstr "nie podano"
 
 msgid "нет данных"
 msgstr "brak danych"
+
+msgid "получения автомобиля"
+msgstr "odbioru samochodu"
 
 msgid "см"
 msgstr "cm"
