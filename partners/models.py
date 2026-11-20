@@ -73,11 +73,13 @@ class PartnerLoginAttempt(models.Model):
 
 
 class PartnerWorkspaceRecord(models.Model):
-    """Persisted workspace test data, isolated from actual bookings and statistics."""
+    """Partner workspace entries, with explicit test/live mode and native links."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     partner = models.ForeignKey(PartnerAccess, on_delete=models.PROTECT, related_name='workspace_records')
+    draft = models.OneToOneField(PartnerDraft, null=True, blank=True, on_delete=models.PROTECT, related_name='workspace_record')
+    booking = models.OneToOneField('bookings.Booking', null=True, blank=True, on_delete=models.PROTECT, related_name='partner_workspace_record')
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.PROTECT, related_name='orders')
-    kind = models.CharField(max_length=12, choices=[('QUOTE','Оферта'),('ORDER','Тестовый заказ'),('MANUAL','Ручной запрос'),('CHANGE','Изменение / отмена')])
+    kind = models.CharField(max_length=12, choices=[('QUOTE','Оферта'),('ORDER','Заказ'),('MANUAL','Ручной запрос'),('CHANGE','Изменение / отмена')])
     status = models.CharField(max_length=20, default='DRAFT')
     customer_name = models.CharField(max_length=200, blank=True)
     trip = models.JSONField(default=dict)
@@ -94,4 +96,8 @@ class PartnerWorkspaceRecord(models.Model):
 
     @property
     def number(self):
+        if not self.is_test:
+            if self.booking_id:return self.booking.booking_number
+            if self.draft_id and self.draft.quote_id:return self.draft.quote.quote_number
+            return 'PARTNER-'+self.kind+'-'+self.pk.hex[:8].upper()
         return 'TEST-'+self.kind+'-'+self.pk.hex[:8].upper()

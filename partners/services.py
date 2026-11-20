@@ -94,6 +94,17 @@ def prepare_quote(draft, recipient, config, user):
                 'rate_id':line['rate'].pk if line.get('rate') else None,
                 'name':line['name'], 'price':str(line.get('price','')), 'quantity':str(line.get('quantity',1)), 'warning':line.get('warning','')}
                 for line in option['extra_lines']])
+        snapshot.update(vehicle_rate_id=option['vehicle_rate'].pk,
+            rental_country=option.get('rental_country','PL'),
+            cross_border_requested=option.get('cross_border_requested',quote.cross_border_requested),
+            prepayment_notice=option.get('prepayment_notice',{}))
+        for saved,line in zip(snapshot['lines'],option['extra_lines']):
+            rate=line.get('rate')
+            if rate:
+                saved['rate_snapshot']={key:str(getattr(rate,key)) if getattr(rate,key) is not None else None
+                    for key in ('amount_gross','minimum_amount_gross','maximum_amount_gross')}
+                saved['rate_snapshot'].update(calculation_type=rate.calculation_type,formula_config=rate.formula_config,
+                    currency=rate.currency,is_mandatory=line['extra'].is_mandatory)
         QuoteOption.objects.create(quote=quote, supplier=option['supplier'], vehicle_group=option['group'],
             comparison_class=option['comparison'], supplier_name_snapshot=option['supplier'].supplier_name,
             vehicle_group_name_snapshot=option['group'].group_name, vehicle_models_snapshot=option['models'],

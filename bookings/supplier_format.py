@@ -72,6 +72,8 @@ def _services(booking, extras, options):
                     parts.append('age '+str(seat['age']))
                 if seat.get('height'):
                     parts.append('height '+str(seat['height'])+' cm')
+                if seat.get('weight'):
+                    parts.append('weight '+str(seat['weight'])+' kg')
                 details.append(', '.join(parts))
             name += ' '+(' / '.join(details) if details else '[please specify]')
         if extra.quantity > 1:

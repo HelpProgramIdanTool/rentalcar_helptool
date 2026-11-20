@@ -31,7 +31,7 @@ from .services import automatic_allowed, calculate_options, categories_with_opti
 class PartnerLogin(LoginView):
     template_name = 'partners/login.html'
     authentication_form = PartnerLoginForm
-    next_page = reverse_lazy('partners:home')
+    next_page = reverse_lazy('partners:workspace')
     redirect_authenticated_user = False
 
     def attempt_keys(self):

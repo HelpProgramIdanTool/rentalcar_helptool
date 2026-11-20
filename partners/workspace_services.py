@@ -1,21 +1,48 @@
-"""Test workspace uses the production quote calculator, with no email transport."""
+"""Shared pricing and rendering for isolated test and working partner accounts."""
 from datetime import timedelta
 from .services import calculate_options, automatic_allowed
 from suppliers.models import PriceList
+from django.db import transaction
 
 
+@transaction.atomic
 def render_workspace_offer(record, user):
-    """Render the operator's full offer, rolling back all temporary working rows.
-
-    Only the resulting HTML is retained in the separate test workspace record.
-    Never send mail or leave test customers/quotes in the operator's database.
-    """
+    """Render the operator offer; persist working quotes, roll back test rows."""
     from django.db import transaction
     from django.template.loader import render_to_string
     from .models import PartnerDraft, PortalConfiguration
     from types import SimpleNamespace
     from .services import prepare_quote
     from quotes.views import _quote_preview_context
+    if not record.is_test:
+        draft=PartnerDraft.objects.create(partner=record.partner,trip=record.trip,
+            selected_groups=[int(option['id']) for option in record.options])
+        config=PortalConfiguration.objects.first()
+        if not config or not config.workspace_copy_email:
+            from django.core.exceptions import ValidationError
+            raise ValidationError('כתובת העותק לעידן אינה מוגדרת. יש לפנות לעידן.')
+        quote=prepare_quote(draft,{'customer_name':record.customer_name,
+            'customer_email':record.trip.get('customer_email',''),'partner_email':record.partner.email,
+            'owner_email':config.workspace_copy_email,'send_customer':False},config,user)
+        quote.customer.phone_1=record.trip.get('customer_phone','')
+        quote.customer.save(update_fields=['phone_1'])
+        from customers.models import ReferralContact,ReferralEmail
+        referred=ReferralEmail.objects.filter(email__iexact=record.partner.email).select_related('contact').first()
+        if referred:contact=referred.contact
+        else:
+            contact=ReferralContact.objects.create(name=record.partner.display_name)
+            ReferralEmail.objects.create(contact=contact,email=record.partner.email)
+        quote.referral_contact=contact;quote.save(update_fields=['referral_contact'])
+        record.draft=draft;record.save(update_fields=['draft','updated_at'])
+        saved_options={str(option.vehicle_group_id):option for option in quote.options.all()}
+        for item in record.options:
+            option=saved_options[item['id']]
+            item.update(total=str(option.total_price_gross),currency=option.currency,
+                deposit=str(option.deposit_amount),deposit_currency=option.deposit_currency)
+        record.save(update_fields=['options','updated_at'])
+        context=_quote_preview_context(quote,is_email=True)
+        context['guides']=[]
+        return render_to_string('quotes/quote_preview.html',context)
     with transaction.atomic():
         draft = PartnerDraft.objects.create(partner=record.partner, trip=record.trip,
             selected_groups=[int(option['id']) for option in record.options])

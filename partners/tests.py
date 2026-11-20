@@ -201,7 +201,7 @@ class PartnerFlowTests(TestCase):
     def test_login_only_accepts_partner_and_ignores_operator_next(self):
         self.client.logout()
         response=self.client.post(reverse('partners:login')+'?next=/customers/',{'username':'TEST-PARTNER','password':'TEST-PASS'})
-        self.assertRedirects(response,reverse('partners:home'))
+        self.assertRedirects(response,reverse('partners:workspace'))
         self.client.logout()
         outsider=get_user_model().objects.create_user(username='NO-PORTAL',password='TEST-PASS')
         response=self.client.post(reverse('partners:login'),{'username':outsider.username,'password':'TEST-PASS'})
