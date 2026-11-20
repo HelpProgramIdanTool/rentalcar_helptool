@@ -33,7 +33,7 @@ class TestOrderForm(forms.Form):
         labels={'driver_name':'שם הנהג באנגלית','phone':'טלפון כולל קידומת המדינה','email':'מייל איש הקשר',
                 'additional_driver':'שם נהג נוסף באנגלית — אם יש','flight':'מספר טיסה',
                 'invoice':'נדרשת חשבונית עם פרטים מיוחדים','invoice_name':'שם החברה, באנגלית',
-                'invoice_tax':'מספר מס / זיהוי','invoice_address':'כתובת מלאה לחיוב','remarks':'הערות'}
+                'invoice_tax':'מספר מס / זיהוי','invoice_address':'כתובת מגורי קבע, באנגלית','remarks':'הערות'}
         for name,field in self.fields.items():
             field.label=labels[name]
             field.error_messages.update(required='נא למלא שדה זה.',invalid='נא לבדוק את הערך שהוזן.')
