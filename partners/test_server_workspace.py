@@ -210,6 +210,12 @@ class ServerWorkspaceTests(TestCase):
         self.assertEqual(self.client.get(reverse('partners:workspace_owner')).status_code,403)
         owner=get_user_model().objects.create_superuser(username='TEST-OWNER',email='owner@example.invalid',password='TEST-PASS')
         self.client.force_login(owner)
+        self.assertRedirects(self.client.get(reverse('partners:workspace')),reverse('partners:workspace_owner'))
+        self.assertEqual(self.client.post(reverse('partners:workspace_action'),{},content_type='application/json').status_code,403)
+        session=self.client.session
+        session['partner_preview_id']=999999999
+        session.save()
+        self.assertRedirects(self.client.get(reverse('partners:workspace')),reverse('partners:workspace_owner'))
         response=self.client.post(reverse('partners:workspace_owner'),{'partner':self.partner.pk})
         self.assertRedirects(response,reverse('partners:workspace'))
         self.assertEqual(self.client.session['_auth_user_id'],str(owner.pk))

@@ -73,6 +73,8 @@ def partner_only(view):
         if request.user.is_superuser and request.session.get('partner_preview_id'):
             request.partner = PartnerAccess.objects.filter(pk=request.session['partner_preview_id'],is_active=True).first()
         if not request.partner:
+            if request.user.is_superuser and request.method=='GET' and view.__module__=='partners.workspace_views' and view.__name__=='workspace':
+                return redirect('partners:workspace_owner')
             return HttpResponseForbidden('אין הרשאה לקבינט השותפים.')
         if request.partner.is_test and view.__module__!='partners.workspace_views':
             if request.method!='GET':
