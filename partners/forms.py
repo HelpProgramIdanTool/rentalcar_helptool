@@ -100,6 +100,13 @@ class WorkspaceTripForm(TripForm):
         super().__init__(*args, **kwargs)
         self.fields.pop('gps')
         self.fields.pop('countries')
+        # OfferCity.name is the canonical Latin city name used by pricing.
+        # label is the operator's display text and can be in Russian.
+        for side in ('pickup', 'return'):
+            self.fields[side+'_city'].choices = [
+                (value, self.cities[value].name if value in self.cities else label)
+                for value,label in self.fields[side+'_city'].choices
+            ]
         self.fields['cross_border'].label = 'יציאה למדינות האיחוד האירופי / שווייץ'
 
     def clean(self):

@@ -99,6 +99,17 @@ class ServerWorkspaceTests(TestCase):
         form=WorkspaceTripForm(self.trip_data(cross_border=True))
         self.assertTrue(form.is_valid(),form.errors)
 
+    def test_workspace_uses_canonical_city_names_without_changing_operator_labels(self):
+        from suppliers.models import OfferCity
+        from .forms import WorkspaceTripForm, TripForm
+        city=OfferCity.objects.create(name='TEST-FOREIGN-LATIN',label='ТЕСТ ГОРОД',country='TEST COUNTRY',cross_border_required=True)
+        for side in ('pickup','return'):
+            choices=dict(WorkspaceTripForm().fields[side+'_city'].choices)
+            self.assertEqual(choices[city.name],city.name)
+            self.assertEqual(dict(TripForm().fields[side+'_city'].choices)[city.name],city.label)
+        city.refresh_from_db()
+        self.assertEqual(city.label,'ТЕСТ ГОРОД')
+
     def test_customer_requires_one_valid_contact_detail_and_preserves_it(self):
         from .forms import WorkspaceTripForm
         empty=dict(customer_first_name='',customer_last_name='',customer_email='',customer_phone='')
