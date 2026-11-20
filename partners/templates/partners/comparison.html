@@ -6,6 +6,6 @@
 <tr><th scope="row">קבלת הרכב בטרמינל</th>{% for item in summaries %}<td>{{ item.facts.pickup }}</td>{% endfor %}</tr>
 <tr><th scope="row">החזרת הרכב בטרמינל</th>{% for item in summaries %}<td>{{ item.facts.return }}</td>{% endfor %}</tr>
 <tr class="fuel-row"><th scope="row">מדיניות דלק</th>{% for item in summaries %}<td>{{ item.facts.fuel }}</td>{% endfor %}</tr>
-<tr><th scope="row">אפשר להזמין ניווט GPS</th>{% for item in summaries %}<td>{{ item.facts.gps }}</td>{% endfor %}</tr>
+{% if not hide_gps %}<tr><th scope="row">אפשר להזמין ניווט GPS</th>{% for item in summaries %}<td>{{ item.facts.gps }}</td>{% endfor %}</tr>{% endif %}
 <tr><th scope="row">אפשר להזמין שרשראות שלג</th>{% for item in summaries %}<td>{{ item.facts.chains }}</td>{% endfor %}</tr>
 </tbody></table></div><p class="fine">{{ copy.comparison_note }}</p></section>
