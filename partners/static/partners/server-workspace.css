@@ -26,9 +26,9 @@ button.primary:hover { background:#0b4779; }
 button[data-edit-trip],button[data-back-trip],button[data-back-offer],button[data-back-order] { background:#edf4fa; border-color:#6f8ca5; font-weight:700; }
 #customer-fields .fields { grid-template-columns:repeat(4,minmax(0,1fr)); }
 #customer-fields p { margin:4px 0 10px; font-size:12px; }
-#supplier-comparison { margin:8px 0 12px; border:1px solid #91a8be; border-radius:6px; }
-#supplier-comparison>summary { padding:8px 12px; background:#edf4fa; color:#143757; cursor:pointer; font-weight:700; }
-#supplier-comparison[open]>summary { background:#163e61; color:white; }
+#supplier-comparison { margin:8px 0 16px; border:1px solid #9983b5; border-inline-start:4px solid #765399; border-radius:6px; background:#faf7fd; }
+#supplier-comparison>summary { padding:10px 12px; background:#eee5f7; color:#50316e; cursor:pointer; font-weight:700; }
+#supplier-comparison[open]>summary { background:#654381; color:white; }
 #supplier-comparison .comparison { padding:8px; }
 #supplier-comparison .section-heading { display:none; }
 #supplier-comparison table { font-size:12px; line-height:1.3; }
