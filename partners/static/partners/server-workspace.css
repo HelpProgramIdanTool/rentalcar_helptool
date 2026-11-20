@@ -68,3 +68,15 @@ button[data-edit-trip],button[data-back-trip],button[data-back-offer],button[dat
  .personal-intro>div:last-child { margin:6px 0; }
 }
 @media(max-width:380px){#customer-fields .fields,#order-form>.fields { grid-template-columns:1fr; }}
+
+#workflow-progress { list-style:none; display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:12px 0; }
+#workflow-progress li { padding:7px 10px; border-radius:6px; background:#edf3f8; border:1px solid #9eb3c5; color:#536b7e; font-size:13px; }
+#workflow-progress b { display:inline-grid; place-items:center; width:22px; height:22px; margin-inline-end:5px; border-radius:50%; background:#d5e2ed; }
+#workflow-progress [aria-current=step] { color:white; background:#164e78; border-color:#164e78; font-weight:700; }
+#workflow-progress [aria-current=step] b { color:#163960; background:#ffd36c; }
+#manual-request { margin:24px 0 12px; padding:14px; background:#edf2f6; border:1px dashed #7e98ae; border-radius:8px; }
+#manual-request h2 { font-size:17px; margin:0 0 8px; }
+#manual-request textarea { min-height:72px; }
+#manual-request p { margin:6px 0 0; font-size:12px; color:#526a7f; }
+#manual-request button { margin-top:8px; background:white; color:#163960; border:1px solid #6f8ca5; box-shadow:none; }
+@media(max-width:740px){#workflow-progress { gap:5px; }#workflow-progress li { flex:1 1 45%; padding:6px 8px; font-size:12px; }}

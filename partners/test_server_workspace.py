@@ -63,6 +63,21 @@ class ServerWorkspaceTests(TestCase):
         self.assertContains(page,'id="copy-fallback"')
         self.assertContains(page,'id="send-form"')
         self.assertContains(page,'id="offer-preview"')
+        self.assertContains(page,'id="workflow-progress"')
+        self.assertContains(page,'<article id="vehicle-section" hidden>')
+        self.assertContains(page,'<aside id="manual-request">')
+        from html.parser import HTMLParser
+        class PanelParser(HTMLParser):
+            def __init__(self):
+                super().__init__();self.sections=[];self.manual_outside=False
+            def handle_starttag(self,tag,attrs):
+                attrs=dict(attrs)
+                if tag=='section':self.sections.append('data-panel' in attrs)
+                if attrs.get('id')=='manual-request':self.manual_outside=not any(self.sections)
+            def handle_endtag(self,tag):
+                if tag=='section' and self.sections:self.sections.pop()
+        parser=PanelParser();parser.feed(page.content.decode())
+        self.assertTrue(parser.manual_outside)
         html=page.content.decode()
         self.assertLess(html.index('id="offer-preview"'),html.index('id="send-offer"'))
         self.assertLess(html.index('id="send-offer"'),html.index('id="saved-options"'))
