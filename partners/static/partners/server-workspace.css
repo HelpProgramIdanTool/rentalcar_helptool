@@ -11,3 +11,6 @@
 
 #order-errors { white-space:pre-line; padding:16px; color:#8b1717; background:#fff0ef; border:2px solid #bd2929; }
 #child-seat-fields fieldset { margin:18px 0; padding:16px; border:1px solid #7899b5; border-radius:10px; }
+
+#return-date-error { display:block; color:#a11b1b; font-size:15px; font-weight:700; margin-top:8px; }
+#return-date-error[hidden] { display:none; }
