@@ -14,3 +14,6 @@
 
 #return-date-error { display:block; color:#a11b1b; font-size:15px; font-weight:700; margin-top:8px; }
 #return-date-error[hidden] { display:none; }
+
+.offer-action-buttons { display:flex; gap:12px; flex-wrap:wrap; }
+@media(max-width:740px){.offer-action-buttons button { flex:1 1 100%; }}
