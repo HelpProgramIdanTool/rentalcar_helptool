@@ -79,4 +79,15 @@ button[data-edit-trip],button[data-back-trip],button[data-back-offer],button[dat
 #manual-request textarea { min-height:72px; }
 #manual-request p { margin:6px 0 0; font-size:12px; color:#526a7f; }
 #manual-request button { margin-top:8px; background:white; color:#163960; border:1px solid #6f8ca5; box-shadow:none; }
+/* Blue for the main workflow; warm amber for a personal request to Idan. */
+[data-panel]>article,#trip-form>article { border-inline-start:4px solid #23669e; }
+#workflow-progress { padding:8px; background:#dcebf8; border:1px solid #9bbbd7; border-radius:8px; }
+#manual-request { background:#fff5df; border:1px solid #d3ad65; border-inline-start:4px solid #ad7525; }
+#manual-request h2 { color:#714815; }
+#manual-request label { color:#614116; }
+#manual-request p { color:#75582b; }
+#manual-request textarea { border-color:#b99860; }
+#manual-request button { color:#68400e; background:#ffe2a6; border-color:#ad7525; font-weight:700; }
+#manual-request button:hover { background:#ffd482; }
+#manual-request button:focus-visible { outline-color:#845113; }
 @media(max-width:740px){#workflow-progress { gap:5px; }#workflow-progress li { flex:1 1 45%; padding:6px 8px; font-size:12px; }}
