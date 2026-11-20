@@ -94,7 +94,7 @@ class WorkspaceTripForm(TripForm):
     customer_first_name = forms.CharField(max_length=100, required=False, label='שם פרטי של הלקוח')
     customer_last_name = forms.CharField(max_length=100, required=False, label='שם משפחה של הלקוח')
     customer_email = forms.EmailField(required=False, label='מייל הלקוח')
-    customer_phone = forms.CharField(max_length=60, required=False, label='טלפון הלקוח')
+    customer_phone = forms.CharField(max_length=60, required=False, label='טלפון כולל קידומת המדינה')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

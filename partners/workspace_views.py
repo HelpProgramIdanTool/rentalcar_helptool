@@ -30,9 +30,9 @@ class TestOrderForm(forms.Form):
         self.seat_count = kwargs.pop('seat_count', 0)
         self.driver_count = kwargs.pop('driver_count', 1)
         super().__init__(*args,**kwargs)
-        labels={'driver_name':'שם הנהג באנגלית','phone':'טלפון','email':'מייל איש הקשר',
+        labels={'driver_name':'שם הנהג באנגלית','phone':'טלפון כולל קידומת המדינה','email':'מייל איש הקשר',
                 'additional_driver':'שם נהג נוסף באנגלית — אם יש','flight':'מספר טיסה',
-                'invoice':'נדרשת חשבונית עם פרטים מיוחדים','invoice_name':'שם לחיוב / חברה',
+                'invoice':'נדרשת חשבונית עם פרטים מיוחדים','invoice_name':'שם החברה, באנגלית',
                 'invoice_tax':'מספר מס / זיהוי','invoice_address':'כתובת מלאה לחיוב','remarks':'הערות'}
         for name,field in self.fields.items():
             field.label=labels[name]
