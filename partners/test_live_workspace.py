@@ -4,10 +4,17 @@ from decimal import Decimal
 from unittest.mock import patch
 from django.core import mail
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import TestCase, SimpleTestCase, override_settings
 from django.urls import reverse
 from . import test_server_workspace as server_fixtures
 from .models import PartnerAccess, PartnerWorkspaceRecord, PortalConfiguration
+
+class CopyRecipientsTests(SimpleTestCase):
+    def test_owner_and_partner_get_copies_without_duplicate_recipients(self):
+        from .live_workspace import copy_recipients
+        self.assertEqual(copy_recipients(['supplier@example.invalid'],'owner@example.invalid','partner@example.invalid'),['owner@example.invalid','partner@example.invalid'])
+        self.assertEqual(copy_recipients(['OWNER@example.invalid'],'owner@example.invalid','partner@example.invalid'),['partner@example.invalid'])
+        self.assertEqual(copy_recipients([],'owner@example.invalid','OWNER@example.invalid'),['owner@example.invalid'])
 
 @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
 class LiveWorkspaceTests(TestCase):
@@ -52,9 +59,10 @@ class LiveWorkspaceTests(TestCase):
         self.assertIsNotNone(record.booking_id)
         self.assertEqual(record.booking.total_price_gross,quoted)
         self.assertEqual(record.booking.status,'WAITING_CONFIRMATION')
+        self.assertEqual(record.details['sent_copies'],['owner@example.invalid',self.partner.email])
         self.assertEqual(len(mail.outbox),1)
         self.assertEqual(mail.outbox[0].to,['supplier@example.invalid'])
-        self.assertEqual(mail.outbox[0].bcc,['owner@example.invalid'])
+        self.assertEqual(mail.outbox[0].bcc,['owner@example.invalid',self.partner.email])
         self.assertIn('TEST DRIVER',mail.outbox[0].body)
         self.order(quote)
         self.assertEqual(len(mail.outbox),1)

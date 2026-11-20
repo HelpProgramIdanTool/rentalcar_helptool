@@ -23,6 +23,17 @@ def subject(record,kind):
     return f'[PARTNER · {record.partner.display_name}] {kind} · {record.number}'
 
 
+def copy_recipients(primary,*addresses):
+    seen={address.strip().casefold() for address in primary}
+    result=[]
+    for address in addresses:
+        address=address.strip()
+        validate_email(address)
+        if address.casefold() not in seen:
+            seen.add(address.casefold());result.append(address)
+    return result
+
+
 def send_offer(record,user,send_customer,customer_email):
     from quotes.models import Quote, QuoteEmailDelivery
     from quotes.email_tools import seat_guides
@@ -147,6 +158,7 @@ def send_booking(record,user):
     booking=record.booking;copy=owner_copy()
     recipients=parse_email_addresses(booking.supplier.booking_email)
     if not recipients:raise ValidationError('כתובת חברת ההשכרה חסרה. יש לפנות לעידן.')
+    copies=copy_recipients(recipients,copy,record.partner.email)
     body=render_supplier_booking(booking)
     if record.details.get('remarks'):body+='\nRemarks: '+record.details['remarks']
     error=booking_price_error(booking,body=body)
@@ -154,7 +166,7 @@ def send_booking(record,user):
     title=subject(record,'New booking')
     delivery=SupplierEmailDelivery.objects.create(token=uuid4(),booking=booking,recipient=';'.join(recipients),
         subject=title,body=body,created_by=user)
-    message=EmailMultiAlternatives(subject=title,body=body,to=recipients,bcc=[copy] if copy.casefold() not in {r.casefold() for r in recipients} else [],reply_to=[copy])
+    message=EmailMultiAlternatives(subject=title,body=body,to=recipients,bcc=copies,reply_to=[copy])
     html=new_booking_html(booking,'NEW',body)
     if html:message.attach_alternative(html,'text/html')
     try:
@@ -167,5 +179,5 @@ def send_booking(record,user):
     booking.log_history(BookingHistoryEvent.EventType.STATUS_CHANGED,'Partner request sent; waiting for Idan confirmation',
         old_status=Booking.Status.DRAFT,new_status=Booking.Status.WAITING_CONFIRMATION,
         changes={'partner_id':record.partner_id,'operator_user_id':user.pk})
-    record.status='WAITING';record.details={**record.details,'mail_sent':True}
+    record.status='WAITING';record.details={**record.details,'mail_sent':True,'sent_copies':copies}
     record.save(update_fields=['status','details','updated_at'])

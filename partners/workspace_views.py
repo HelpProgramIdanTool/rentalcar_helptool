@@ -205,7 +205,7 @@ def workspace_action(request):
                 except (SMTPException,OSError,ValidationError,ValueError):
                     order.status='SEND_FAILED';order.save(update_fields=['status','updated_at'])
                     return JsonResponse({'record':record_json(order),'message':'ההזמנה נשמרה בתוכנית אך השליחה לא אושרה. יש לפנות לעידן; אין להזמין שוב.'})
-                return JsonResponse({'record':record_json(order),'message':'ההזמנה נשלחה לחברה עם עותק לעידן. ממתינה לאישור.'})
+                return JsonResponse({'record':record_json(order),'message':'ההזמנה נשלחה לחברה עם עותק אליכם ולעידן. ממתינה לאישור.'})
             return JsonResponse({'record':record_json(order),'message':'הזמנת הבדיקה נשמרה. לא נשלח מייל לחברה.'})
         if action in ('change','cancel') and r.kind=='ORDER':
             message=str(data.get('message','')).strip()[:3000]
