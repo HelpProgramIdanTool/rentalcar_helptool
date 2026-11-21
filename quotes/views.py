@@ -120,6 +120,7 @@ def _quote_form_initial(quote):
         "driver_count": quote.driver_count,
         "cross_border_requested": quote.cross_border_requested,
         "rental_country": quote.rental_country,
+        "local_rental_branch": quote.local_rental_branch_id,
         "referral_contact": quote.referral_contact_id,
         "extra_choices": list(quote.extra_requests),
         "child_seat_quantity": quote.extra_requests.get("CHILD_SEAT", 1),
@@ -154,6 +155,7 @@ def _update_quote_from_form(quote, data):
     quote.driver_count = data["driver_count"]
     quote.cross_border_requested = data["cross_border_requested"]
     quote.rental_country = data.get('rental_country','PL')
+    quote.local_rental_branch = data.get('local_rental_branch')
     quote.pickup_country = location_country_name(data['pickup_city'])
     quote.return_country = location_country_name(data['return_city'])
     quote.referral_contact = data.get('referral_contact')
@@ -209,6 +211,7 @@ def new_inquiry(request, customer_id=None):
             if form.cleaned_data["return_address"]:
                 return_location += f": {form.cleaned_data['return_address']}"
             quote = Quote.objects.create(
+                local_rental_branch=form.cleaned_data.get('local_rental_branch'),
                 rental_country=form.cleaned_data.get('rental_country','PL'),
                 pickup_country=location_country_name(form.cleaned_data['pickup_city']),
                 return_country=location_country_name(form.cleaned_data['return_city']),
@@ -295,7 +298,7 @@ def duplicate_quote(request, quote_number):
         customer=source.customer, created_by_user=request.user, status=Quote.Status.DRAFT,
         language=source.language, pickup_datetime=source.pickup_datetime,
         sub_agent=source.sub_agent,
-        rental_country=source.rental_country, referral_contact=source.referral_contact,
+        rental_country=source.rental_country, local_rental_branch=source.local_rental_branch, referral_contact=source.referral_contact,
         pickup_country=source.pickup_country, return_country=source.return_country,
         return_datetime=source.return_datetime, pickup_location_text=source.pickup_location_text,
         return_location_text=source.return_location_text, pickup_city=source.pickup_city,
@@ -601,11 +604,11 @@ def _quote_preview_context(quote, *, is_email=False):
             for key in ("body_type_label", "transmission_label", "fuel_type_label", "luggage_info"):
                 option.calculation_snapshot[key] = translate_text(option.calculation_snapshot.get(key, ""), presentation)
     blocks = quote.document_blocks.filter(Q(is_enabled=True) | Q(block_key__in=REQUIRED_BLOCKS)).exclude(content="")
+    for block in blocks:
+        block.title = localize_country_text(block.title, quote, country=country)
+        block.content = localize_country_text(block.content, quote, country=country)
     introduction_keys = {"GREETING", "IMPORTANT", "CROSS_BORDER"}
     introduction_blocks = [block for block in blocks if block.block_key in introduction_keys]
-    for block in introduction_blocks:
-        if block.block_key == 'CROSS_BORDER':
-            block.content = localize_country_text(block.content, quote, country=country)
     blocks = [block for block in blocks if block.block_key not in introduction_keys]
     blocks.sort(key=lambda block: block.block_key != "ORDER_DETAILS")
     term_styles = {
@@ -639,7 +642,7 @@ def _quote_preview_context(quote, *, is_email=False):
         return_location += f": {translate_text(quote.return_address, presentation)}"
     from .company_comparison import offer_company_comparison
     return {
-        "company_comparison": offer_company_comparison(options, quote.language),
+        "company_comparison": None if quote.local_rental_branch_id else offer_company_comparison(options, quote.language),
         "quote": quote, "options": options, "blocks": blocks,
         "rental_country_name": country.localized_names.get(quote.language, country.name) if country and quote.rental_country != 'PL' else '',
         "rental_country_caption": country.localized_names.get(quote.language+'_label', '') if country else '',

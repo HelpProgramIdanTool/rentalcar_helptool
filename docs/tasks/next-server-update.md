@@ -1,5 +1,14 @@
 # Правки для следующего общего обновления сервера
 
+## 2026.11.21.2 - local Czech offer mode prepared, NOT DEPLOYED
+
+Separate configured local-rental entry mode, supplier/country/route checks,
+persistent branch selection and shared-calculator price confirmation guard.
+Owner confirmed the same Car Free prices for Czech local rental. Migration 0063
+records this approval only for that branch. Production deployment awaits backup.
+See docs/tasks/czech-local-offer-mode.md for configuration and test details.
+
+
 ### Offer comparison added to prepared 2026.11.21.1
 
 Compact comparison after vehicle-options heading, selected suppliers only,

@@ -174,6 +174,11 @@ class SupplierLocalBranch(models.Model):
     country = models.ForeignKey(RentalCountry,on_delete=models.PROTECT)
     waive_foreign_delivery = models.BooleanField(default=True)
     waive_prepayment = models.BooleanField(default=True)
+    offer_mode_enabled = models.BooleanField(default=False)
+    offer_mode_label = models.CharField(max_length=160, blank=True)
+    offer_mode_help = models.TextField(blank=True)
+    offer_mode_pricing_confirmed = models.BooleanField(default=False,
+        help_text='Разрешено использовать действующие тарифы и условия поставщика для этой местной аренды.')
 
     class Meta:
         constraints=[models.UniqueConstraint(fields=['supplier','city'],name='unique_supplier_local_branch_city')]

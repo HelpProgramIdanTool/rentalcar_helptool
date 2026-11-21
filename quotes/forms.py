@@ -5,6 +5,7 @@ from django.utils import timezone
 from suppliers.models import Supplier, VehicleComparisonClass, VehicleGroup, OfferCity, RentalCountry
 from employees.models import SubAgent
 from customers.models import ReferralContact
+from .local_rental_modes import LocalRentalModeField, mode_choices, configure_modes, validate_mode
 
 
 QUOTE_STATUS_LABELS = {
@@ -187,6 +188,8 @@ class FirstInquiryForm(forms.Form):
         label=_('Кто обратился'), empty_label=_('Сам клиент'), help_text=_('Контакт для учёта обращений. Комиссия не включается.'))
     rental_country = forms.ChoiceField(label=_('Страна аренды'),choices=[('PL','Польша'),('CZ','Чехия')],initial='PL',required=False,
         help_text=_('Меняется вручную. Страны получения и возврата определяются по городам отдельно.'))
+    local_rental_branch = LocalRentalModeField(queryset=mode_choices(), required=False,
+        label=_('Режим оферты'), empty_label=_('Обычная аренда — Польша по умолчанию'))
     extra_choices = forms.MultipleChoiceField(
         label=_("Дополнительные услуги"),
         choices=EXTRA_CHOICES,
@@ -215,6 +218,7 @@ class FirstInquiryForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.pricing_only = kwargs.pop("pricing_only", False)
         super().__init__(*args, **kwargs)
+        configure_modes(self)
         if 'rental_country' in self.fields:
             self.fields['rental_country'].choices=[(code, _(name)) for code, name in RentalCountry.objects.filter(is_active=True).values_list('code','name')]
         cities = list(OfferCity.objects.filter(is_active=True))
@@ -303,7 +307,7 @@ class FirstInquiryForm(forms.Form):
                     self.initial[f"{side}_other_country"] = parts[1]
         if self.pricing_only:
             keep = {"suppliers", "sub_agent", "driver_count", "extra_choices",
-                    "child_seat_quantity", "young_driver_quantity", "cross_border_requested", "rental_country"}
+                    "child_seat_quantity", "young_driver_quantity", "cross_border_requested", "rental_country", "local_rental_branch"}
             self.fields = {name: field for name, field in self.fields.items()
                            if name.startswith(("pickup_", "return_")) or name in keep}
         for field in self.fields.values():
@@ -313,6 +317,8 @@ class FirstInquiryForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         cleaned['rental_country']=cleaned.get('rental_country') or 'PL'
+        if cleaned.get('local_rental_branch'):
+            cleaned['rental_country'] = cleaned['local_rental_branch'].country.code
         full_name = (cleaned.get("full_name") or "").strip()
         if full_name:
             name_parts = full_name.split(maxsplit=1)
@@ -366,6 +372,7 @@ class FirstInquiryForm(forms.Form):
             from .country_rules import location_country
             if any(location_country(cleaned.get(side+'_city','')) not in ('',cleaned['rental_country']) for side in ('pickup','return')):
                 cleaned['cross_border_requested']=True
+        validate_mode(cleaned, self.add_error)
         pickup_date = cleaned.get("pickup_date")
         if pickup_date and groups is not None:
             unavailable_groups = groups.filter(available_from__gt=pickup_date)

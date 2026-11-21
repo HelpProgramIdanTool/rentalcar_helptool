@@ -39,6 +39,12 @@ def route_context(quote,supplier):
     flags['base']=base
     flags['countries']=countries
     flags['unsupported']=base!='PL' and not any(b.country.code==base for b in branches)
+    mode = getattr(quote, 'local_rental_branch', None)
+    if mode:
+        flags['unsupported'] = flags['unsupported'] or (
+            not mode.offer_mode_enabled or not mode.offer_mode_pricing_confirmed or
+            supplier.pk != mode.supplier_id or base != mode.country.code or
+            any(value != mode.country.code for value in countries.values()))
     flags['warnings']=[]
     if base != 'PL' and all(value and value != base for value in countries.values()):
         flags['warnings'].append('Страна аренды не совпадает ни со страной получения, ни со страной возврата. Проверьте выбор вручную.')

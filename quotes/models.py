@@ -63,6 +63,8 @@ class Quote(models.Model):
     return_address = models.CharField(max_length=300, blank=True)
     cross_border_requested = models.BooleanField(default=False)
     rental_country = models.CharField(max_length=2,default='PL')
+    local_rental_branch = models.ForeignKey('suppliers.SupplierLocalBranch', null=True, blank=True,
+        on_delete=models.PROTECT, related_name='local_quotes')
     pickup_country = models.CharField(max_length=100, blank=True)
     return_country = models.CharField(max_length=100, blank=True)
     extra_requests = models.JSONField(default=dict, blank=True)

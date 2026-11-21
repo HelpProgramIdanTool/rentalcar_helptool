@@ -79,6 +79,12 @@
       <button class="icon-button" id="restore-draft" type="button" title="Восстановить черновик" aria-label="Восстановить черновик"><span aria-hidden="true">↶</span></button>
     </div>
     {% endif %}
+    <section style="padding:14px 18px;margin-bottom:14px;background:#eaf2ff;border:1px solid #a8c4e9;border-radius:10px">
+      <label style="font-weight:bold">{{ form.local_rental_branch.label }} {{ form.local_rental_branch }}</label>{{ form.local_rental_branch.errors }}
+      <p id="local-mode-help" role="status" style="margin:8px 0"></p>
+      <button type="button" id="ordinary-rental-mode" hidden>{% translate "Перейти в обычный режим — сохранить данные" %}</button>
+    </section>
+    {{ form.local_mode_data|json_script:"local-rental-modes" }}
     <div class="work-area">
     <fieldset class="message-panel"><legend>{% translate "Клиент написал" %}</legend>
       <label class="customer-message">{{ form.customer_notes }}{{ form.customer_notes.errors }}</label>
@@ -354,4 +360,4 @@
   const errorSummary=document.querySelector('#form-errors');
   syncCrossBorder();
   if(errorSummary)errorSummary.focus();
-</script><script src="{% static 'quotes/price_preview.js' %}?v=20261030-availability"></script></body></html>
+</script><script src="{% static 'quotes/local_rental_mode.js' %}"></script><script src="{% static 'quotes/price_preview.js' %}?v=20261030-availability"></script></body></html>
