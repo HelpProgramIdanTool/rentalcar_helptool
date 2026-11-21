@@ -43,6 +43,8 @@ test('portrait module parses and supports readable English and Hebrew author car
   const dom=new JSDOM('<style>'+css+'</style><section class="prc-author-card" dir="rtl"><img class="prc-author-portrait"><div class="prc-author-copy">'+data.he.description+'</div></section>');
   const card=dom.window.getComputedStyle(dom.window.document.querySelector('section'));
   assert.equal(card.direction,'rtl');assert.equal(card.textAlign,'right');
+  assert.equal(card.marginLeft,'auto');assert.equal(card.marginRight,'auto');
+  assert.equal(card.maxWidth,'920px');assert.equal(card.boxSizing,'border-box');
   const img=dom.window.getComputedStyle(dom.window.document.querySelector('img'));
   assert.equal(img.objectFit,'cover');
   const bytes=fs.readFileSync('wordpress/prc-bilingual/assets/idan-portrait.jpg');

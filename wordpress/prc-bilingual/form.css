@@ -51,7 +51,7 @@ body.prc-english-page { direction:ltr!important; text-align:left; }
 .prc-personal-support h2 { margin-top:0; }
 .prc-guide-links { display:flex; flex-wrap:wrap; gap:8px 12px; margin:24px 0; }
 .prc-editorial-note { font-size:14px; color:#526579; margin-top:28px; }
-.prc-author-card { display:flex; align-items:center; gap:24px; padding:24px; margin:24px 0 32px; background:#f2f7fb; border:1px solid #dbe4ed; border-radius:12px; font-family:Arial,Helvetica,sans-serif; color:#24354a; line-height:1.6; clear:both; }
+.prc-author-card { display:flex; align-items:center; gap:24px; padding:24px; box-sizing:border-box; width:calc(100% - 48px); max-width:920px; margin:24px auto 32px; float:none; background:#f2f7fb; border:1px solid #dbe4ed; border-radius:12px; font-family:Arial,Helvetica,sans-serif; color:#24354a; line-height:1.6; clear:both; }
 .prc-author-card[dir="ltr"] { direction:ltr; text-align:left; }
 .prc-author-card[dir="rtl"] { direction:rtl; text-align:right; }
 .prc-author-card .prc-author-portrait { display:block; flex:0 0 144px; width:144px; height:144px; max-width:144px; object-fit:cover; border-radius:50%; }
