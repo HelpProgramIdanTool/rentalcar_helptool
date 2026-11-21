@@ -1,0 +1,19 @@
+"""Build a Hebrew winter-driving article preview; no WordPress writes."""
+from pathlib import Path
+from build_rental_companies_review import STYLE
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / 'output/website-review/winter-driving-review.html'
+content = (ROOT / 'wordpress/prc-bilingual/content/winter-driving-he.html').read_text(encoding='utf-8')
+css = '''
+.winter-page{max-width:920px}.winter-hero{padding:36px 0 22px}.winter-page h1{font-size:clamp(30px,4.5vw,46px);line-height:1.2;letter-spacing:-.7px}.winter-page h2{font-size:25px;margin-bottom:12px}.winter-page h3{font-size:19px}.winter-page p{max-width:800px}.article-section{margin:28px 0;padding:24px;background:#fff;border:1px solid var(--line);border-radius:10px}.author{display:flex;gap:12px;align-items:center;margin-top:20px;font-size:13px}.author img{width:64px;height:64px;border-radius:50%;object-fit:cover}.quick-check{background:#eaf2fa;border:1px solid #c4d9ed;border-inline-start:5px solid var(--blue);padding:22px;border-radius:10px;margin:10px 0 30px}.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px 24px}.check-grid p{margin:0;font-size:14px}.check-grid b{color:var(--navy)}.practical-list{padding-inline-start:23px;margin:0}.practical-list li+li{margin-top:9px}.personal-story{border-inline-start:5px solid #b58623;background:#fff6df;border-radius:10px;padding:25px;margin:30px 0}.personal-story h2{margin:8px 0 14px}.sign-section{display:grid;grid-template-columns:1fr 200px;gap:25px;align-items:start}.sign-section figure{margin:0;text-align:center}.sign-section img{max-width:100%;height:auto}.sign-section figcaption{font-size:11px;line-height:1.6;margin-top:12px;color:#627387}.foreign-note{margin:28px 0}.sources{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:30px;font-size:13px}.sources summary{cursor:pointer;font-weight:bold;color:var(--navy)}.sources li{margin:7px 0}.sources p{font-size:12px}.winter-page .cta{grid-template-columns:1fr auto}.winter-page .cta h2{font-size:24px}.winter-page .clarity{margin-top:18px}.winter-page .guide-links{font-size:13px}.site-head nav{flex-wrap:wrap}
+@media(max-width:600px){.winter-page{padding:0 16px}.winter-hero{padding:25px 0 18px}.winter-page .lead{font-size:17px}.article-section{padding:19px;margin:20px 0}.winter-page h2{font-size:23px}.check-grid{grid-template-columns:1fr;gap:13px}.quick-check,.personal-story{padding:20px}.sign-section{grid-template-columns:1fr}.sign-section figure{max-width:230px;margin:0 auto}.sign-section img{width:130px}.winter-page .cta{grid-template-columns:1fr}.author{align-items:flex-start}}
+'''
+html = '''<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>חורף בפולין בלי דרמה — תצוגה מקדימה</title><style>''' + STYLE + css + '''</style></head><body>
+<div class="review-bar" dir="ltr"><span><strong>ПРЕДОСМОТР ДЛЯ ОДОБРЕНИЯ</strong> · Статья пока не опубликована</span><a href="#sources-link">Источники внизу статьи</a></div>
+<header class="site-head"><div class="wrap"><a class="brand" href="https://poland-rent-car.com/">Poland Rent a Car</a><nav><a href="https://poland-rent-car.com/rental-companies/">חברות ההשכרה</a><a href="https://poland-rent-car.com/request-form/">בקשת הצעה</a></nav></div></header>
+<main class="wrap winter-page">''' + content.replace('<details class="sources">','<details class="sources" id="sources-link">') + '''</main>
+<footer class="site-footer"><div class="wrap"><span>עידן · Poland Rent a Car</span><a href="mailto:idanrentacar@gmail.com">idanrentacar@gmail.com</a><a dir="ltr" href="https://wa.me/48533100636">+48 533 100 636 · WhatsApp</a></div></footer></body></html>'''
+OUT.parent.mkdir(parents=True, exist_ok=True)
+OUT.write_text(html, encoding='utf-8')
+print(OUT)
