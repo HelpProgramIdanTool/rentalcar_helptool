@@ -8,10 +8,11 @@ from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4
 
 ROOT=Path(__file__).resolve().parents[1]
-OUT=ROOT/'output/pdf/Poland_Rent_a_Car_Partner_Guide_HE.pdf'
+OUT=ROOT/'output/pdf/Poland_Rent_a_Car_Partner_Guide_HE_Updated.pdf'
 LOGIN='https://rentalcar-helptool.onrender.com/partners/login/'
 EMAIL='idanrentacar@gmail.com'
 PHONE='+48 533 100 636'
+TOTAL_PAGES=7
 W,H=A4
 M=43
 NAVY='#163960';BLUE='#145f9e';INK='#23364b';MUTED='#5c6e81'
@@ -90,7 +91,7 @@ class Guide:
     def finish(self):
         assert self.y>66,f'Page {self.page} overflowed: {self.y}'
         c=self.c;c.setStrokeColor(HexColor('#d6e0eb'));c.line(M,49,W-M,49)
-        self.text(f'עמוד {self.page} מתוך 6',W-M,32,8.5,color=MUTED)
+        self.text(f'עמוד {self.page} מתוך {TOTAL_PAGES}',W-M,32,8.5,color=MUTED)
         self.text('Poland Rent a Car | 21.11.2026',M,32,8,color=MUTED,rtl=False)
         c.linkURL(LOGIN,(M,22,230,44),relative=0,thickness=0)
         c.showPage()
@@ -132,6 +133,17 @@ def build():
     g.para('לבקשה שאינה רגילה, לשינוי או לביטול - פנו לעידן. אם שכחתם סיסמה, בקשו ממנו עזרה. בסיום העבודה במחשב משותף לחצו על ״יציאה״.',size=10.8,gap=6)
     g.text(EMAIL,M,g.y,10.4,True,BLUE,False);g.c.linkURL('mailto:'+EMAIL,(M,g.y-3,225,g.y+12),relative=0,thickness=0)
     g.text(PHONE,W-M-pdfmetrics.stringWidth(PHONE,'GuideBold',10.4),g.y,10.4,True,BLUE,False);g.c.linkURL('https://wa.me/48533100636',(W-190,g.y-3,W-M,g.y+12),relative=0,thickness=0);g.y-=20
+
+    g.new('גישה מהירה למערכת','סמל במחשב או בטלפון','אפשר לפתוח את הקבינט בלחיצה על סמל, בלי לחפש את הקישור בכל פעם. אין צורך להוריד אפליקציה מחנות.')
+    g.para('תחילה פותחים בדפדפן רגיל את עמוד הכניסה הבא. אם הקישור נפתח בתוך WhatsApp או אפליקציית מייל, מעתיקים אותו ל-Chrome או ל-Safari. לא משתמשים בגלישה פרטית.',size=10.8)
+    g.text(LOGIN,M,g.y,9,color=BLUE,rtl=False);g.c.linkURL(LOGIN,(M,g.y-3,W-M,g.y+12),relative=0,thickness=0);g.y-=25
+    g.step(1,'מחשב - Chrome','פתחו את עמוד הכניסה. בתפריט שלוש הנקודות בחרו ״העברה, שמירה ושיתוף״ (Cast, save, and share), ואז ״יצירת קיצור דרך״ (Create shortcut). תנו לקיצור שם, למשל Poland Rent a Car, ולחצו ״יצירה״. פתחו את הקיצור שנוצר כדי לוודא שהוא מוביל לקבינט.')
+    g.step(2,'טלפון Android - Chrome','פתחו את עמוד הכניסה ב-Chrome. לחצו על שלוש הנקודות ובחרו ״הוספה למסך הבית״. בגרסאות אחרות האפשרות מופיעה תחת Install and create shortcut ואז Create shortcut. תנו לסמל שם, לחצו ״הוספה״ ואשרו את ההוספה למסך הבית אם תתבקשו.')
+    g.step(3,'iPhone - Safari','פתחו את עמוד הכניסה ב-Safari. לחצו על כפתור השיתוף, בחרו ״הוסף למסך הבית״ (Add to Home Screen), תנו לסמל שם ולחצו ״הוסף״. אם האפשרות אינה מופיעה, גללו ברשימת פעולות השיתוף ובדקו גם ״עריכת פעולות״ (Edit Actions).')
+    g.callout('מה הסמל עושה?','הסמל הוא קיצור דרך לאותו חשבון ואותם נתונים. כדי לעבוד נדרשים חיבור לאינטרנט ופרטי הכניסה שלכם. אם המערכת מבקשת סיסמה מחדש, נכנסים כרגיל; הסמל אינו עוקף את ההתחברות. שמות התפריטים עשויים להשתנות לפי שפת המכשיר וגרסת הדפדפן.',PALE)
+    g.para('להוראות היצרן המעודכנות: קיצורי דרך ב-Chrome וב-Safari.',size=9.5,color=MUTED,gap=5)
+    for label,url in [('Chrome - Computer','https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DDesktop&hl=en'),('Chrome - Android','https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&hl=en'),('Safari - iPhone','https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios')]:
+        g.text(label,M,g.y,9,color=BLUE,rtl=False);g.c.linkURL(url,(M,g.y-3,M+180,g.y+12),relative=0,thickness=0);g.y-=16
 
     g.new('שלב 1 מתוך 4','פרטי הלקוח והנסיעה','פתחו את הלשונית ״לתת הצעה״. הנתונים שתזינו ישמשו לחישוב ולשמירת ההצעה.')
     g.step(1,'זהו את הלקוח','מלאו לפחות פרט אחד: שם פרטי, שם משפחה, מייל או טלפון. מומלץ למלא כמה שיותר פרטים כדי שתזהו את ההצעה בהמשך. בטלפון ציינו גם את קידומת המדינה.')
