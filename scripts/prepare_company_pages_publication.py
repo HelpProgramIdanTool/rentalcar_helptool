@@ -49,6 +49,7 @@ def prepare():
         css = re.sub(r'([^{}]+)\{', scope, STYLE)
         css += '''.prc-company-page{--navy:#163960;--blue:#145f9e;--ink:#25374a;--muted:#627387;--line:#dce4ed;--gold:#ffdf70;color:var(--ink);direction:rtl;font:16px/1.75 Arial,sans-serif;max-width:1120px;margin:auto}.prc-company-page img{max-width:100%}.prc-company-page .explain{margin:20px 0}.prc-company-page h1{font-size:clamp(29px,4vw,45px)}body:has(.prc-company-page) #sidebar{display:none}body:has(.prc-company-page) #left-area{width:100%;padding:0}body:has(.prc-company-page) #main-content .container:before{display:none}body:has(.prc-company-page) .entry-title{display:none}'''
         content = re.sub(r'<h1>[\s\S]*?</h1>', '', content)
+        content += '''<aside class="clarity" style="margin:24px 0"><h2>נוסעים בחורף?</h2><p>צמיגים מתאימים לעונה הם חלק מההכנה. קראו מתי צריך שרשראות, מה בודקים בקבלת הרכב ואיך מתכוננים לנסיעה לזקופנה.</p><a href="https://poland-rent-car.com/winter-driving-poland/">למדריך נהיגה בחורף בפולין: צמיגים ושרשראות</a></aside>'''
         css = css.replace('body:has(.prc-company-page) .entry-title{display:none}', 'body:has(.prc-company-page) .entry-title{display:block;font-size:clamp(28px,4vw,42px);color:#163960;line-height:1.3}')
         content = '<style>' + css + '</style><div class="prc-company-page" lang="he" dir="rtl">' + content + '</div>'
         payload.append(dict(slug=slug, title=title, seo_title=title,
