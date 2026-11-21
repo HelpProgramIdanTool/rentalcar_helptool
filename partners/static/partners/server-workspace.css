@@ -91,3 +91,6 @@ button[data-edit-trip],button[data-back-trip],button[data-back-offer],button[dat
 #manual-request button:hover { background:#ffd482; }
 #manual-request button:focus-visible { outline-color:#845113; }
 @media(max-width:740px){#workflow-progress { gap:5px; }#workflow-progress li { flex:1 1 45%; padding:6px 8px; font-size:12px; }}
+
+.abroad-support { margin:10px 0; padding:10px 12px; border:1px solid #99b4ce; border-inline-start:4px solid #145f9e; background:#edf5fd; border-radius:6px; font-size:13px; line-height:1.5; }
+.abroad-support strong { color:#163960; }.abroad-support p { margin:5px 0; }.abroad-support small { color:#526b80; font-size:12px; }
