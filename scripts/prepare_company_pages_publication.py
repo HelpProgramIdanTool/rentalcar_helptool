@@ -34,6 +34,13 @@ def prepare():
         assert '127.0.0.1' not in content
         assert '-review.html' not in content
         assert 'review-bar' not in content
+        # WordPress content transport can corrupt embedded JPEG payloads.
+        # Reuse the existing public portrait asset instead of embedding it.
+        content = re.sub(
+            r'src="data:image/jpeg;base64,[^"]+"',
+            'src="https://poland-rent-car.com/wp-content/plugins/prc-bilingual/assets/idan-portrait.jpg" width="600" height="597"',
+            content,
+        )
         def scope(match):
             selector = match.group(1).strip()
             if selector.startswith('@'):
