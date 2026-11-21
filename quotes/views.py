@@ -637,7 +637,9 @@ def _quote_preview_context(quote, *, is_email=False):
         pickup_location += f": {translate_text(quote.pickup_address, presentation)}"
     if quote.return_address:
         return_location += f": {translate_text(quote.return_address, presentation)}"
+    from .company_comparison import offer_company_comparison
     return {
+        "company_comparison": offer_company_comparison(options, quote.language),
         "quote": quote, "options": options, "blocks": blocks,
         "rental_country_name": country.localized_names.get(quote.language, country.name) if country and quote.rental_country != 'PL' else '',
         "rental_country_caption": country.localized_names.get(quote.language+'_label', '') if country else '',

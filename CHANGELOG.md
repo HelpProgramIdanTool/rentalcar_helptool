@@ -1,5 +1,14 @@
 # Журнал версий RentalCar
 
+### Offer comparison added to prepared 2026.11.21.1
+
+Compact comparison after vehicle-options heading, selected suppliers only,
+Hebrew/English/Polish (also Russian), shared editable summary facts and a matching
+article link. English article 25957 is already updated on WordPress. Migration
+partners.0009_offer_company_comparison; 45 focused tests passed. Render deployment
+still pending a fresh verified backup. See docs/offer-company-comparison.md.
+
+
 ## 2026.11.21.1 — подготовлен, установка не подтверждена
 
 - Сравнение фирм в кабинетах партнёров: Kaizen — получение/возврат только в Польше; Car Free, One Rent и MM Cars — за пределами Польши возможны по предварительному согласованию. Выезд на автомобиле за границу поясняется отдельно от зарубежной выдачи/возврата.

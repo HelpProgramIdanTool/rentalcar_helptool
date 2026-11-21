@@ -1,5 +1,14 @@
 # Правки для следующего общего обновления сервера
 
+### Offer comparison added to prepared 2026.11.21.1
+
+Compact comparison after vehicle-options heading, selected suppliers only,
+Hebrew/English/Polish (also Russian), shared editable summary facts and a matching
+article link. English article 25957 is already updated on WordPress. Migration
+partners.0009_offer_company_comparison; 45 focused tests passed. Render deployment
+still pending a fresh verified backup. See docs/offer-company-comparison.md.
+
+
 ## 2026.11.21.1 — уточнения сравнения и обслуживания за границей
 
 Подготовлены данные и шаблон сравнения для всех партнёрских кабинетов:
