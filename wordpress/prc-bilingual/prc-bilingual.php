@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PRC Bilingual Form
  * Description: English presentation and saved client language for the existing PRC request form.
- * Version: 0.2.5
+ * Version: 0.2.6
  */
 defined('ABSPATH') || exit;
 
@@ -183,7 +183,7 @@ final class PRC_Bilingual_Form {
             }
             $time->parentNode->appendChild($select);
         }
-        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.2.5');
+        wp_enqueue_style('prc-bilingual', plugin_dir_url(__FILE__) . 'form.css', [], '0.2.6');
         wp_add_inline_script('poland-car-request-form', 'window.PRCFormEnglish=' . wp_json_encode(self::catalog()) . ';', 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/form.js'), 'before');
         wp_add_inline_script('poland-car-request-form', file_get_contents(__DIR__ . '/pickers.js'), 'after');
@@ -320,8 +320,11 @@ add_filter('body_class', function ($classes) {
     return $classes;
 });
 add_action('wp_enqueue_scripts',function(){
-    if (PRC_Bilingual_Form::english_page() || (is_page() && function_exists('pll_current_language'))) {
-        wp_enqueue_style('prc-bilingual',plugin_dir_url(__FILE__).'form.css',[],'0.2.5');
+    if (!PRC_Bilingual_Form::english_page()) {
+        wp_enqueue_script('prc-mobile-language',plugin_dir_url(__FILE__).'mobile-language.js',[],'0.2.6',true);
+    }
+    if (!is_admin()) {
+        wp_enqueue_style('prc-bilingual',plugin_dir_url(__FILE__).'form.css',[],'0.2.6');
     }
 });
 add_filter('wp_nav_menu_args',function($args){

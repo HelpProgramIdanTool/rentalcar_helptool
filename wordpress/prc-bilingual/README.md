@@ -124,3 +124,17 @@ No connected browser was available, so real-device visual verification is pendin
 Hostinger AI, Polylang and this add-on were installed with user authorization.
 Deployment and publication were part of the explicitly requested site rollout.
 No original articles, real reservations or sent emails were deleted or resent.
+
+### Mobile language panel — 0.2.6, 21 November 2026
+
+The Hebrew Divi header now copies its existing paired-language selector into the
+menu panel beside the mobile trigger. At widths up to 980px the copy is visible
+without opening the dropdown and the original dropdown item is hidden. Desktop
+menus retain their original selector. The standalone English header is unchanged.
+Scripts/styles use version 0.2.6 to refresh cached assets. No language targets are
+hardcoded in JavaScript: paired links and the active language come from PHP.
+
+Fourteen local tests pass. Public checks confirm current assets on the Hebrew
+homepage, article and English homepage; execution against the actual public
+header confirms both Divi menu variants mount the selector. No connected browser
+was available for a visual screenshot check. Plugin-only deployment succeeded.

@@ -7,6 +7,30 @@ const catalog = JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/form
 const script = fs.readFileSync('wordpress/prc-bilingual/form.js','utf8');
 const pickers = fs.readFileSync('wordpress/prc-bilingual/pickers.js','utf8');
 
+test('mobile header exposes the original language targets outside the dropdown without duplicates',()=>{
+  const html='<header class="et-l--header"><div class="et_pb_menu"><div class="et_pb_menu__wrap"><div class="et_pb_menu__menu"><ul><li class="prc-language-menu"><nav class="prc-language-switcher" aria-label="Language"><a href="/he-paired/" aria-current="page">HE</a><a href="/en-paired/">EN</a></nav></li></ul></div><div class="et_mobile_nav_menu"></div></div></div></header>';
+  const dom=new JSDOM(html,{runScripts:'outside-only'});
+  dom.window.eval(fs.readFileSync('wordpress/prc-bilingual/mobile-language.js','utf8'));
+  dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+  dom.window.dispatchEvent(new dom.window.Event('load'));
+  const copies=dom.window.document.querySelectorAll('.prc-mobile-language-switcher');
+  assert.equal(copies.length,1);
+  assert.equal(copies[0].closest('ul'),null);
+  assert.deepEqual(Array.from(copies[0].querySelectorAll('a'),a=>a.getAttribute('href')),['/he-paired/','/en-paired/']);
+  assert.equal(copies[0].querySelector('[aria-current="page"]').textContent,'HE');
+  assert.ok(dom.window.document.querySelector('.prc-mobile-languages-ready'));
+  const css=fs.readFileSync('wordpress/prc-bilingual/form.css','utf8');
+  assert.match(css,/@media \(max-width:980px\)/);
+  assert.match(css,/\.prc-mobile-languages-ready \.prc-language-menu\s*\{\s*display:none!important/);
+});
+
+test('English standalone header is left intact',()=>{
+  const dom=new JSDOM('<header class="prc-english-header"><nav class="prc-language-switcher"><a href="/">HE</a><a href="/english/">EN</a></nav></header>',{runScripts:'outside-only'});
+  dom.window.eval(fs.readFileSync('wordpress/prc-bilingual/mobile-language.js','utf8'));
+  dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+  assert.equal(dom.window.document.querySelectorAll('.prc-language-switcher').length,1);
+});
+
 test('portrait module parses and supports readable English and Hebrew author cards',()=>{
   new Engine({parser:{suppressErrors:false}}).parseCode(fs.readFileSync('wordpress/prc-bilingual/author.php','utf8'));
   const data=JSON.parse(fs.readFileSync('wordpress/prc-bilingual/content/author.json','utf8'));

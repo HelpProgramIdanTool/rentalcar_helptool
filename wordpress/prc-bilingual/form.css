@@ -80,6 +80,19 @@ body.prc-english-page { direction:ltr!important; text-align:left; }
 .prc-language-switcher a { display:inline-block; padding:8px 12px; border:1px solid #cbd5e1; border-radius:7px; line-height:1.4; text-decoration:none; background:#fff; color:#163960; }
 .prc-language-switcher a[aria-current="page"] { background:#163960; color:#fff; border-color:#163960; }
 .prc-language-switcher a:focus-visible { outline:3px solid #f5b841; outline-offset:3px; }
+.prc-mobile-language-switcher { display:none; }
+@media (max-width:980px) {
+  .prc-mobile-languages-ready .prc-language-menu { display:none!important; }
+  .prc-mobile-languages-ready .prc-mobile-language-switcher {
+    display:flex!important; flex-wrap:nowrap; flex-shrink:0; align-items:center;
+    gap:4px; margin:0 10px; position:static; direction:ltr;
+  }
+  .prc-mobile-language-switcher a {
+    display:inline-flex!important; align-items:center; justify-content:center;
+    padding:7px 9px!important; min-height:34px; font-size:12px!important;
+    line-height:1.25!important; border-radius:6px; white-space:nowrap;
+  }
+}
 .prc-request-container { width:100%; max-width:1160px; margin:0 auto; padding:32px 24px; box-sizing:border-box; }
 .prc-request-page .prc-form-wrap { max-width:100%; margin-inline:0; }
 .prc-request-page .prc-form-wrap *, .prc-request-page .prc-form-wrap *::before,
