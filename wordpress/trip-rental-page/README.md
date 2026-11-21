@@ -1,5 +1,18 @@
 # Trip2Poland rental page
 
+21 November 2026: plugin 1.7.0 adds the reversible site header/footer module
+(`site-shell.php`, assets 1.0.1). Uses existing WordPress menus 9 and 6; contact
+and presentation defaults are in site-shell.json, overridden by the
+trip_site_shell option and Customizer contact controls. Original Divi layouts
+remain stored. Set trip_site_shell.enabled to false to restore them.
+Flag Icons was deactivated on trip2poland.co.il; Russian pages were not deleted.
+Divi discards an early wp_body_open buffer, so the new header is emitted at
+wp_footer and moved before page-container by site-shell.js.
+Responsive rules cover compact navigation below 1100px, phones below 600px,
+and narrow phones below 360px. DOM interaction checks and published HTML checks
+passed; actual device/screenshot verification was unavailable in this session.
+Run `node wordpress/tests/trip_shell.test.cjs` as well as the rental form checks.
+
 19 November 2026: plugin 1.6.3 deployed, page.js asset 7.3. GPS removed from
 public choices, summary and restore selection. New POST data sets GPS to no;
 notifications omit the field. The rental program's manual GPS service remains.

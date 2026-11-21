@@ -1,0 +1,67 @@
+.trip-shell-theme #top-header,.trip-shell-theme #main-header,.trip-shell-theme .et-l--footer,.trip-shell-theme #main-footer{display:none!important}
+.trip-shell-theme #page-container{padding-top:0!important;overflow:visible!important}
+.trip-shell-theme{margin-inline:0!important}
+.trip-shell,.trip-shell *{box-sizing:border-box}
+.trip-shell{font-family:Arial,"Noto Sans Hebrew",sans-serif;font-size:16px;line-height:1.5;direction:rtl;text-align:right;color:#213b53;max-width:100%}
+.trip-shell a{color:inherit;text-decoration:none;transition:color .15s,background .15s}
+.trip-shell a:hover{color:#a5242a}.trip-shell a:focus-visible,.trip-shell button:focus-visible{outline:3px solid #c43b40;outline-offset:3px}
+.trip-shell-inner{width:calc(100% - 48px);max-width:1240px;margin-inline:auto}
+.trip-shell-header{position:relative;z-index:1000;background:#fff;border-bottom:1px solid #dbe3eb;box-shadow:0 3px 14px #142b4310}
+.trip-contact-strip{background:#18364f;color:#fff;font-size:13px}
+.trip-contact-strip .trip-shell-inner{min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.trip-contact-strip a:hover{color:#fff;text-decoration:underline}.trip-contact-links{display:flex;gap:22px;flex-wrap:wrap;align-items:center}
+.trip-main-bar{display:flex;align-items:center;gap:24px;min-height:92px}
+.trip-brand{display:inline-flex;align-items:center;flex:0 0 auto}
+.trip-shell .trip-brand img{display:block;width:168px;max-width:100%;height:auto;max-height:66px;object-fit:contain;margin:0;float:none}
+.trip-primary-navigation{flex:1;min-width:0}.trip-primary-list,.trip-services-strip ul,.trip-shell-footer ul{list-style:none!important;padding:0!important;margin:0!important}
+.trip-primary-list{display:flex;align-items:center;justify-content:center;gap:12px}
+.trip-nav-item{position:relative;list-style:none!important;padding:0!important;margin:0!important}
+.trip-nav-link{display:flex;align-items:center;gap:2px}.trip-nav-link>a{display:block;padding:12px 5px;font-size:15px;font-weight:700;white-space:nowrap}
+.trip-submenu-toggle{font:inherit;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:#36546e;cursor:pointer;min-width:28px;min-height:38px;padding:2px}
+.trip-submenu{display:none;position:absolute;inset-inline-start:0;top:100%;min-width:230px;max-width:300px;padding:7px!important;margin:0!important;list-style:none!important;background:#fff;border:1px solid #dce5ed;border-radius:8px;box-shadow:0 8px 28px #142b4320;z-index:10}
+.trip-submenu .trip-nav-link>a{font-size:14px;font-weight:400;white-space:normal;padding:9px 10px;flex:1}
+.trip-submenu .trip-submenu{top:0;inset-inline-start:100%}
+.trip-nav-item.is-open>.trip-submenu{display:block}
+@media(hover:hover) and (min-width:1100px){.trip-has-children:hover>.trip-submenu{display:block}}
+.trip-contact-button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 18px;border-radius:6px;background:#b83238;color:#fff!important;font-size:14px;font-weight:700;white-space:nowrap}
+.trip-contact-button:hover{background:#96272c}.trip-menu-toggle{display:none;font:inherit;background:#f0f5f9;border:1px solid #cbd8e4;border-radius:6px;color:#18364f;padding:9px 12px;cursor:pointer;font-size:14px;min-height:42px;gap:7px;align-items:center}
+.trip-services-strip{border-top:1px solid #edf1f5;background:#f6f9fc}
+.trip-services-strip ul{display:flex;justify-content:center;gap:6px 24px;flex-wrap:wrap;margin-inline:auto!important;padding:6px 0!important}
+.trip-services-strip li{margin:0;padding:0;list-style:none}.trip-services-strip a{display:block;padding:5px 0;font-size:13px;color:#36546e}
+.trip-shell-footer{margin-top:48px;background:#17344c;color:#ecf2f7;border-top:4px solid #b83238;padding:42px 0 0;clear:both}
+.trip-footer-grid{display:grid;grid-template-columns:1.35fr 1fr 1fr 1.15fr;gap:36px}
+.trip-shell-footer h2{font-family:inherit;font-size:17px;line-height:1.4;font-weight:700;color:#fff;padding:0;margin:0 0 15px}
+.trip-shell-footer p{font-size:14px;line-height:1.85;color:#d2deea;margin:15px 0 0;padding:0}
+.trip-shell-footer .trip-brand{background:#fff;border-radius:8px;padding:8px 12px}
+.trip-shell-footer .trip-brand img{width:145px;max-height:56px}
+.trip-shell-footer li{padding:0;margin:0 0 8px;list-style:none}
+.trip-shell-footer li a,.trip-footer-contact>a{display:inline-block;font-size:14px;line-height:1.6;padding:2px 0;color:#e1eaf2}
+.trip-shell-footer a:hover{color:#fff;text-decoration:underline}.trip-footer-contact>a{display:table;margin-bottom:9px;overflow-wrap:anywhere;max-width:100%}
+.trip-footer-contact .trip-whatsapp{border:1px solid #8caaba;padding:6px 12px;border-radius:6px;color:#fff}
+.trip-social-links{display:flex;flex-wrap:wrap;gap:7px 12px;margin-top:17px;font-size:12px}
+.trip-footer-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:32px;padding:18px 0;border-top:1px solid #ffffff28;font-size:12px;color:#c7d8e5}
+@media(max-width:1099px){
+ .trip-main-bar{min-height:80px;flex-wrap:wrap;gap:12px;padding-block:12px}
+ .trip-brand{margin-inline-end:auto}.trip-shell .trip-brand img{width:148px;max-height:56px}
+ .trip-menu-toggle{display:inline-flex}.trip-contact-button{padding:9px 12px}
+ .trip-primary-navigation{flex:0 0 100%;width:100%;order:5}
+ .trip-shell-header[data-menu-ready] .trip-primary-navigation{display:none}
+ .trip-shell-header[data-menu-ready].is-open .trip-primary-navigation{display:block}
+ .trip-primary-list{display:block;border-top:1px solid #e1e8ef;padding-top:8px!important}
+ .trip-nav-link>a{flex:1;padding:11px 8px;font-size:16px;white-space:normal}
+ .trip-submenu-toggle{min-height:44px;min-width:44px;border-inline-start:1px solid #e1e8ef}
+ .trip-submenu,.trip-submenu .trip-submenu{position:static;min-width:0;max-width:none;padding:0 14px 4px 0!important;box-shadow:none;border:0;border-inline-start:2px solid #dce5ed;border-radius:0}
+ .trip-services-strip ul{gap:2px 18px;justify-content:flex-start}
+ .trip-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:30px}
+}
+@media(max-width:600px){
+ .trip-shell-inner{width:calc(100% - 32px)}.trip-tagline{display:none}
+ .trip-contact-strip .trip-shell-inner{justify-content:center;padding:6px 0;min-height:32px}
+ .trip-contact-links{justify-content:center;gap:3px 15px;font-size:12px}
+ .trip-main-bar{min-height:72px;gap:8px}.trip-shell .trip-brand img{width:126px;max-height:48px}
+ .trip-contact-button{font-size:13px;padding:8px 10px;min-height:40px}.trip-menu-toggle{font-size:13px;padding:8px 10px;min-height:40px}
+ .trip-services-strip a{font-size:12px;padding:5px 0}.trip-services-strip ul{gap:0 14px;padding:5px 0!important}
+ .trip-shell-footer{padding-top:30px;margin-top:32px}.trip-footer-grid{grid-template-columns:1fr 1fr;gap:28px 20px}
+ .trip-footer-brand,.trip-footer-contact{grid-column:1/-1}.trip-shell-footer h2{font-size:16px}.trip-shell-footer li a{font-size:13px}
+}
+@media(max-width:359px){.trip-shell .trip-brand img{width:105px}.trip-menu-toggle,.trip-contact-button{padding:7px 8px}.trip-main-bar{gap:6px}.trip-footer-grid{grid-template-columns:1fr}.trip-footer-brand,.trip-footer-contact{grid-column:auto}}

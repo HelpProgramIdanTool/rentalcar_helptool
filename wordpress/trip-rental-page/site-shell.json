@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "brand": "Holiday in Poland",
+  "tagline": "סיורים, נסיעות ונופש בפולין — בעברית ובקשר אישי",
+  "description": "מידע לתכנון החופשה בפולין, סיורים בעברית, השכרת רכב והסעות. בחרו את השירות שמתאים לנסיעה שלכם ופנו אלינו לתיאום.",
+  "logo_path": "/wp-content/uploads/2016/11/logo_141px_shadow.png",
+  "phone_display": "+48 533 100 636",
+  "phone": "+48533100636",
+  "email": "info@trip2poland.co.il",
+  "primary_menu": 9,
+  "services_menu": 6,
+  "contact_path": "/contact-us/",
+  "contact_label": "צור קשר",
+  "menu_label": "תפריט",
+  "services_label": "שירותים לנסיעה שלכם",
+  "discover_label": "מגלים את פולין",
+  "follow_label": "נשארים בקשר",
+  "social": [
+    {"label": "Facebook", "url": "https://www.facebook.com/groups/visit2poland/"},
+    {"label": "Instagram", "url": "https://www.instagram.com/trip2poland4u/"},
+    {"label": "YouTube", "url": "https://www.youtube.com/channel/UCLJ3mhPrizMzJjdget1Oo5g/"}
+  ]
+}
