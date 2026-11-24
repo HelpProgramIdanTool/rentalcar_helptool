@@ -76,6 +76,9 @@ msgstr "Next pickup"
 msgid "Будущие возвраты"
 msgstr "Upcoming returns"
 
+msgid "В каких фирмах и какие классы бронировал клиент"
+msgstr "Rental companies and vehicle classes booked by this customer"
+
 msgid "В письме отсутствует описание молодых/новых водителей. Добавьте строку:"
 msgstr "The message is missing the young/new driver details. Add this line:"
 
@@ -568,6 +571,9 @@ msgstr "New customer"
 msgid "Номер"
 msgstr "Number"
 
+msgid "Номер резервации"
+msgstr "Reservation number"
+
 msgid "Номер резервации поставщика"
 msgstr "Supplier reservation number"
 
@@ -772,11 +778,17 @@ msgstr "Pickup from"
 msgid "Польша"
 msgstr "Poland"
 
+msgid "Последние резервации — даты и номера"
+msgstr "Recent bookings — dates and numbers"
+
 msgid "Поставщик"
 msgstr "Supplier"
 
 msgid "Предыдущие копии"
 msgstr "Previous copies"
+
+msgid "Предыдущие резервации клиента"
+msgstr "Customer booking history"
 
 msgid "Предыдущий"
 msgstr "Previous"
@@ -1077,6 +1089,9 @@ msgstr "Draft"
 
 msgid "Черновики"
 msgstr "Drafts"
+
+msgid "Черновики, отменённые заказы и неявки не включены. Показана история выбранного клиента."
+msgstr "Drafts, cancelled bookings and no-shows are excluded. History is for the selected customer."
 
 msgid "Черновики, отменённые, неявки и архивные заказы в эту сводку не входят."
 msgstr "Draft, cancelled, no-show and archived bookings are excluded."

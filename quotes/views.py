@@ -729,20 +729,30 @@ def send_quote(request, quote_number):
 
 
 @login_required
+@never_cache
 def customer_lookup(request):
     email = request.GET.get("email", "").strip()
     phone = request.GET.get("phone", "").strip()
-    if not email and not phone:
+    customer_id = request.GET.get("customer_id", "")
+    if not email and not phone and not customer_id.isdigit():
         return JsonResponse({"found": False})
     query = Q()
     if email:
         query |= Q(email__iexact=email)
     if phone:
         query |= Q(phone_1=phone) | Q(phone_2=phone) | Q(phone_3=phone)
-    if request.GET.get("customer_id", "").isdigit():
-        customer = get_object_or_404(Customer, pk=request.GET["customer_id"])
+    if customer_id.isdigit():
+        customer = get_object_or_404(Customer, pk=customer_id)
     else:
-        customer = Customer.objects.filter(query).first()
+        candidates = Customer.objects.filter(query)
+        if candidates.count() > 1 and phone:
+            candidates = candidates.filter(Q(phone_1=phone) | Q(phone_2=phone) | Q(phone_3=phone))
+        if candidates.count() > 1:
+            for term in request.GET.get('full_name', '').split():
+                candidates = candidates.filter(Q(first_name__icontains=term) | Q(last_name__icontains=term))
+        if candidates.count() > 1:
+            return JsonResponse({'found': False, 'ambiguous': True})
+        customer = candidates.first()
     if not customer:
         return JsonResponse({"found": False})
     events = [
@@ -754,6 +764,16 @@ def customer_lookup(request):
         }
         for event in customer.events.all()[:5]
     ]
+    from bookings.models import Booking
+    bookings = customer.bookings.exclude(status__in=[
+        Booking.Status.DRAFT, Booking.Status.CANCELLED, Booking.Status.NO_SHOW,
+    ])
+    preferences = bookings.values('supplier__supplier_name', 'vehicle_group__group_name',
+        'vehicle_group__group_code').annotate(count=Count('pk')).order_by('-count', 'supplier__supplier_name')
+    history_html = render_to_string('quotes/customer_booking_history.html', {
+        'preferences': preferences,
+        'recent_bookings': bookings.select_related('supplier', 'vehicle_group').order_by('-pickup_datetime', '-pk')[:10],
+    }, request=request)
     return JsonResponse({
         "found": True,
         "id": customer.id,
@@ -762,6 +782,7 @@ def customer_lookup(request):
         "phones": [phone for phone in (customer.phone_1, customer.phone_2, customer.phone_3) if phone],
         "quote_count": customer.quotes.count(),
         "booking_count": customer.bookings.count(),
+        "booking_history_html": history_html,
         "warning_level": customer.get_warning_level_display(),
         "warning_code": customer.warning_level,
         "warning_text": customer.warning_text,

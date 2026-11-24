@@ -1,4 +1,11 @@
 Поиск	Szukaj	Search
+Предыдущие резервации клиента	Poprzednie rezerwacje klienta	Customer booking history
+В каких фирмах и какие классы бронировал клиент	Firmy i klasy pojazdów wybierane przez klienta	Rental companies and vehicle classes booked by this customer
+Последние резервации — даты и номера	Ostatnie rezerwacje — daty i numery	Recent bookings — dates and numbers
+Получение	Odbiór	Pick-up
+Класс	Klasa	Class
+Номер резервации	Numer rezerwacji	Reservation number
+Черновики, отменённые заказы и неявки не включены. Показана история выбранного клиента.	Szkice, anulowane rezerwacje i niepojawienia się nie są uwzględnione. Historia dotyczy wybranego klienta.	Drafts, cancelled bookings and no-shows are excluded. History is for the selected customer.
 Найти	Znajdź	Find
 Сбросить	Wyczyść	Reset
 На главную	Strona główna	Home

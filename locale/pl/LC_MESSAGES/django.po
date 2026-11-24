@@ -76,6 +76,9 @@ msgstr "Najbliższy odbiór"
 msgid "Будущие возвраты"
 msgstr "Przyszłe zwroty"
 
+msgid "В каких фирмах и какие классы бронировал клиент"
+msgstr "Firmy i klasy pojazdów wybierane przez klienta"
+
 msgid "В письме отсутствует описание молодых/новых водителей. Добавьте строку:"
 msgstr "W wiadomości brakuje informacji o młodych lub nowych kierowcach. Dodaj wiersz:"
 
@@ -568,6 +571,9 @@ msgstr "Nowy klient"
 msgid "Номер"
 msgstr "Numer"
 
+msgid "Номер резервации"
+msgstr "Numer rezerwacji"
+
 msgid "Номер резервации поставщика"
 msgstr "Numer rezerwacji dostawcy"
 
@@ -772,11 +778,17 @@ msgstr "Odbiór od"
 msgid "Польша"
 msgstr "Polska"
 
+msgid "Последние резервации — даты и номера"
+msgstr "Ostatnie rezerwacje — daty i numery"
+
 msgid "Поставщик"
 msgstr "Dostawca"
 
 msgid "Предыдущие копии"
 msgstr "Poprzednie kopie"
+
+msgid "Предыдущие резервации клиента"
+msgstr "Poprzednie rezerwacje klienta"
 
 msgid "Предыдущий"
 msgstr "Poprzedni"
@@ -1077,6 +1089,9 @@ msgstr "Szkic"
 
 msgid "Черновики"
 msgstr "Szkice"
+
+msgid "Черновики, отменённые заказы и неявки не включены. Показана история выбранного клиента."
+msgstr "Szkice, anulowane rezerwacje i niepojawienia się nie są uwzględnione. Historia dotyczy wybranego klienta."
 
 msgid "Черновики, отменённые, неявки и архивные заказы в эту сводку не входят."
 msgstr "Zestawienie nie obejmuje wersji roboczych, anulowanych, nieodebranych i zarchiwizowanych rezerwacji."

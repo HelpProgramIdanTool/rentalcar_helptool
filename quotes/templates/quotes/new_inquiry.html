@@ -293,22 +293,25 @@
   function updatePhones(){phone2Box.hidden=!document.querySelector('#id_phone_2').value;phone3Box.hidden=!document.querySelector('#id_phone_3').value;addPhone.hidden=!phone2Box.hidden&&!phone3Box.hidden;}
   addPhone.addEventListener('click',()=>{if(phone2Box.hidden)phone2Box.hidden=false;else phone3Box.hidden=false;addPhone.hidden=!phone2Box.hidden&&!phone3Box.hidden;});
 
-  const historyBox=document.querySelector('#customer-history');let lookupTimer;
+  const historyBox=document.querySelector('#customer-history');let lookupTimer,lookupVersion=0;
   function safe(value){const element=document.createElement('div');element.textContent=value??'';return element.innerHTML;}
   async function lookupCustomer(){
+    const version=++lookupVersion;
     const email=document.querySelector('#id_email').value.trim(),phone=['#id_phone_1','#id_phone_2','#id_phone_3'].map(id=>document.querySelector(id).value.trim()).find(Boolean)||'';
-    if(!email&&!phone){historyBox.hidden=true;return;}
-    const params=new URLSearchParams({email,phone});
+    if(!email&&!phone{% if selected_customer %}&&false{% endif %}){historyBox.hidden=true;return;}
+    const params=new URLSearchParams({email,phone,full_name:document.querySelector('#id_full_name').value.trim()});
     {% if selected_customer %}params.set('customer_id', '{{ selected_customer.pk }}');{% endif %}
     const response=await fetch(`{% url 'quotes:customer_lookup' %}?${params}`);
-    const data=await response.json();historyBox.hidden=false;historyBox.className='customer-history';
+    const data=await response.json();if(version!==lookupVersion)return;historyBox.hidden=false;historyBox.className='customer-history';
+    if(data.ambiguous){historyBox.textContent='Найдено несколько клиентов с этими контактами. Уточните имя и телефон или выберите клиента через поиск.';return;}
     if(!data.found){historyBox.innerHTML='<h3>Новый клиент</h3><div>Предыдущих обращений по этому e-mail или телефону не найдено.</div>';return;}
     if(data.warning_code==='SERIOUS')historyBox.classList.add('serious');else if(data.warning_code==='WARNING')historyBox.classList.add('warning');
     const events=data.events.map(e=>`<li>${safe(e.date)} — ${safe(e.title)} (${safe(e.type)})</li>`).join('');
-    historyBox.innerHTML=`<h3>Клиент найден: ${safe(data.name)}</h3><div><strong>Обращений:</strong> ${data.quote_count} · <strong>Заказов:</strong> ${data.booking_count}</div><div><strong>Алерт:</strong> ${safe(data.warning_level)}${data.warning_text?' — '+safe(data.warning_text):''}</div>${events?'<ul>'+events+'</ul>':''}<a href="${data.admin_url}" target="_blank">Открыть всю историю клиента</a>`;
+    historyBox.innerHTML=`<h3>Клиент найден: ${safe(data.name)}</h3><div><strong>Обращений:</strong> ${data.quote_count} · <strong>Заказов:</strong> ${data.booking_count}</div><div><strong>Алерт:</strong> ${safe(data.warning_level)}${data.warning_text?' — '+safe(data.warning_text):''}</div>${events?'<ul>'+events+'</ul>':''}${data.booking_history_html||''}<a href="${data.admin_url}" target="_blank">Открыть всю историю клиента</a>`;
   }
-  function scheduleLookup(){clearTimeout(lookupTimer);lookupTimer=setTimeout(lookupCustomer,450);}
+  function scheduleLookup(){++lookupVersion;historyBox.hidden=true;clearTimeout(lookupTimer);lookupTimer=setTimeout(lookupCustomer,450);}
   document.querySelector('#id_email').addEventListener('input',scheduleLookup);
+  document.querySelector('#id_full_name').addEventListener('input',scheduleLookup);
   document.querySelector('#id_phone_1').addEventListener('input',scheduleLookup);
   document.querySelector('#id_phone_2').addEventListener('input',scheduleLookup);
   document.querySelector('#id_phone_3').addEventListener('input',scheduleLookup);
