@@ -313,6 +313,9 @@ msgstr "Brak rezerwacji na wybrany rok."
 msgid "Заказ"
 msgstr "Rezerwacja"
 
+msgid "Заказ работника"
+msgstr "Rezerwacja pracownika"
+
 msgid "Заказ сотрудника"
 msgstr "Rezerwacja pracownika"
 
@@ -774,6 +777,9 @@ msgstr "Odbiór do"
 
 msgid "Получение с"
 msgstr "Odbiór od"
+
+msgid "Полученный от прокатной фирмы ваучер нужно передать работнику."
+msgstr "Voucher otrzymany od wypożyczalni należy przekazać pracownikowi."
 
 msgid "Польша"
 msgstr "Polska"

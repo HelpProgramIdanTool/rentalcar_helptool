@@ -18,6 +18,30 @@ from .models import Booking, SupplierEmailDelivery
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 })
 class AttentionQueueTests(TestCase):
+    def test_employee_order_badge_identifies_voucher_recipient(self):
+        from employees.models import Employee
+        employee = Employee.objects.create(first_name='TEST-EMPLOYEE', last_name='TEST-LAST',
+            role=Employee.Role.OPERATOR, email='worker@example.invalid')
+        self.booking(status=Booking.Status.WAITING_CONFIRMATION, order_source='EMPLOYEE',
+            salesperson_employee=employee)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'data-employee-order')
+        self.assertContains(response, 'TEST-EMPLOYEE TEST-LAST')
+        self.assertContains(response, 'mailto:worker@example.invalid')
+        self.assertContains(response, 'Полученный от прокатной фирмы ваучер нужно передать работнику.')
+
+    def test_self_order_is_not_labelled_employee_even_if_employee_created_it(self):
+        from employees.models import Employee
+        employee = Employee.objects.create(first_name='TEST-CREATOR', last_name='TEST-LAST', role=Employee.Role.OPERATOR)
+        self.booking(status=Booking.Status.WAITING_CONFIRMATION, order_source='SELF', created_by_employee=employee)
+        self.assertNotContains(self.client.get(self.url), 'data-employee-order')
+
+    def test_employee_order_uses_creator_if_responsible_employee_missing(self):
+        from employees.models import Employee
+        employee = Employee.objects.create(first_name='TEST-CREATOR', last_name='TEST-LAST', role=Employee.Role.OPERATOR)
+        self.booking(status=Booking.Status.WAITING_CONFIRMATION, order_source='EMPLOYEE', created_by_employee=employee)
+        self.assertContains(self.client.get(self.url), 'TEST-CREATOR TEST-LAST')
+
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='owner', is_staff=True)
         self.other = get_user_model().objects.create_user(username='employee')

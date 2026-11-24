@@ -313,6 +313,9 @@ msgstr "No bookings for the selected year yet."
 msgid "Заказ"
 msgstr "Reservation"
 
+msgid "Заказ работника"
+msgstr "Employee booking"
+
 msgid "Заказ сотрудника"
 msgstr "Employee reservation"
 
@@ -774,6 +777,9 @@ msgstr "Pickup until"
 
 msgid "Получение с"
 msgstr "Pickup from"
+
+msgid "Полученный от прокатной фирмы ваучер нужно передать работнику."
+msgstr "Forward the voucher received from the rental company to the employee."
 
 msgid "Польша"
 msgstr "Poland"

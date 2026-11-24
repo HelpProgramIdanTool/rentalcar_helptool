@@ -8,6 +8,13 @@
 {% for booking in page_obj %}
 <section id="booking-{{ booking.pk }}" class="customer-info" style="display:block;background:white;border:1px solid #d7dfeb;border-radius:12px">
   <h2><a href="{% url 'quotes:booking_detail' booking.pk %}">{{ booking.booking_number }}</a> · {{ booking.customer_name_snapshot }}</h2>
+  {% if booking.order_source == 'EMPLOYEE' %}
+  <div style="background:#fff3cd;border:2px solid #c48913;border-radius:8px;padding:12px 16px;margin:12px 0" data-employee-order>
+    <strong>{% translate 'Заказ работника' %}{% if booking.salesperson_employee %} — {{ booking.salesperson_employee }}{% elif booking.created_by_employee %} — {{ booking.created_by_employee }}{% endif %}</strong>
+    <p style="margin:6px 0 0">{% translate 'Полученный от прокатной фирмы ваучер нужно передать работнику.' %}</p>
+    {% if booking.salesperson_employee.email %}<a href="mailto:{{ booking.salesperson_employee.email }}">{{ booking.salesperson_employee.email }}</a>{% elif booking.created_by_employee.email %}<a href="mailto:{{ booking.created_by_employee.email }}">{{ booking.created_by_employee.email }}</a>{% endif %}
+  </div>
+  {% endif %}
   <p><strong>{% translate "Email" %} в заказе:</strong> <bdi>{{ booking.customer_email_snapshot|default:'не указан' }}</bdi></p>
   <p><strong>{% translate "Водители" %}:</strong> {% for driver in booking.drivers.all %}<bdi>{{ driver.first_name }} {{ driver.last_name }}</bdi>{% if not forloop.last %}; {% endif %}{% empty %}{% translate "не указаны" %}{% endfor %}</p>
   <p>{{ booking.supplier }} · {{ booking.pickup_datetime|date:'d.m.Y H:i' }} — {{ booking.return_datetime|date:'d.m.Y H:i' }}</p>
