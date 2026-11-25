@@ -1,0 +1,8 @@
+/* Shared compact category controls in both partner interfaces. */
+.category>summary{background:#173f68;color:#fff;font-size:16px;font-weight:700;line-height:1.3;padding:7px 12px;min-height:36px;border:1px solid #123455;border-inline-start:4px solid #ffc857;border-radius:5px;cursor:pointer}
+.category>summary::marker{color:#ffc857;font-size:17px}
+.category>summary span{color:#fff;font-size:12px}
+.category>summary:hover{background:#205785}
+.category>summary:focus-visible{outline:3px solid #e5a500;outline-offset:3px}
+.category[open]>summary{background:#0e5d83;border-bottom-color:#0a4d6c}
+@media(max-width:600px){.category>summary{min-height:44px;padding:10px 12px;font-size:15px}}
