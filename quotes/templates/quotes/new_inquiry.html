@@ -193,7 +193,9 @@
   function filterGroups(ids) {
     const allowed = ids === null ? null : new Set(ids.map(String));
     document.querySelectorAll('.vehicle-picker input[type="checkbox"]').forEach(el => {
-      el.closest('label').hidden = allowed !== null && !allowed.has(el.value);
+      const hidden=allowed !== null && !allowed.has(el.value);
+      el.closest('label').dataset.classHidden=hidden?'1':'0';
+      el.closest('label').hidden = hidden;
     });
     document.querySelectorAll('.vehicle-supplier, .vehicle-section').forEach(el => {
       el.hidden = !Array.from(el.querySelectorAll('input[type="checkbox"]')).some(input => !input.closest('label').hidden);

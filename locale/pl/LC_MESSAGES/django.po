@@ -178,6 +178,9 @@ msgstr "Liczba ofert"
 msgid "Вт"
 msgstr "Wt"
 
+msgid "Выберите автомобиль у включённой фирмы."
+msgstr "Wybierz samochód z zaznaczonej wypożyczalni."
+
 msgid "Выберите город"
 msgstr "Wybierz miasto"
 

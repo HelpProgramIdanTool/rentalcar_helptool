@@ -12,8 +12,22 @@
     labels.set(input.value, span);
   });
   let timer, controller, version = 0;
+  function syncSuppliers() {
+    const suppliers=new Map(Array.from(form.querySelectorAll('input[name="suppliers"]'),input=>[input.value,input.checked&&!input.disabled]));
+    form.querySelectorAll('.vehicle-picker input[type="checkbox"]').forEach(input=>{
+      const label=input.closest('label'),excluded=!suppliers.get(input.dataset.supplierId);
+      const unavailable=label.dataset.availabilityHidden==='1';
+      label.hidden=excluded||unavailable||label.dataset.classHidden==='1';
+      input.disabled=excluded||unavailable;
+      if(excluded){input.checked=false;labels.get(input.value).textContent='';}
+    });
+    form.querySelectorAll('.vehicle-supplier,.vehicle-section').forEach(box=>{
+      box.hidden=!Array.from(box.querySelectorAll('input[type="checkbox"]')).some(input=>!input.closest('label').hidden);
+    });
+  }
   const clear = text => labels.forEach(span => { span.textContent = text; span.title = ''; });
   function schedule() {
+    syncSuppliers();
     clearTimeout(timer);
     controller?.abort();
     const current = ++version;
@@ -61,6 +75,7 @@
         span.title = price.available ? 'Итого за весь срок с выбранными добавками, до ручной доплаты.' : price.reason;
       });
       form.dispatchEvent(new Event('pricingrendered'));
+      syncSuppliers();
       status.textContent = `Цены за весь срок (${result.days} дн.), с выбранными добавками. Ручные доплаты — на следующем шаге.`;
     } catch (error) {
       if (current !== version || error.name === 'AbortError') return;

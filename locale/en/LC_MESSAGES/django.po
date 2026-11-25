@@ -178,6 +178,9 @@ msgstr "Total offers"
 msgid "Вт"
 msgstr "Tue"
 
+msgid "Выберите автомобиль у включённой фирмы."
+msgstr "Select a vehicle from an enabled rental company."
+
 msgid "Выберите город"
 msgstr "Select city"
 

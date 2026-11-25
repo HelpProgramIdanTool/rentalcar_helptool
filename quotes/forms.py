@@ -351,6 +351,10 @@ class FirstInquiryForm(forms.Form):
                 suppliers = suppliers.exclude(subagent_pricing_method=Supplier.SubagentPricingMethod.UNAVAILABLE)
                 cleaned["suppliers"] = suppliers
         if groups is not None and suppliers is not None:
+            groups=groups.filter(supplier__in=suppliers)
+            cleaned['vehicle_groups']=groups
+            if not self.pricing_only and not groups.exists():
+                self.add_error('vehicle_groups', _('Выберите автомобиль у включённой фирмы.'))
             selected_supplier_ids = set(groups.values_list("supplier_id", flat=True))
             missing_ids = {supplier.pk for supplier in suppliers} - selected_supplier_ids
             comparison_ids = set(groups.values_list("comparison_classes__id", flat=True)) - {None}

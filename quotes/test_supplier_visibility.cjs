@@ -1,0 +1,14 @@
+const fs=require('fs'),assert=require('node:assert/strict');
+const {JSDOM}=require('../tmp/wordpress-qa/node_modules/jsdom');
+const w=new JSDOM(`<form><input name="suppliers" value="1" type="checkbox" checked><input name="suppliers" value="2" type="checkbox" checked><p id="price-preview-status"></p><div class="vehicle-picker"><section class="vehicle-section"><div class="vehicle-supplier"><label><input name="vehicle_groups" type="checkbox" value="11" data-supplier-id="1" checked>TEST-A</label></div><div class="vehicle-supplier"><label><input name="vehicle_groups" type="checkbox" value="22" data-supplier-id="2" checked>TEST-B</label></div></section></div></form>`,{runScripts:'outside-only'}).window;
+w.setTimeout=()=>1;
+w.eval(fs.readFileSync('quotes/static/quotes/price_preview.js','utf8'));
+const supplier=w.document.querySelector('input[name=suppliers]'),group=w.document.querySelector('input[value="11"]');
+supplier.checked=false;supplier.dispatchEvent(new w.Event('change',{bubbles:true}));
+assert(group.disabled);assert(!group.checked);assert(group.closest('label').hidden);assert(group.closest('.vehicle-supplier').hidden);
+assert(!w.document.querySelector('input[value="22"]').disabled);
+supplier.checked=true;supplier.dispatchEvent(new w.Event('change',{bubbles:true}));
+assert(!group.disabled);assert(!group.closest('label').hidden);assert(!group.checked);
+group.closest('label').dataset.classHidden='1';supplier.dispatchEvent(new w.Event('change',{bubbles:true}));assert(group.closest('label').hidden);
+w.document.querySelectorAll('input[name=suppliers]').forEach(x=>x.checked=false);supplier.dispatchEvent(new w.Event('change',{bubbles:true}));assert(w.document.querySelector('.vehicle-section').hidden);
+console.log('Supplier exclusion hides groups immediately, clears selection, preserves class filters and restores without reselecting.');
