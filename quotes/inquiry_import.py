@@ -1,6 +1,7 @@
 """Read the labelled Hebrew website form without contacting the website."""
 import html
 import re
+from .airport_location import is_airport_location
 from datetime import date, datetime
 
 from django.contrib.auth.decorators import login_required
@@ -108,7 +109,7 @@ def _parse_customer_email(text, raw):
                 data[f"{side}_time"] = f"{hour:02d}:{minute:02d}"
             else:
                 warnings.append(f"Проверьте время {description}: {time_match.group(0)}.")
-        if re.search(r"שדה\s*(?:ה)?תעופה|נמל\s*(?:ה)?תעופה", segment):
+        if is_airport_location(segment):
             data[f"{side}_service"] = "AIRPORT"
         elif "מלון" in segment:
             data[f"{side}_service"] = "ADDRESS"
@@ -227,7 +228,7 @@ def parse_inquiry(raw):
         else:
             data[f"{side}_city"] = mapped_city
         place = sections.get((side, "מקום"), "")
-        if "שדה תעופה" in place:
+        if is_airport_location(place):
             data[f"{side}_service"] = "AIRPORT"
         elif "מלון" in place or "כתובת" in place:
             data[f"{side}_service"] = "ADDRESS"

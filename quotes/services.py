@@ -320,6 +320,9 @@ def _missing_rate_reason(group, pickup_date, days, audience=PriceList.Audience.S
 
 
 def calculate_quote_options(quote, *, vehicle_group=None):
+    from .airport_location import airport_service_conflicts
+    location_conflicts = airport_service_conflicts({key: getattr(quote, key, '')
+        for key in ('pickup_service', 'pickup_address', 'return_service', 'return_address')})
     original_quote=quote
     routes = {}
     required_items = required_included_items(quote)
@@ -382,7 +385,7 @@ def calculate_quote_options(quote, *, vehicle_group=None):
         )
         rate = next((candidate for candidate in candidate_rates
                      if candidate.season.applies_on(pickup_date)), None)
-        if not rate:
+        if not rate or location_conflicts:
             results.append({
                 "comparison": comparison,
                 "supplier": group.supplier,
@@ -395,7 +398,8 @@ def calculate_quote_options(quote, *, vehicle_group=None):
                     if group.transmission != group.Transmission.UNKNOWN else ""
                 ),
                 "available": False,
-                "reason": _missing_rate_reason(group, pickup_date, quote.rental_days, price_audience),
+                "reason": ('В адресе указан аэропорт. Выберите способ «Аэропорт», чтобы учесть аэропортовые сборы.'
+                           if location_conflicts else _missing_rate_reason(group, pickup_date, quote.rental_days, price_audience)),
                 "total": None,
             })
             continue

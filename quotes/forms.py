@@ -317,6 +317,9 @@ class FirstInquiryForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         cleaned['rental_country']=cleaned.get('rental_country') or 'PL'
+        from .airport_location import airport_service_conflicts
+        for side in airport_service_conflicts(cleaned):
+            self.add_error(side+'_service', _('В адресе указан аэропорт. Выберите способ «Аэропорт», чтобы учесть аэропортовые сборы.'))
         if cleaned.get('local_rental_branch'):
             cleaned['rental_country'] = cleaned['local_rental_branch'].country.code
         full_name = (cleaned.get("full_name") or "").strip()

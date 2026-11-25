@@ -76,6 +76,9 @@ msgstr "Najbliższy odbiór"
 msgid "Будущие возвраты"
 msgstr "Przyszłe zwroty"
 
+msgid "В адресе указан аэропорт. Выберите способ «Аэропорт», чтобы учесть аэропортовые сборы."
+msgstr "W adresie wskazano lotnisko. Wybierz „Lotnisko”, aby uwzględnić opłaty lotniskowe."
+
 msgid "В каких фирмах и какие классы бронировал клиент"
 msgstr "Firmy i klasy pojazdów wybierane przez klienta"
 

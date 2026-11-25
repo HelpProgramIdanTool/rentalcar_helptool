@@ -76,6 +76,9 @@ msgstr "Next pickup"
 msgid "Будущие возвраты"
 msgstr "Upcoming returns"
 
+msgid "В адресе указан аэропорт. Выберите способ «Аэропорт», чтобы учесть аэропортовые сборы."
+msgstr "The address identifies an airport. Select Airport to include airport fees."
+
 msgid "В каких фирмах и какие классы бронировал клиент"
 msgstr "Rental companies and vehicle classes booked by this customer"
 
