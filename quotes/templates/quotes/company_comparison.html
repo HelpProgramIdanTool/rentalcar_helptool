@@ -1,11 +1,16 @@
 {% if company_comparison %}
 <section class="offer-company-comparison" style="margin:12px 0 20px;padding:12px;border:1px solid #d3deea;border-radius:8px;background:#f5f8fc;font-size:12px;line-height:1.5">
   <strong style="color:#163960">{{ company_comparison.title }}</strong>
-  <div style="overflow-x:auto;margin:8px 0">
-  <table cellpadding="5" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:11px;line-height:1.4;text-align:{% if is_ltr %}left{% else %}right{% endif %}">
-    <thead><tr><th scope="col" style="background:#163960;color:white;padding:6px;border:1px solid #d3deea">{{ company_comparison.columns.0 }}</th>{% for company in company_comparison.companies %}<th scope="col" style="background:#163960;color:white;padding:6px;border:1px solid #d3deea"><bdi>{{ company.name }}</bdi></th>{% endfor %}</tr></thead>
-    <tbody>{% for row in company_comparison.rows %}<tr><th scope="row" style="padding:6px;border:1px solid #d3deea">{{ row.label }}</th>{% for value in row.values %}<td style="padding:6px;border:1px solid #d3deea">{{ value }}</td>{% endfor %}</tr>{% endfor %}</tbody>
-  </table></div>
+  <div class="comparison-cards" style="margin:8px 0;font-size:0;text-align:{% if is_ltr %}left{% else %}right{% endif %}">
+  {% for company in company_comparison.companies %}
+    <div class="comparison-company" style="display:inline-block;vertical-align:top;width:100%;max-width:280px;box-sizing:border-box;padding:0 4px 8px;font-size:13px;line-height:1.5">
+      <table cellpadding="0" cellspacing="0" aria-label="{{ company.name }}" style="width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;line-height:1.5;text-align:{% if is_ltr %}left{% else %}right{% endif %};overflow-wrap:anywhere;word-wrap:break-word">
+        <thead><tr><th colspan="2" scope="colgroup" style="background:#163960;color:#fff;padding:8px;border:1px solid #d3deea;font-size:14px"><bdi>{{ company.name }}</bdi></th></tr></thead>
+        <tbody>{% for row in company.rows %}<tr><th scope="row" style="width:38%;padding:7px;border:1px solid #d3deea;vertical-align:top;font-weight:bold">{{ row.label }}</th><td style="padding:7px;border:1px solid #d3deea;vertical-align:top">{{ row.value }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  {% endfor %}
+  </div>
   <p style="margin:8px 0">{{ company_comparison.common }}</p>
   <p style="margin:6px 0;color:#52677b;font-size:11px">{{ company_comparison.note }}</p>
   <a href="{{ company_comparison.url }}" style="color:#145f9e;text-decoration:underline;font-weight:bold">{{ company_comparison.link_label }}</a>

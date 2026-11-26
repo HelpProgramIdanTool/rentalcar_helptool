@@ -20,6 +20,9 @@ def comparison_data(options, summaries, content, language):
                                      for key in configuration['keys']]})
     if not companies:
         return None
+    for company in companies:
+        company['rows'] = [{'label': label, 'value': value}
+                           for label, value in zip(configuration['columns'][1:], company['values'])]
     rows = [{'label': label, 'values': [company['values'][index] for company in companies]}
             for index, label in enumerate(configuration['columns'][1:])]
     return {**configuration, 'companies': companies, 'rows': rows}

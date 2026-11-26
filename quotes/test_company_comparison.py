@@ -10,6 +10,22 @@ def option(pk, name):
 
 
 class ComparisonTests(SimpleTestCase):
+    def test_comparison_cards_keep_each_company_fact_and_need_no_scroll_or_media_query(self):
+        for language in ['Hebrew', 'English', 'Polish']:
+            second=SimpleNamespace(supplier_id=2,name='TEST-TWO',facts={
+                'age':'SECOND-HE','translations':{'English':{'age':'SECOND-EN'},'Polish':{'age':'SECOND-PL'}}})
+            data=comparison_data([option(1,'TEST-ONE'),option(2,'TEST-TWO')],[self.summary,second],self.content,language)
+            self.assertEqual(data['companies'][0]['rows'][0]['label'],'Age')
+            self.assertEqual(data['companies'][1]['rows'][0]['value'],data['rows'][0]['values'][1])
+            html=render_to_string('quotes/company_comparison.html',{'company_comparison':data,'is_ltr':language!='Hebrew'})
+            self.assertEqual(html.count('class="comparison-company"'),2)
+            self.assertIn('table-layout:fixed',html)
+            self.assertIn('width:100%;max-width:280px',html)
+            self.assertNotIn('overflow-x',html)
+            self.assertNotIn('@media',html)
+            self.assertIn(data['companies'][0]['rows'][0]['value'],html)
+            self.assertIn(data['companies'][1]['rows'][0]['value'],html)
+
     def setUp(self):
         self.content = {'offer_comparison': {language: {
             'title': 'TEST-TITLE-'+language, 'keys': ['age'], 'columns': ['Company', 'Age'],
