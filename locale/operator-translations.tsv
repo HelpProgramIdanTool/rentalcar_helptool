@@ -1,4 +1,14 @@
 Поиск	Szukaj	Search
+Топ-10 групп по дням аренды	10 najpopularniejszych grup według liczby dni wynajmu	Top 10 vehicle groups by rental days
+Дней аренды	Dni wynajmu	Rental days
+Зима	Zima	Winter
+Весна	Wiosna	Spring
+Лето	Lato	Summer
+Осень	Jesień	Autumn
+Нет данных для рейтинга за выбранный год.	Brak danych do rankingu w wybranym roku.	No ranking data for the selected year.
+Не включено из-за отсутствия группы, дней аренды или даты получения:	Pominięto z powodu braku grupy, dni wynajmu lub daty odbioru:	Excluded because the group, rental days or pick-up date is missing:
+Рейтинг по сумме дней аренды, а не по количеству заказов. Используются выбранный год и дата выше; будущие резервации включены. Черновики, отменённые заказы, неявки и архив исключены.	Ranking według sumy dni wynajmu, nie liczby rezerwacji. Uwzględnia wybrany rok i datę powyżej oraz przyszłe rezerwacje. Szkice, anulowane rezerwacje, niepojawienia się i archiwum są pomijane.	Ranked by total rental days, not booking count. Uses the year and date basis selected above; future bookings are included. Drafts, cancellations, no-shows and archived bookings are excluded.
+Сезон определяется датой получения: зима — декабрь–февраль, весна — март–май, лето — июнь–август, осень — сентябрь–ноябрь. Все дни одной аренды относятся к сезону получения. Это календарные сезоны, а не сезоны ценника.	Sezon według daty odbioru: zima — grudzień–luty, wiosna — marzec–maj, lato — czerwiec–sierpień, jesień — wrzesień–listopad. Wszystkie dni wynajmu przypisano do sezonu odbioru. Są to sezony kalendarzowe, nie sezony cennika.	Season follows the pick-up date: winter — December–February, spring — March–May, summer — June–August, autumn — September–November. All days of a rental belong to its pick-up season. These are calendar seasons, not price-list seasons.
 Выберите автомобиль у включённой фирмы.	Wybierz samochód z zaznaczonej wypożyczalni.	Select a vehicle from an enabled rental company.
 В адресе указан аэропорт. Выберите способ «Аэропорт», чтобы учесть аэропортовые сборы.	W adresie wskazano lotnisko. Wybierz „Lotnisko”, aby uwzględnić opłaty lotniskowe.	The address identifies an airport. Select Airport to include airport fees.
 Заказ работника	Rezerwacja pracownika	Employee booking

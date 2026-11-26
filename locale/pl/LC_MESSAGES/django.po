@@ -100,6 +100,9 @@ msgstr "Vouchery dostawcy"
 msgid "Версия"
 msgstr "Wersja"
 
+msgid "Весна"
+msgstr "Wiosna"
+
 msgid "Включить черновики"
 msgstr "Uwzględnij szkice"
 
@@ -292,6 +295,9 @@ msgstr "Aby umożliwić automatyczny import, zachowaj nazwy i kolejność pól d
 msgid "Для одного дня укажите одинаковые даты. Обе границы периода включены. Даты и время — по Варшаве."
 msgstr "Dla jednego dnia wybierz tę samą datę. Obie daty są uwzględnione. Daty i godziny według czasu Warszawy."
 
+msgid "Дней аренды"
+msgstr "Dni wynajmu"
+
 msgid "Добавить в оферту"
 msgstr "Dodaj do oferty"
 
@@ -354,6 +360,9 @@ msgstr "Wypełnij"
 
 msgid "Запрошен"
 msgstr "Zamówiono"
+
+msgid "Зима"
+msgstr "Zima"
 
 msgid "Изменение заказа"
 msgstr "Zmiana rezerwacji"
@@ -481,6 +490,9 @@ msgstr "Fotelik"
 msgid "Кто обратился"
 msgstr "Osoba kontaktowa"
 
+msgid "Лето"
+msgstr "Lato"
+
 msgid "Меняется вручную. Страны получения и возврата определяются по городам отдельно."
 msgstr "Zmieniane ręcznie. Kraje odbioru i zwrotu wynikają z miast."
 
@@ -529,6 +541,9 @@ msgstr "Ustawienia"
 msgid "Начать ввод заново"
 msgstr "Rozpocznij od nowa"
 
+msgid "Не включено из-за отсутствия группы, дней аренды или даты получения:"
+msgstr "Pominięto z powodu braku grupy, dni wynajmu lub daty odbioru:"
+
 msgid "Не запрошен"
 msgstr "Nie zamówiono"
 
@@ -546,6 +561,9 @@ msgstr "Nie można obliczyć"
 
 msgid "Нет вариантов"
 msgstr "Brak opcji"
+
+msgid "Нет данных для рейтинга за выбранный год."
+msgstr "Brak danych do rankingu w wybranym roku."
 
 msgid "Нет операций за выбранный период."
 msgstr "Brak operacji w wybranym okresie."
@@ -627,6 +645,9 @@ msgstr "Płatność"
 
 msgid "Оплачено"
 msgstr "Zapłacono"
+
+msgid "Осень"
+msgstr "Jesień"
 
 msgid "Основание"
 msgstr "Podstawa"
@@ -844,6 +865,9 @@ msgstr "Rezerwacja dostawcy"
 msgid "Результат проверки"
 msgstr "Wynik sprawdzenia"
 
+msgid "Рейтинг по сумме дней аренды, а не по количеству заказов. Используются выбранный год и дата выше; будущие резервации включены. Черновики, отменённые заказы, неявки и архив исключены."
+msgstr "Ranking według sumy dni wynajmu, nie liczby rezerwacji. Uwzględnia wybrany rok i datę powyżej oraz przyszłe rezerwacje. Szkice, anulowane rezerwacje, niepojawienia się i archiwum są pomijane."
+
 msgid "Рост"
 msgstr "Wzrost"
 
@@ -876,6 +900,9 @@ msgstr "Powiąż wybrane"
 
 msgid "Сезон"
 msgstr "Sezon"
+
+msgid "Сезон определяется датой получения: зима — декабрь–февраль, весна — март–май, лето — июнь–август, осень — сентябрь–ноябрь. Все дни одной аренды относятся к сезону получения. Это календарные сезоны, а не сезоны ценника."
+msgstr "Sezon według daty odbioru: zima — grudzień–luty, wiosna — marzec–maj, lato — czerwiec–sierpień, jesień — wrzesień–listopad. Wszystkie dni wynajmu przypisano do sezonu odbioru. Są to sezony kalendarzowe, nie sezony cennika."
 
 msgid "Синхронизация Excel"
 msgstr "Synchronizacja Excel"
@@ -1047,6 +1074,9 @@ msgstr "Temat"
 
 msgid "Тип"
 msgstr "Typ"
+
+msgid "Топ-10 групп по дням аренды"
+msgstr "10 najpopularniejszych grup według liczby dni wynajmu"
 
 msgid "Требует проверки"
 msgstr "Wymaga sprawdzenia"

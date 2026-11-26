@@ -113,6 +113,20 @@ def statistics(request):
                 changes=Count('pk',filter=Q(status=Booking.Status.UPDATE_PENDING)))
     supplier_counts=list(year_bookings.order_by('supplier__supplier_name','supplier_id').values('supplier_id','supplier__supplier_name').annotate(**counts))
     month_counts=list(year_bookings.annotate(month=TruncMonth(field)).values('month').annotate(count=Count('pk')).order_by('month'))
+    from .group_statistics import top_rental_groups
+    from config.rental_duration import calculate_rental_days
+    group_records = []
+    for booking in year_bookings.select_related('supplier', 'vehicle_group'):
+        group = booking.vehicle_group
+        legacy = booking.source_quote_snapshot.get('historical_import', {}).get('raw', {}).get('D', '')
+        label = f'{group.group_name} ({group.group_code})' if group else str(legacy or '').strip()
+        days = booking.rental_days
+        if not days and booking.pickup_datetime and booking.return_datetime and booking.return_datetime > booking.pickup_datetime:
+            days = calculate_rental_days(booking.pickup_datetime, booking.return_datetime)
+        group_records.append(dict(supplier_id=booking.supplier_id, supplier=str(booking.supplier),
+            group_key=group.pk if group else label, group=label, days=days,
+            month=timezone.localtime(booking.pickup_datetime).month if booking.pickup_datetime else None))
+    top_groups, group_statistics_missing = top_rental_groups(group_records)
     years={today.year,today.year+1,year}
     for date_field in ('pickup_datetime','return_datetime'):
         years.update(y for y in Booking.objects.order_by().values_list(date_field+'__year',flat=True).distinct() if y and 2000<=y<=9998)
@@ -152,6 +166,7 @@ def statistics(request):
     context.update(active_menu='statistics', year=year, updated=timezone.now(),
         year_choices=sorted(years),booking_date_basis=basis,booking_counts=year_bookings.aggregate(**counts),
         booking_suppliers=supplier_counts,booking_months=month_counts,
+        top_groups=top_groups,group_statistics_missing=group_statistics_missing,
         reports=supplier_summary(batches), missing_dates=active.filter(return_datetime=None).count(),
         drafts=Booking.objects.filter(status=Booking.Status.DRAFT, return_datetime__year=year).count())
     return render(request, 'bookings/statistics.html', context)

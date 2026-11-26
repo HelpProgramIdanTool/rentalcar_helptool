@@ -14,6 +14,15 @@
 {% if booking_months %}<details style="margin-top:18px"><summary>{% translate "Количество заказов по месяцам" %}</summary><table class="offer-table"><thead><tr><th>{% translate "Месяц" %}</th><th>{% translate "Всего заказов" %}</th></tr></thead><tbody>{% for row in booking_months %}<tr><td>{{ row.month|date:'m.Y' }}</td><td>{{ row.count }}</td></tr>{% endfor %}</tbody></table></details>{% endif %}
 <p style="font-size:13px">{% translate "Оборот ниже по-прежнему относится к году возврата автомобиля." %}</p>
 </section>
+<section style="margin:24px 0;padding:20px;border:1px solid #c8d6e6;background:white;border-radius:10px">
+<h2>{% translate 'Топ-10 групп по дням аренды' %} — {{ year }}</h2>
+<p>{% translate 'Рейтинг по сумме дней аренды, а не по количеству заказов. Используются выбранный год и дата выше; будущие резервации включены. Черновики, отменённые заказы, неявки и архив исключены.' %}</p>
+<p>{% translate 'Сезон определяется датой получения: зима — декабрь–февраль, весна — март–май, лето — июнь–август, осень — сентябрь–ноябрь. Все дни одной аренды относятся к сезону получения. Это календарные сезоны, а не сезоны ценника.' %}</p>
+<div style="overflow-x:auto"><table class="offer-table"><thead><tr><th>№</th><th>{% translate 'Группа' %}</th><th>{% translate 'Фирма' %}</th><th>{% translate 'Дней аренды' %}</th><th>{% translate 'Зима' %}</th><th>{% translate 'Весна' %}</th><th>{% translate 'Лето' %}</th><th>{% translate 'Осень' %}</th></tr></thead><tbody>
+{% for row in top_groups %}<tr><td>{{ forloop.counter }}</td><td>{{ row.group }}</td><td>{{ row.supplier }}</td><td><strong>{{ row.days }}</strong></td><td>{{ row.winter }}</td><td>{{ row.spring }}</td><td>{{ row.summer }}</td><td>{{ row.autumn }}</td></tr>{% empty %}<tr><td colspan="8">{% translate 'Нет данных для рейтинга за выбранный год.' %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if group_statistics_missing %}<p>{% translate 'Не включено из-за отсутствия группы, дней аренды или даты получения:' %} {{ group_statistics_missing }}.</p>{% endif %}
+</section>
 <p>{% translate "Обновлено" %}: {{ updated|date:"d.m.Y H:i:s" }}. Страница обновляется каждую минуту. <button type="button" onclick="location.reload()">{% translate "Обновить сейчас" %}</button></p>
 <h2>Оборот по заказам до 31.12.{{ year }}</h2>
 <p>Предварительные суммы с НДС, включая восстановленные и предполагаемые даты возврата. {% translate "Месяц" %} определяется датой возврата. Включены отправленные и подтверждённые заказы, в том числе будущие аренды. {% translate "Черновики" %} ({{ drafts }}), отменённые, неявки и архив исключены. Это оборот аренды, а не доход агентства и не полученная оплата.</p>
