@@ -5,12 +5,6 @@ from .models import QuoteDocumentBlock, QuoteTemplate
 from suppliers.models import Supplier
 from .localization import presentation_for
 
-GUIDES = {
-    "01": ("Kaizen", "ריכוז חוקים אודות כיסאות בטיחות ובוסטרים.pdf", "Kaizen-child-seats.pdf"),
-    "02": ("One Rent", "Rules for transporting children by car in Poland.pdf", "One-Rent-child-seats.pdf"),
-}
-
-
 def supplier_introduction():
     return ", ".join(Supplier.objects.filter(show_in_introduction=True).values_list("supplier_name", flat=True))
 
@@ -73,10 +67,27 @@ def seat_guides(quote):
         seats = 0
     if seats < 1:
         return []
-    codes = set(quote.options.filter(is_included=True).values_list("supplier__supplier_code", flat=True))
-    return [dict(code=code, supplier=label, filename=filename,
-                 path=Path(settings.BASE_DIR) / "assets" / "customer-guides" / source)
-            for code, (label, source, filename) in GUIDES.items() if code in codes]
+    from partners.models import PortalConfiguration
+    config = PortalConfiguration.objects.first()
+    guides = (config.content or {}).get('child_seat_guides', {}) if config else {}
+    by_name = {''.join(key.casefold().split()): value for key, value in guides.items()}
+    result, seen = [], set()
+    for code, name in quote.options.filter(is_included=True).order_by('supplier__supplier_code').values_list('supplier__supplier_code', 'supplier__supplier_name'):
+        if code in seen:
+            continue
+        seen.add(code)
+        guide = guides.get(code) or by_name.get(''.join(name.casefold().split()))
+        if not guide:
+            continue
+        label, source, filename = guide
+        private = source.startswith('private:')
+        source = source.removeprefix('private:')
+        if Path(source).name != source or Path(filename).name != filename:
+            raise ValueError('Child-seat guide configuration must contain filenames only.')
+        root = Path(settings.MEDIA_ROOT) if private else Path(settings.BASE_DIR) / 'assets'
+        result.append(dict(code=code, supplier=label, filename=filename, private=private,
+            path=root / 'customer-guides' / source))
+    return result
 
 
 def child_seat_text(quote, guides):

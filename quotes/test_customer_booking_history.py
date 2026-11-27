@@ -8,6 +8,13 @@ from suppliers.models import Supplier, VehicleGroup
 
 
 class CustomerBookingHistoryTests(TestCase):
+    def test_imported_booking_class_is_read_from_original_excel_data(self):
+        Booking.objects.create(customer=self.customer,supplier=self.supplier,status='COMPLETED',
+            source_quote_snapshot={'historical_import':{'raw':{'D':'TEST-LEGACY-CLASS'}}})
+        html=self.client.get(self.url,{'email':self.customer.email}).json()['booking_history_html']
+        self.assertIn('TEST-LEGACY-CLASS',html)
+        self.assertIn('TEST-FIRM',html)
+
     def setUp(self):
         self.client.force_login(get_user_model().objects.create_user(username='history-test'))
         self.customer = Customer.objects.create(first_name='TEST-FIRST', email='history@example.invalid')

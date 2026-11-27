@@ -132,6 +132,57 @@ class EmailEditorTests(TestCase):
         self.assertEqual(seat_guides(self.quote), [])
         self.assertNotIn("המצורפים", child_seat_text(self.quote, []))
 
+    def test_mm_guide_is_attached_once_only_when_seats_and_mm_are_included(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from django.conf import settings
+        self.option.is_included=False
+        self.option.save()
+        mm=self.add_option('TEST-MM')
+        mm.supplier.supplier_name='MM Cars'
+        mm.supplier.save(update_fields=['supplier_name'])
+        self.assertEqual(seat_guides(self.quote),[])
+        self.quote.extra_requests={'CHILD_SEAT':1}
+        self.quote.save()
+        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=folder):
+            private_path=Path(folder)/'customer-guides/MM_Cars_Rental_Rules_Child_Seat.pdf'
+            private_path.parent.mkdir()
+            private_path.write_bytes(b'%PDF-1.4 TEST-PRIVATE-DOCUMENT')
+            guides=seat_guides(self.quote)
+            self.assertEqual([g['filename'] for g in guides],['MM-Cars-child-seats.pdf'])
+            self.assertEqual(guides[0]['path'],private_path)
+            self.client.post(reverse('quotes:send_quote',args=[self.quote.quote_number]))
+            self.assertEqual(mail.outbox[0].attachments[0].filename,'MM-Cars-child-seats.pdf')
+            self.assertEqual(mail.outbox[0].attachments[0].content,private_path.read_bytes())
+        mm.is_included=False
+        mm.save()
+        self.assertEqual(seat_guides(self.quote),[])
+
+    def test_private_guide_upload_requires_admin_and_saves_valid_pdf_only(self):
+        from io import BytesIO
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from pypdf import PdfWriter
+        mm=self.add_option('TEST-MM-UPLOAD')
+        mm.supplier.supplier_name='MM Cars'
+        mm.supplier.save(update_fields=['supplier_name'])
+        self.quote.extra_requests={'CHILD_SEAT':1}
+        self.quote.save()
+        url=reverse('quotes:quote_guide',args=[self.quote.quote_number,'TEST-MM-UPLOAD'])
+        self.assertEqual(self.client.post(url).status_code,403)
+        self.user.is_staff=True
+        self.user.save(update_fields=['is_staff'])
+        with TemporaryDirectory() as folder,override_settings(MEDIA_ROOT=folder):
+            self.assertEqual(self.client.post(url,{'guide':SimpleUploadedFile('bad.pdf',b'NOT-PDF')}).status_code,400)
+            pdf=BytesIO()
+            writer=PdfWriter()
+            writer.add_blank_page(width=100,height=100)
+            writer.write(pdf)
+            response=self.client.post(url,{'guide':SimpleUploadedFile('test.pdf',pdf.getvalue(),content_type='application/pdf')})
+            self.assertEqual(response.status_code,302)
+            self.assertEqual((Path(folder)/'customer-guides/MM_Cars_Rental_Rules_Child_Seat.pdf').read_bytes(),pdf.getvalue())
+
     def test_email_attachments_and_sent_history_survive_draft_edits(self):
         self.quote.extra_requests = {"CHILD_SEAT": 1}
         self.quote.save()

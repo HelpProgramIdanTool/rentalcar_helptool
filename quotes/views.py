@@ -505,6 +505,29 @@ def email_editor(request, quote_number):
 def quote_guide(request, quote_number, code):
     quote = get_object_or_404(Quote, quote_number=quote_number)
     for guide in seat_guides(quote):
+        if guide['code'] == code and request.method == 'POST':
+            from bookings.statistics import can_view_statistics
+            from django.core.exceptions import PermissionDenied
+            from django.http import HttpResponseBadRequest
+            from io import BytesIO
+            from pypdf import PdfReader
+            if not can_view_statistics(request.user) or not guide['private']:
+                raise PermissionDenied
+            upload = request.FILES.get('guide')
+            if not upload or upload.size > 5 * 1024 * 1024:
+                return HttpResponseBadRequest('Upload a PDF up to 5 MB.')
+            content = upload.read()
+            try:
+                if not content.startswith(b'%PDF-') or not PdfReader(BytesIO(content)).pages:
+                    raise ValueError
+            except Exception:
+                return HttpResponseBadRequest('Invalid PDF.')
+            guide['path'].parent.mkdir(parents=True, exist_ok=True)
+            temporary = guide['path'].with_name(str(uuid4())+'.tmp')
+            temporary.write_bytes(content)
+            temporary.replace(guide['path'])
+            messages.success(request, 'PDF сохранён в закрытом хранилище и будет прикладываться автоматически.')
+            return redirect('quotes:email_editor', quote_number=quote.quote_number)
         if guide["code"] == code and guide["path"].is_file():
             return FileResponse(guide["path"].open("rb"), as_attachment=True, filename=guide["filename"])
     from django.http import Http404
@@ -768,11 +791,12 @@ def customer_lookup(request):
     bookings = customer.bookings.exclude(status__in=[
         Booking.Status.DRAFT, Booking.Status.CANCELLED, Booking.Status.NO_SHOW,
     ])
-    preferences = bookings.values('supplier__supplier_name', 'vehicle_group__group_name',
-        'vehicle_group__group_code').annotate(count=Count('pk')).order_by('-count', 'supplier__supplier_name')
+    from bookings.vehicle_history import customer_vehicle_preferences
+    booking_history = list(bookings.select_related('supplier', 'vehicle_group').order_by('-pickup_datetime', '-pk'))
+    preferences = customer_vehicle_preferences(booking_history)
     history_html = render_to_string('quotes/customer_booking_history.html', {
         'preferences': preferences,
-        'recent_bookings': bookings.select_related('supplier', 'vehicle_group').order_by('-pickup_datetime', '-pk')[:10],
+        'recent_bookings': booking_history[:10],
     }, request=request)
     return JsonResponse({
         "found": True,

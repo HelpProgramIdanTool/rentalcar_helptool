@@ -5,7 +5,7 @@
   <ul>{% for row in preferences %}<li><strong>{{ row.supplier__supplier_name }}</strong> — {{ row.vehicle_group__group_name|default:'—' }}{% if row.vehicle_group__group_code %} ({{ row.vehicle_group__group_code }}){% endif %} · {{ row.count }}</li>{% endfor %}</ul>
   <details><summary>{% translate 'Последние резервации — даты и номера' %}</summary>
     <div style="overflow-x:auto"><table style="width:100%;font-size:14px;text-align:left"><thead><tr><th>{% translate 'Получение' %}</th><th>{% translate 'Фирма' %}</th><th>{% translate 'Класс' %}</th><th>{% translate 'Номер резервации' %}</th></tr></thead><tbody>
-    {% for booking in recent_bookings %}<tr><td>{{ booking.pickup_datetime|date:'d.m.Y'|default:'—' }}</td><td>{{ booking.supplier }}</td><td>{{ booking.vehicle_group.group_name|default:'—' }}{% if booking.vehicle_group.group_code %} ({{ booking.vehicle_group.group_code }}){% endif %}</td><td><a href="{% url 'admin:bookings_booking_change' booking.pk %}" target="_blank" rel="noopener">{{ booking.supplier_booking_number|default:booking.booking_number }}</a></td></tr>{% endfor %}
+    {% for booking in recent_bookings %}<tr><td>{{ booking.pickup_datetime|date:'d.m.Y'|default:'—' }}</td><td>{{ booking.supplier }}</td><td>{{ booking.history_group_name|default:'—' }}{% if booking.history_group_code %} ({{ booking.history_group_code }}){% endif %}</td><td><a href="{% url 'admin:bookings_booking_change' booking.pk %}" target="_blank" rel="noopener">{{ booking.supplier_booking_number|default:booking.booking_number }}</a></td></tr>{% endfor %}
     </tbody></table></div>
   </details>
   <small>{% translate 'Черновики, отменённые заказы и неявки не включены. Показана история выбранного клиента.' %}</small>
