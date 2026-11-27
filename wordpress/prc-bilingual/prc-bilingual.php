@@ -2,9 +2,10 @@
 /**
  * Plugin Name: PRC Bilingual Form
  * Description: English presentation and saved client language for the existing PRC request form.
- * Version: 0.2.7
+ * Version: 0.2.8
  */
 defined('ABSPATH') || exit;
+require_once __DIR__ . '/driver-requirements.php';
 
 final class PRC_Bilingual_Form {
     public static function english_page() {

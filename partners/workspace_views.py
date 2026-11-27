@@ -29,6 +29,7 @@ class TestOrderForm(forms.Form):
     def __init__(self,*args,**kwargs):
         self.seat_count = kwargs.pop('seat_count', 0)
         self.driver_count = kwargs.pop('driver_count', 1)
+        self.require_driver_details = kwargs.pop('require_driver_details', False)
         super().__init__(*args,**kwargs)
         labels={'driver_name':'שם הנהג באנגלית','phone':'טלפון כולל קידומת המדינה','email':'מייל איש הקשר',
                 'additional_driver':'שם נהג נוסף באנגלית — אם יש','flight':'מספר טיסה',
@@ -50,6 +51,9 @@ class TestOrderForm(forms.Form):
         if self.driver_count>=2:self.fields['additional_driver'].required=True
         for index in range(3,self.driver_count+1):
             self.fields[f'driver_{index}_name']=forms.CharField(max_length=200,label=f'שם נהג {index} באנגלית',error_messages={'required':'נא למלא את שם הנהג.'})
+        for index in range(1, self.driver_count + 1):
+            self.fields[f'driver_{index}_age'] = forms.IntegerField(min_value=18, max_value=100, required=self.require_driver_details, label=f'נהג {index} — גיל ביום הקבלה')
+            self.fields[f'driver_{index}_license_months'] = forms.IntegerField(min_value=0, max_value=1019, required=self.require_driver_details, label=f'נהג {index} — ותק רישיון בחודשים ביום הקבלה')
 
     def clean(self):
         data=super().clean()
@@ -121,6 +125,16 @@ def workspace_action(request):
         if action=='calculate':
             from .services import automatic_allowed, available_groups
             message=''
+            if trip.get('driver_requirements'):
+                from config.driver_eligibility import assess_supplier_drivers
+                from suppliers.models import Supplier
+                excluded = []
+                for supplier in Supplier.objects.filter(status=Supplier.Status.ACTIVE):
+                    assessment = assess_supplier_drivers(supplier, trip['driver_requirements'])
+                    if not assessment.eligible:
+                        excluded.append(f'{supplier.supplier_name}: גיל מינימלי {supplier.minimum_driver_age}, ותק רישיון לפחות {supplier.minimum_license_months} חודשים')
+                if excluded:
+                    message = 'לא מוצגות חברות שאינן מתאימות לנתוני הנהגים: ' + '; '.join(excluded)
             if not options:
                 if not automatic_allowed(trip):
                     message='פרטי הנסיעה או הצהרות הנהגים דורשים בדיקה אישית של עידן. שמרו פנייה לבדיקה.'
@@ -182,8 +196,15 @@ def workspace_action(request):
             if not price_valid(r.created_at,timezone.now(),r.price_versions.get(key),current):
                 return JsonResponse({'error':'עברו 7 ימים ומחירון החברה השתנה. יש לחשב הצעה חדשה ולאשר את המחיר.'},status=409)
             if not isinstance(data.get('details',{}),dict):return JsonResponse({'error':'נא לבדוק פרטי נהג.'},status=400)
-            form=TestOrderForm(data.get('details',{}),seat_count=int(r.trip.get('seats',0)),driver_count=int(r.trip.get('drivers',1)))
+            form=TestOrderForm(data.get('details',{}),seat_count=int(r.trip.get('seats',0)),driver_count=int(r.trip.get('drivers',1)),require_driver_details=bool(r.trip.get('driver_requirements')))
             if not form.is_valid():return JsonResponse({'errors':form.errors.get_json_data()},status=400)
+            if r.trip.get('driver_requirements') or any(form.cleaned_data.get(f'driver_{index}_age') is not None for index in range(1, int(r.trip.get('drivers', 1)) + 1)):
+                from suppliers.models import Supplier
+                try:
+                    live.confirm_driver_declaration(r.trip, form.cleaned_data,
+                        Supplier.objects.get(pk=selected['supplier_id']), int(r.trip.get('drivers', 1)))
+                except ValidationError as error:
+                    return JsonResponse({'error':' '.join(error.messages)},status=400)
             existing=r.orders.filter(kind='ORDER',details__option_id=selected['id']).first()
             if existing:return JsonResponse({'record':record_json(existing),'duplicate':True})
             order=PartnerWorkspaceRecord.objects.create(partner=request.partner,parent=r,kind='ORDER',status='WAITING',

@@ -24,6 +24,7 @@ class PartnerLoginForm(AuthenticationForm):
 
 
 class TripForm(forms.Form):
+    driver_requirements = forms.JSONField(required=False, widget=forms.HiddenInput)
     driver_ok = forms.BooleanField(initial=True, required=False, label='כל הנהגים מעל גיל 24 ועם רישיון מעל שנה')
     credit_ok = forms.BooleanField(initial=True, required=False, label='כרטיס האשראי על שם הנהג הראשי')
     border_ok = forms.BooleanField(initial=True, required=False, label='ידוע לי שחובה לציין יציאה למדינות אחרות')
@@ -63,6 +64,11 @@ class TripForm(forms.Form):
 
     def clean(self):
         data = super().clean()
+        from config.driver_eligibility import validate_driver_details
+        try:
+            data['driver_requirements'] = validate_driver_details(data.get('driver_requirements'), data.get('drivers') or 1)
+        except ValueError:
+            self.add_error('driver_requirements', 'נא למלא גיל בשנים וותק רישיון בחודשים לכל נהג צעיר או חדש, נכון ליום קבלת הרכב.')
         zone = ZoneInfo('Europe/Warsaw')
         for side in ('pickup', 'return'):
             date, clock = data.get(side+'_date'), data.get(side+'_time')

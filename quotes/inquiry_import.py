@@ -1,5 +1,6 @@
 """Read the labelled Hebrew website form without contacting the website."""
 import html
+import json
 import re
 from .airport_location import is_airport_location
 from datetime import date, datetime
@@ -287,6 +288,19 @@ def parse_inquiry(raw):
     if not requirements["passengers"]:
         warnings.append("Число пассажиров не распознано: выберите категории вручную.")
     data["internal_notes"] = "Заявка: " + fields.get("מספר פנייה", "без номера") + "\n" + "\n".join(warnings)
+    declaration = fields.get('Driver requirements JSON')
+    if declaration:
+        from config.driver_eligibility import validate_driver_details
+        try:
+            parsed = json.loads(declaration)
+            data['driver_count'] = max(data['driver_count'], len(parsed.get('drivers', [])))
+            data['driver_requirements'] = validate_driver_details(parsed, data['driver_count'])
+        except (ValueError, TypeError, AttributeError):
+            data['driver_requirements'] = {'exception': True, 'drivers': []}
+            warnings.append('Не удалось прочесть возраст и стаж. Заполните данные водителей вручную до расчёта.')
+    elif any(value in ('לא', 'לא בטוח') for key, value in fields.items() if 'כל נהג' in key and 'רישיון' in key):
+        data['driver_requirements'] = {'exception': True, 'drivers': []}
+        warnings.append('Уточните возраст и стаж водителей: старая форма содержит только общий ответ.')
     return data, requirements, warnings
 
 

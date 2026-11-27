@@ -124,6 +124,12 @@ msgstr "Returns"
 msgid "Возраст"
 msgstr "Age"
 
+msgid "Возраст на дату получения, полных лет"
+msgstr "Age in full years on pickup date"
+
+msgid "Возраст, полных лет"
+msgstr "Age in full years"
+
 msgid "Восстановить"
 msgstr "Restore"
 
@@ -301,6 +307,9 @@ msgstr "Rental days"
 msgid "Добавить в оферту"
 msgstr "Add to offer"
 
+msgid "Добавить водителя"
+msgstr "Add driver"
+
 msgid "Доплата за молодых/новых водителей не соответствует отмеченным водителям. Проверьте тариф и пересчитайте заказ перед отправкой."
 msgstr "The young/new driver fee does not match the selected drivers. Check the tariff and recalculate before sending."
 
@@ -315,6 +324,9 @@ msgstr "Delivery to customer address"
 
 msgid "Другой город / страна"
 msgstr "Other city / country"
+
+msgid "Есть водитель младше 24 лет или со стажем менее 12 месяцев"
+msgstr "A driver is under 24 or has held a licence for less than 12 months"
 
 msgid "Журнал версий"
 msgstr "Version history"
@@ -1006,6 +1018,12 @@ msgstr "Average total"
 msgid "Срок"
 msgstr "Duration"
 
+msgid "Стаж на дату получения, полных месяцев"
+msgstr "Licence experience in full months on pickup date"
+
+msgid "Стаж, полных месяцев"
+msgstr "Licence experience in full months"
+
 msgid "Статистика и подсчёты"
 msgstr "Statistics and totals"
 
@@ -1084,11 +1102,20 @@ msgstr "Needs review"
 msgid "Требуют внимания"
 msgstr "Need attention"
 
+msgid "Удалить водителя"
+msgstr "Remove driver"
+
 msgid "Уже записано"
 msgstr "Already recorded"
 
 msgid "Уже оформлено заказов на"
 msgstr "Bookings already made for"
+
+msgid "Укажите возраст и стаж каждого водителя на дату получения автомобиля."
+msgstr "Enter each driver’s age and licence experience as of pickup."
+
+msgid "Укажите данные каждого такого водителя на дату получения автомобиля. Остальные водители: от 24 лет и стаж от 12 месяцев."
+msgstr "Enter details for each affected driver as of pickup. All other drivers: at least 24 years old with at least 12 months of licence experience."
 
 msgid "Уникальных заказов"
 msgstr "Unique reservations"

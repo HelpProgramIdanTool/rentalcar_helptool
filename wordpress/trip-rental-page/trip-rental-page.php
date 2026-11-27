@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Trip2Poland Rental Page
  * Description: Responsive Hebrew rental car request form with request storage, Gmail delivery, automatic retries, failed-email recovery and strict rental date validation.
- * Version: 1.7.0
+ * Version: 1.7.1
  * Author: Idan / ChatGPT
  * Text Domain: poland-car-request-form
  */
@@ -12,6 +12,7 @@ if (!defined('ABSPATH')) {
 }
 
 require_once __DIR__ . '/request-dedup.php';
+require_once __DIR__ . '/driver-requirements.php';
 require_once __DIR__ . '/site-shell.php';
 
 final class Trip_Car_Request_Form {
@@ -91,7 +92,7 @@ final class Trip_Car_Request_Form {
         $base = set_url_scheme(plugin_dir_url(__FILE__), 'https');
         wp_enqueue_style('trip-page', $base . 'page.css', [], '7.2');
         wp_enqueue_script('trip-validation', $base . 'validation.js', [], '7.2', true);
-        wp_enqueue_script('trip-page', $base . 'page.js', ['trip-validation'], '7.3', true);
+        wp_enqueue_script('trip-page', $base . 'page.js', ['trip-validation'], '7.4', true);
         wp_add_inline_script('trip-page', 'const TRIP_CONFIG=' . wp_json_encode([
             'nonce'=>wp_create_nonce(self::NONCE_ACTION), 'started'=>time(),
             'restore'=>$this->get_restore_data_from_request(), 'action'=>set_url_scheme(admin_url('admin-post.php'), 'https')]) . ';', 'before');

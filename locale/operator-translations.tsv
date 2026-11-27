@@ -391,3 +391,12 @@ Cancelled	Anulowana	Cancelled
 Количество заказов по месяцам	Liczba rezerwacji według miesięcy	Booking count by month
 Оборот ниже по-прежнему относится к году возврата автомобиля.	Obrót poniżej nadal dotyczy roku zwrotu samochodu.	Turnover below continues to use the vehicle return year.
 Учитывается дата из карточки заказа. Записи без выбранной даты не распределяются по годам.	Uwzględniana jest data z rezerwacji. Rekordy bez wybranej daty nie są przypisywane do lat.	The date stored in the booking is used. Records without that date are not assigned to a year.
+Возраст, полных лет	Wiek w pełnych latach	Age in full years
+Стаж, полных месяцев	Staż prawa jazdy w pełnych miesiącach	Licence experience in full months
+Удалить водителя	Usuń kierowcę	Remove driver
+Добавить водителя	Dodaj kierowcę	Add driver
+Есть водитель младше 24 лет или со стажем менее 12 месяцев	Jest kierowca poniżej 24 lat lub z prawem jazdy krócej niż 12 miesięcy	A driver is under 24 or has held a licence for less than 12 months
+Укажите данные каждого такого водителя на дату получения автомобиля. Остальные водители: от 24 лет и стаж от 12 месяцев.	Podaj dane każdego takiego kierowcy na dzień odbioru samochodu. Pozostali kierowcy: co najmniej 24 lata i 12 miesięcy prawa jazdy.	Enter details for each affected driver as of pickup. All other drivers: at least 24 years old with at least 12 months of licence experience.
+Возраст на дату получения, полных лет	Wiek w pełnych latach w dniu odbioru	Age in full years on pickup date
+Стаж на дату получения, полных месяцев	Staż prawa jazdy w pełnych miesiącach w dniu odbioru	Licence experience in full months on pickup date
+Укажите возраст и стаж каждого водителя на дату получения автомобиля.	Podaj wiek i staż każdego kierowcy na dzień odbioru.	Enter each driver’s age and licence experience as of pickup.

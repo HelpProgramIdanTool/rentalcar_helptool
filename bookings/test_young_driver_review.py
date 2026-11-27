@@ -14,6 +14,26 @@ class YoungDriverReviewTests(TestCase):
     review = manual_data.ManualBookingTests.review
     confirm = manual_data.ManualBookingTests.confirm
 
+    def test_numeric_driver_details_survive_booking_and_individual_cap(self):
+        import json
+        self.supplier.minimum_driver_age=18
+        self.supplier.minimum_license_months=0
+        self.supplier.customer_conditions={'driver_rules':{'version':1,'surcharge_age_below':24,'surcharge_license_months_below':12}}
+        self.supplier.save()
+        extra=self.tariff(maximum=30)
+        data,response=self.review(driver_count=2,driver_1_name='TEST FIRST',driver_2_name='TEST SECOND',
+            driver_1_age=22,driver_1_license_months=4,driver_2_age=23,driver_2_license_months=5,
+            driver_requirements=json.dumps({'exception':True,'drivers':[{'age':22,'license_months':4},{'age':23,'license_months':5}]}),
+            return_date='2026-10-05')
+        self.assertEqual(response.context['result']['extras_total'],60)
+        self.confirm(data,response)
+        booking=Booking.objects.get()
+        self.assertEqual(list(booking.drivers.values_list('age_at_pickup','license_months_at_pickup')),[(22,4),(23,5)])
+        self.assertEqual(booking.drivers.filter(young_driver_status=True).count(),2)
+        booking.sync_young_driver_extras()
+        booking.recalculate_extra_prices()
+        self.assertEqual(booking.extras.get(extra=extra).calculated_price_gross,60)
+
     def tariff(self, *, amount=10, calculation_type='PER_DRIVER_DAY', maximum=None):
         extra = SupplierExtra.objects.create(supplier=self.supplier,extra_code='YOUNG_DRIVER',name='TEST Young driver fee')
         SupplierExtraRate.objects.create(extra=extra,calculation_type=calculation_type,amount_gross=amount,

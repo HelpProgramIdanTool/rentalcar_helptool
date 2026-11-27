@@ -11,7 +11,8 @@ from suppliers.models import FormVehicleCategory, VehicleGroup, Supplier
 
 
 def automatic_allowed(data):
-    return all(data.get(key) for key in ('driver_ok', 'credit_ok', 'border_ok')) and not data.get('foreign_route')
+    drivers_declared = bool(data.get('driver_requirements')) or data.get('driver_ok')
+    return drivers_declared and all(data.get(key) for key in ('credit_ok', 'border_ok')) and not data.get('foreign_route')
 
 
 def complete_option(option, cross_border=False):
@@ -33,7 +34,8 @@ def trip_quote(data):
         pickup_city=data['pickup_city'], return_city=data['return_city'],
         pickup_service=data['pickup_service'], return_service=data['return_service'],
         pickup_address=data.get('pickup_address', ''), return_address=data.get('return_address', ''),
-        cross_border_requested=data['cross_border'], driver_count=data['drivers'])
+        cross_border_requested=data['cross_border'], driver_count=data['drivers'],
+        driver_requirements=data.get('driver_requirements') or {}, language='Hebrew')
     quote.pickup_location_text = ' · '.join(filter(None, [quote.pickup_city, quote.pickup_service, quote.pickup_address]))
     quote.return_location_text = ' · '.join(filter(None, [quote.return_city, quote.return_service, quote.return_address]))
     quote.rental_days = calculate_rental_days(quote.pickup_datetime, quote.return_datetime)

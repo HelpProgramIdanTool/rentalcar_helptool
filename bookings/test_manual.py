@@ -160,7 +160,8 @@ class ManualBookingTests(TestCase):
         )
         page = self.client.get(self.url)
         self.assertContains(page, 'name="driver_1_name"')
-        self.assertContains(page, 'name="driver_1_young"')
+        self.assertContains(page, 'name="driver_1_age"')
+        self.assertContains(page, 'name="driver_1_license_months"')
         data, response = self.review(
             driver_count=2, driver_1_name="First Driver", driver_2_name="Second Driver",
             driver_2_young="on",

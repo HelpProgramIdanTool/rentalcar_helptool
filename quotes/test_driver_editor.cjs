@@ -1,0 +1,16 @@
+const {JSDOM}=require('../tmp/wordpress-qa/node_modules/jsdom');
+const fs=require('fs'),assert=require('node:assert/strict');
+const dom=new JSDOM(`<form><div data-driver-editor data-age-label="TEST AGE" data-months-label="TEST MONTHS" data-remove-label="REMOVE"><input name="driver_requirements" type="hidden"><input type="checkbox" data-driver-exception><div data-driver-rows></div><button type="button" data-driver-add>ADD</button></div></form>`,{runScripts:'outside-only'});
+const doc=dom.window.document;dom.window.eval(fs.readFileSync('quotes/static/quotes/driver_details.js','utf8'));
+let input=doc.querySelector('[name=driver_requirements]');
+assert.deepEqual(JSON.parse(input.value),{exception:false,drivers:[]});
+input.value=JSON.stringify({exception:true,drivers:[{age:22,license_months:4}]});
+doc.dispatchEvent(new dom.window.Event('driverdetailsloaded'));
+assert.equal(doc.querySelector('[data-age]').value,'22');
+assert.equal(doc.querySelector('[data-months]').value,'4');
+doc.querySelector('[data-driver-add]').click();
+assert.equal(doc.querySelectorAll('[data-age]').length,2);
+const toggle=doc.querySelector('[data-driver-exception]');toggle.checked=false;toggle.dispatchEvent(new dom.window.Event('change'));
+assert.equal(doc.querySelector('[data-age]').required,false);
+assert.deepEqual(JSON.parse(doc.querySelector('[name=driver_requirements]').value),{exception:false,drivers:[]});
+dom.window.close();console.log('Driver editor: explicit standard declaration, imported facts, add/remove and required states passed.');

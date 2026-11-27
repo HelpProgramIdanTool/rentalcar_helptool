@@ -25,7 +25,7 @@
 <p id="paste-status" role="status"></p>
 </section>{% endif %}
 <div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% elif 'driver_' in field.name and field.name != 'driver_count' %}{% elif 'child_seat_' in field.name and field.name != 'child_seat_quantity' %}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
-<section class="driver-section"><h2>{% translate "Водители" %}</h2><div class="driver-name-fields">{% for name_field, young_field in form.driver_fields %}<div data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<p>{{ young_field }} {{ young_field.label_tag }}{{ young_field.errors }}</p></div>{% endfor %}</div><p>Впишите имя и фамилию каждого водителя в одно поле. Отметьте молодого водителя: если у фирмы есть такая доплата, она войдёт в расчёт.</p></section>
+<section class="driver-section"><h2>{% translate "Водители" %}</h2><div class="driver-name-fields">{% for name_field, age_field, experience_field in form.driver_fields %}<div data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<p>{{ age_field.label_tag }}{{ age_field }}{{ age_field.errors }} {{ experience_field.label_tag }}{{ experience_field }}{{ experience_field.errors }}</p></div>{% endfor %}</div><p>Впишите имя и фамилию каждого водителя в одно поле. Укажите возраст и стаж на дату получения машины. Допуск и доплата проверяются по правилам выбранной фирмы.</p></section>
 <section class="child-seat-section" {% if not form.child_seat_fields %}hidden{% endif %}><h2>{% translate "Данные детских кресел" %}</h2><div class="child-seat-list">{% for fields in form.child_seat_fields %}<div class="child-seat-row" data-seat="{{ forloop.counter }}"><h3>{% translate "Кресло" %} {{ forloop.counter }}</h3><div class="child-seat-fields">{% for field in fields %}<label>{{ field.label }}{{ field }}{{ field.errors }}</label>{% endfor %}</div></div>{% endfor %}</div><p>Заполните известные данные: возраст, рост и выбранный тип или номер кресла.</p></section>
 <p><button name="action" value="calculate" formnovalidate>{% translate "Пересчитать" %}</button></p>
 {% if deposit_pending %}
@@ -80,10 +80,12 @@ function syncDriverFields(){
     box=document.createElement('div');box.dataset.field=name;
     const caption=document.createElement('label');caption.htmlFor=`id_${name}`;caption.textContent=`Водитель ${index} — имя и фамилия латиницей`;
     const input=document.createElement('input');input.id=`id_${name}`;input.name=name;input.type='text';input.maxLength=201;input.autocomplete='off';
-    const young=document.createElement('input');young.id=`id_driver_${index}_young`;young.name=`driver_${index}_young`;young.type='checkbox';
-    const youngLabel=document.createElement('label');youngLabel.htmlFor=young.id;youngLabel.textContent=` Молодой водитель`;
-    const line=document.createElement('p');line.append(young,youngLabel);
-    box.append(caption,input,line);
+    box.append(caption,input);
+    {% translate 'Возраст на дату получения, полных лет' as driver_age_caption %}{% translate 'Стаж на дату получения, полных месяцев' as driver_experience_caption %}
+    for(const [suffix,label,min,max] of [['age','{{ driver_age_caption|escapejs }}',18,100],['license_months','{{ driver_experience_caption|escapejs }}',0,1019]]){
+      const field=document.createElement('input');field.type='number';field.min=min;field.max=max;field.step=1;field.required=true;field.name=`driver_${index}_${suffix}`;field.id=`id_${field.name}`;
+      const caption=document.createElement('label');caption.htmlFor=field.id;caption.textContent=label;box.append(caption,field);
+    }
     fields.append(box);
    }
  }

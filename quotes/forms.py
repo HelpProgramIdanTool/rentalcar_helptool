@@ -203,6 +203,7 @@ class FirstInquiryForm(forms.Form):
         initial=1,
         required=False,
     )
+    driver_requirements = forms.JSONField(required=False, widget=forms.HiddenInput)
     young_driver_quantity = forms.IntegerField(
         label=_("Количество новых или молодых водителей"), min_value=1,
         initial=1, required=False,
@@ -307,7 +308,7 @@ class FirstInquiryForm(forms.Form):
                     self.initial[f"{side}_other_country"] = parts[1]
         if self.pricing_only:
             keep = {"suppliers", "sub_agent", "driver_count", "extra_choices",
-                    "child_seat_quantity", "young_driver_quantity", "cross_border_requested", "rental_country", "local_rental_branch"}
+                    "child_seat_quantity", "young_driver_quantity", "driver_requirements", "cross_border_requested", "rental_country", "local_rental_branch"}
             self.fields = {name: field for name, field in self.fields.items()
                            if name.startswith(("pickup_", "return_")) or name in keep}
         for field in self.fields.values():
@@ -316,6 +317,11 @@ class FirstInquiryForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
+        from config.driver_eligibility import validate_driver_details
+        try:
+            cleaned['driver_requirements'] = validate_driver_details(cleaned.get('driver_requirements'), cleaned.get('driver_count') or 1)
+        except ValueError as error:
+            self.add_error('driver_requirements', str(error))
         cleaned['rental_country']=cleaned.get('rental_country') or 'PL'
         from .airport_location import airport_service_conflicts
         for side in airport_service_conflicts(cleaned):

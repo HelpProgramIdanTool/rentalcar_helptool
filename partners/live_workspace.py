@@ -84,6 +84,36 @@ def notify_owner(record):
     record.save(update_fields=['details','updated_at'])
 
 
+def confirm_driver_declaration(trip, details, supplier, count):
+    if not trip.get('driver_requirements') and not any(details.get(f'driver_{index}_age') is not None for index in range(1, count + 1)):
+        return {}
+    data = {}
+    from config.driver_eligibility import assess_supplier_drivers, validate_driver_details
+    rows = []
+    for index in range(1, count + 1):
+        age, months = details.get(f'driver_{index}_age'), details.get(f'driver_{index}_license_months')
+        if age is None or months is None:
+            raise ValidationError('נא למלא גיל וותק רישיון לכל נהג.')
+        from config.driver_eligibility import validate_driver_profile
+        try:
+            validate_driver_profile(age, months)
+        except ValueError:
+            raise ValidationError('נא לבדוק גיל וותק רישיון לכל נהג.')
+        data[f'driver_{index}_age'], data[f'driver_{index}_license_months'] = age, months
+        if age < 24 or months < 12:
+            rows.append({'age': age, 'license_months': months})
+    try:
+        actual = validate_driver_details({'exception': bool(rows), 'drivers': rows}, count)
+    except ValueError:
+        raise ValidationError('פרטי הגיל או ותק הרישיון אינם תקינים.')
+    assessment = assess_supplier_drivers(supplier, actual)
+    previous = assess_supplier_drivers(supplier, trip.get('driver_requirements') or {'exception':False,'drivers':[]})
+    if not assessment.eligible or assessment.charged_drivers != previous.charged_drivers:
+        raise ValidationError('פרטי הנהגים שינו את תנאי ההצעה. יש לחזור להצעה ולחשב מחדש לפני הזמנה.')
+    data['driver_requirements'] = actual
+    return data
+
+
 def create_booking(record,option_data,details,user):
     """Convert the immutable saved offer, including its exact protected prices."""
     from suppliers.models import SupplierExtraRate, VehicleRate, SupplierLocation
@@ -112,6 +142,7 @@ def create_booking(record,option_data,details,user):
     for side in ('pickup','return'):
         for key in ('city','service','address'):data[side+'_'+key]=trip.get(side+'_'+key,'')
     for index,name in enumerate(names[:count],1):data[f'driver_{index}_name']=name
+    data.update(confirm_driver_declaration(trip, details, option.supplier, count))
     lines=[]
     for line in saved.get('lines',[]):
         if not line.get('extra_id') or not line.get('rate_id'):raise ValidationError('חסר פירוט מחיר. יש לפנות לעידן.')

@@ -118,6 +118,9 @@ def _quote_form_initial(quote):
         "vehicle_groups": vehicle_group_ids,
         "suppliers": list(quote.requested_suppliers.values_list("id", flat=True)),
         "driver_count": quote.driver_count,
+        "driver_requirements": quote.driver_requirements or (
+            {'exception': True, 'drivers': []} if any(quote.extra_requests.get(code)
+                for code in ('YOUNG_DRIVER', 'YOUNG_DRIVER_21_24')) else {}),
         "cross_border_requested": quote.cross_border_requested,
         "rental_country": quote.rental_country,
         "local_rental_branch": quote.local_rental_branch_id,
@@ -153,6 +156,7 @@ def _update_quote_from_form(quote, data):
     quote.pickup_datetime = data["pickup_datetime"]
     quote.return_datetime = data["return_datetime"]
     quote.driver_count = data["driver_count"]
+    quote.driver_requirements = data.get('driver_requirements') or {}
     quote.cross_border_requested = data["cross_border_requested"]
     quote.rental_country = data.get('rental_country','PL')
     quote.local_rental_branch = data.get('local_rental_branch')
@@ -232,6 +236,7 @@ def new_inquiry(request, customer_id=None):
                 return_address=form.cleaned_data["return_address"],
                 vehicle_request="",
                 driver_count=form.cleaned_data["driver_count"],
+                driver_requirements=form.cleaned_data.get('driver_requirements') or {},
                 cross_border_requested=form.cleaned_data["cross_border_requested"],
                 extra_requests={
                     code: (
@@ -306,6 +311,7 @@ def duplicate_quote(request, quote_number):
         return_city=source.return_city, return_service=source.return_service,
         return_address=source.return_address, cross_border_requested=source.cross_border_requested,
         extra_requests=source.extra_requests, driver_count=source.driver_count,
+        driver_requirements=source.driver_requirements,
         vehicle_request=source.vehicle_request, customer_notes=source.customer_notes,
         internal_notes=source.internal_notes,
     )

@@ -94,6 +94,9 @@ def clone_initial(booking):
             initial[f"{side}_city"] = city
             services = {label: code for code, label in ManualBookingForm.SERVICE_CHOICES}
             initial[f"{side}_service"] = services.get(label, "ADDRESS")
+    for index, driver in enumerate(booking.drivers.all(), 1):
+        initial[f'driver_{index}_age'] = driver.age_at_pickup
+        initial[f'driver_{index}_license_months'] = driver.license_months_at_pickup
     extras = {line.extra.extra_code: int(line.quantity) for line in booking.extras.select_related("extra")}
     initial["extra_choices"] = [code for code, _ in ManualBookingForm.EXTRA_CHOICES
                                 if code in extras and code != "YOUNG_DRIVER"]

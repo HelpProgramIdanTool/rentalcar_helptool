@@ -2,7 +2,7 @@
   const status = document.getElementById('price-preview-status');
   if (!status) return;
   const form = status.closest('form');
-  const fields = new Set(['suppliers','sub_agent','driver_count','extra_choices','child_seat_quantity','young_driver_quantity','cross_border_requested','rental_country','local_rental_branch']);
+  const fields = new Set(['suppliers','sub_agent','driver_count','driver_requirements','extra_choices','child_seat_quantity','young_driver_quantity','cross_border_requested','rental_country','local_rental_branch']);
   const relevant = name => name.startsWith('pickup_') || name.startsWith('return_') || fields.has(name);
   const labels = new Map();
   form.querySelectorAll('input[name="vehicle_groups"]').forEach(input => {
@@ -77,6 +77,8 @@
       form.dispatchEvent(new Event('pricingrendered'));
       syncSuppliers();
       status.textContent = `Цены за весь срок (${result.days} дн.), с выбранными добавками. Ручные доплаты — на следующем шаге.`;
+      const reasons = [...new Set(Object.values(result.prices).filter(item => item.not_offered && item.reason).map(item => item.reason))];
+      if (reasons.length) status.textContent += ' ' + reasons.join(' ');
     } catch (error) {
       if (current !== version || error.name === 'AbortError') return;
       clear('');

@@ -143,11 +143,12 @@
         </section>
       </div>
       <label>{{ form.driver_count.label }}{{ form.driver_count }}{{ form.driver_count.errors }}</label>
+      {% include 'quotes/driver_details.html' %}
       <div class="extras-choice">{{ form.extra_choices.label }}
-        <div>{% for option in form.extra_choices %}<label for="{{ option.id_for_label }}" title="{{ option.choice_label }}">{{ option.tag }}<span>{% if option.data.value == 'YOUNG_DRIVER' %}Молодой / новый водитель{% elif option.data.value == 'CHILD_SEAT' %}{% translate "Кресло" %} / бустер{% elif option.data.value == 'SNOW_CHAINS' %}{% translate "Цепи" %}{% elif option.data.value == 'NAVIGATION' %}GPS{% elif option.data.value == 'WIFI_ROUTER' %}Wi-Fi{% else %}{{ option.choice_label }}{% endif %}</span></label>{% endfor %}</div>
+        <div>{% for option in form.extra_choices %}<label {% if option.data.value == "YOUNG_DRIVER" %}hidden{% endif %} for="{{ option.id_for_label }}" title="{{ option.choice_label }}">{{ option.tag }}<span>{% if option.data.value == 'YOUNG_DRIVER' %}Молодой / новый водитель{% elif option.data.value == 'CHILD_SEAT' %}{% translate "Кресло" %} / бустер{% elif option.data.value == 'SNOW_CHAINS' %}{% translate "Цепи" %}{% elif option.data.value == 'NAVIGATION' %}GPS{% elif option.data.value == 'WIFI_ROUTER' %}Wi-Fi{% else %}{{ option.choice_label }}{% endif %}</span></label>{% endfor %}</div>
         {{ form.extra_choices.errors }}
       </div>
-      <label>{{ form.young_driver_quantity.label }}{{ form.young_driver_quantity }}{{ form.young_driver_quantity.errors }}<small>{{ form.young_driver_quantity.help_text }}</small></label>
+      <label hidden>{{ form.young_driver_quantity.label }}{{ form.young_driver_quantity }}{{ form.young_driver_quantity.errors }}<small>{{ form.young_driver_quantity.help_text }}</small></label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
       <label>{{ form.rental_country.label }}{{ form.rental_country }}{{ form.rental_country.help_text }}{{ form.rental_country.errors }}</label><label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
       <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
@@ -223,10 +224,11 @@
         }
         form.querySelectorAll('[name="'+name+'"]').forEach(el => {
           if (el.type === 'checkbox') el.checked = Array.isArray(value) ? value.map(String).includes(el.value) : Boolean(value);
-          else el.value = value ?? '';
+          else el.value = name === 'driver_requirements' ? JSON.stringify(value) : (value ?? '');
         });
       });
       pickupCalendar.value = isoDate(pickupText.value);
+      document.dispatchEvent(new Event('driverdetailsloaded'));
       if(Array.isArray(data.fields.vehicle_groups))filterGroups(data.fields.vehicle_groups);
       returnCalendar.value = isoDate(returnText.value);
       returnCalendar.min = pickupCalendar.value;
@@ -341,6 +343,7 @@
       const selectedGroups = Array.from(document.querySelectorAll('.vehicle-picker input[type="checkbox"]:checked'), input => input.value);
       filterGroups(document.querySelector('#imported-inquiry').value === '1' ? selectedGroups : null);
       toggleInvoice(); toggleAddresses(); updatePhones(); toggleChildSeats(); syncCrossBorder();
+      document.dispatchEvent(new Event('driverdetailsloaded'));
       lookupCustomer();
     } catch (error) {}
   }
@@ -365,4 +368,4 @@
   const errorSummary=document.querySelector('#form-errors');
   syncCrossBorder();
   if(errorSummary)errorSummary.focus();
-</script><script src="{% static 'quotes/local_rental_mode.js' %}"></script><script src="{% static 'quotes/price_preview.js' %}?v=20261030-availability"></script></body></html>
+</script><script src="{% static 'quotes/local_rental_mode.js' %}"></script><script src="{% static 'quotes/price_preview.js' %}?v=20261030-availability"></script><script src="{% static 'quotes/driver_details.js' %}"></script></body></html>

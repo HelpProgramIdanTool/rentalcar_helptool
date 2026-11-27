@@ -347,6 +347,18 @@ def calculate_quote_options(quote, *, vehicle_group=None):
         groups = groups.filter(id__in=requested_group_ids)
       for group in groups:
         quote=copy(original_quote)
+        from config.driver_eligibility import assess_supplier_drivers
+        driver_assessment = assess_supplier_drivers(group.supplier, quote.driver_requirements, quote.language)
+        if not driver_assessment.eligible:
+            results.append({'comparison': comparison, 'supplier': group.supplier, 'group': group,
+                'available': False, 'reason': f'{group.supplier.supplier_name}: {driver_assessment.reason}', 'total': None,
+                'driver_ineligible': True})
+            continue
+        if quote.driver_requirements:
+            quote.extra_requests = {code: quantity for code, quantity in quote.extra_requests.items()
+                if code not in YOUNG_DRIVER_CODES}
+            if driver_assessment.charged_drivers:
+                quote.extra_requests['YOUNG_DRIVER'] = driver_assessment.charged_drivers
         if group.supplier_id not in routes:
             routes[group.supplier_id] = route_context(original_quote, group.supplier)
         route=routes[group.supplier_id]
@@ -456,6 +468,8 @@ def calculate_quote_options(quote, *, vehicle_group=None):
             | Q(extra_code__in=requested_supplier_codes)
         )
         extras = extras.exclude(pk__in=[request["extra"].pk for request in city_requests])
+        if quote.driver_requirements:
+            extras = extras.exclude(Q(extra_code__in=YOUNG_DRIVER_CODES) & ~Q(extra_code__in=requested_supplier_codes))
         extras = extras.exclude(Q(automatic_rule=SupplierExtra.AutomaticRule.DOMESTIC_ONE_WAY) & ~Q(extra_code__in=route_requests))
         for extra in extras:
             quantity = Decimal("1")

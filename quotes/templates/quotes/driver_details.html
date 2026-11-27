@@ -1,0 +1,7 @@
+{% load i18n %}
+<div data-driver-editor data-age-label="{% translate 'Возраст, полных лет' %}" data-months-label="{% translate 'Стаж, полных месяцев' %}" data-remove-label="{% translate 'Удалить водителя' %}">
+{{ form.driver_requirements }}{{ form.driver_requirements.errors }}
+<label><input type="checkbox" data-driver-exception> {% translate 'Есть водитель младше 24 лет или со стажем менее 12 месяцев' %}</label>
+<small>{% translate 'Укажите данные каждого такого водителя на дату получения автомобиля. Остальные водители: от 24 лет и стаж от 12 месяцев.' %}</small>
+<div data-driver-rows></div><button type="button" data-driver-add>{% translate 'Добавить водителя' %}</button>
+</div>

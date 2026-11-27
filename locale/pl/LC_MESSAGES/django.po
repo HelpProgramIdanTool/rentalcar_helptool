@@ -124,6 +124,12 @@ msgstr "Zwroty"
 msgid "Возраст"
 msgstr "Wiek"
 
+msgid "Возраст на дату получения, полных лет"
+msgstr "Wiek w pełnych latach w dniu odbioru"
+
+msgid "Возраст, полных лет"
+msgstr "Wiek w pełnych latach"
+
 msgid "Восстановить"
 msgstr "Przywróć"
 
@@ -301,6 +307,9 @@ msgstr "Dni wynajmu"
 msgid "Добавить в оферту"
 msgstr "Dodaj do oferty"
 
+msgid "Добавить водителя"
+msgstr "Dodaj kierowcę"
+
 msgid "Доплата за молодых/новых водителей не соответствует отмеченным водителям. Проверьте тариф и пересчитайте заказ перед отправкой."
 msgstr "Dopłata dla młodych lub nowych kierowców nie odpowiada zaznaczonym kierowcom. Sprawdź taryfę i przelicz rezerwację przed wysłaniem."
 
@@ -315,6 +324,9 @@ msgstr "Dostawa pod adres klienta"
 
 msgid "Другой город / страна"
 msgstr "Inne miasto / kraj"
+
+msgid "Есть водитель младше 24 лет или со стажем менее 12 месяцев"
+msgstr "Jest kierowca poniżej 24 lat lub z prawem jazdy krócej niż 12 miesięcy"
 
 msgid "Журнал версий"
 msgstr "Historia wersji"
@@ -1006,6 +1018,12 @@ msgstr "Średnia kwota"
 msgid "Срок"
 msgstr "Okres"
 
+msgid "Стаж на дату получения, полных месяцев"
+msgstr "Staż prawa jazdy w pełnych miesiącach w dniu odbioru"
+
+msgid "Стаж, полных месяцев"
+msgstr "Staż prawa jazdy w pełnych miesiącach"
+
 msgid "Статистика и подсчёты"
 msgstr "Statystyki i obliczenia"
 
@@ -1084,11 +1102,20 @@ msgstr "Wymaga sprawdzenia"
 msgid "Требуют внимания"
 msgstr "Wymagają uwagi"
 
+msgid "Удалить водителя"
+msgstr "Usuń kierowcę"
+
 msgid "Уже записано"
 msgstr "Już zapisano"
 
 msgid "Уже оформлено заказов на"
 msgstr "Już zarezerwowano na rok"
+
+msgid "Укажите возраст и стаж каждого водителя на дату получения автомобиля."
+msgstr "Podaj wiek i staż każdego kierowcy na dzień odbioru."
+
+msgid "Укажите данные каждого такого водителя на дату получения автомобиля. Остальные водители: от 24 лет и стаж от 12 месяцев."
+msgstr "Podaj dane każdego takiego kierowcy na dzień odbioru samochodu. Pozostali kierowcy: co najmniej 24 lata i 12 miesięcy prawa jazdy."
 
 msgid "Уникальных заказов"
 msgstr "Unikalne rezerwacje"

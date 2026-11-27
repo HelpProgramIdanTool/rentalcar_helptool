@@ -23,7 +23,7 @@ def preview_prices(request):
     quote = Quote(**{key: data[key] for key in (
         'pickup_datetime', 'return_datetime', 'pickup_city', 'return_city',
         'pickup_service', 'return_service', 'pickup_address', 'return_address',
-        'driver_count', 'cross_border_requested', 'sub_agent', 'rental_country', 'local_rental_branch',
+        'driver_count', 'driver_requirements', 'cross_border_requested', 'sub_agent', 'rental_country', 'local_rental_branch',
     )})
     quote.rental_days = calculate_rental_days(quote.pickup_datetime, quote.return_datetime)
     quote.extra_requests = {code: data['child_seat_quantity'] if code == 'CHILD_SEAT'
@@ -44,6 +44,6 @@ def preview_prices(request):
         if complete and quote.cross_border_requested:
             complete = any(line['extra'].extra_code == 'CROSS_BORDER' for line in option['extra_lines'])
         prices[str(group.pk)] = ({'available': True, 'total': str(option['total']), 'currency': option['currency']}
-            if complete else {'available': False, 'reason': (option.get('reason') if option else '')
+            if complete else {'available': False, 'not_offered': bool(option and option.get('driver_ineligible')), 'reason': (option.get('reason') if option else '')
                              or 'Нет полного расчёта для выбранных дат, услуг или режима сабагента.'})
     return JsonResponse({'prices': prices, 'days': quote.rental_days})

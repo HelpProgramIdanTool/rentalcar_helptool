@@ -532,7 +532,15 @@ class Booking(models.Model):
                 booking_extra.save()
 
     def sync_young_driver_extras(self):
-        young_driver_count = self.drivers.filter(young_driver_status=True).count()
+        from config.driver_eligibility import assess_supplier_drivers
+        young_driver_count = 0
+        for driver in self.drivers.all():
+            if driver.age_at_pickup is None or driver.license_months_at_pickup is None:
+                young_driver_count += int(driver.young_driver_status)
+            elif driver.age_at_pickup < 24 or driver.license_months_at_pickup < 12:
+                assessment = assess_supplier_drivers(self.supplier, {'exception': True, 'drivers': [
+                    {'age': driver.age_at_pickup, 'license_months': driver.license_months_at_pickup}]})
+                young_driver_count += assessment.charged_drivers
         extras = self.supplier.extras.filter(
             extra_code__in=YOUNG_DRIVER_CODES,
             is_active=True,
@@ -706,6 +714,8 @@ class Booking(models.Model):
 
 
 class BookingDriver(models.Model):
+    age_at_pickup = models.PositiveSmallIntegerField(null=True, blank=True)
+    license_months_at_pickup = models.PositiveSmallIntegerField(null=True, blank=True)
     class Role(models.TextChoices):
         MAIN = "MAIN", "Main"
         ADDITIONAL = "ADDITIONAL", "Additional"
@@ -743,8 +753,27 @@ class BookingDriver(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.get_role_display()})"
 
+    def clean(self):
+        super().clean()
+        age, months = self.age_at_pickup, self.license_months_at_pickup
+        if age is None and months is None:
+            return  # Historical records have no numeric declaration.
+        if age is None or months is None:
+            raise ValidationError('Enter both age and licence experience as of pickup.')
+        if not 18 <= age <= 100 or not 0 <= months <= age * 12:
+            raise ValidationError('Check driver age and licence experience.')
+        from config.driver_eligibility import assess_supplier_drivers
+        details = {'exception': age < 24 or months < 12, 'drivers': []}
+        if details['exception']:
+            details['drivers'] = [{'age': age, 'license_months': months}]
+        result = assess_supplier_drivers(self.booking.supplier, details)
+        if not result.eligible:
+            raise ValidationError(result.reason)
+        self.young_driver_status = bool(result.charged_drivers)
+
     def save(self, *args, **kwargs):
         is_new = self._state.adding
+        self.clean()
         super().save(*args, **kwargs)
         self.booking.sync_additional_driver_extra()
         self.booking.sync_young_driver_extras()
@@ -917,10 +946,13 @@ class BookingExtra(models.Model):
             else:
                 price = self.unit_price_gross_snapshot * paid_drivers
         elif calculation_type == "PER_DRIVER_DAY":
-            matching_drivers = Decimal(
-                self.booking.drivers.filter(young_driver_status=True).count()
-            )
-            price = self.unit_price_gross_snapshot * matching_drivers * days
+            from types import SimpleNamespace
+            from quotes.services import _extra_price
+            return _extra_price(SimpleNamespace(calculation_type=calculation_type,
+                amount_gross=self.unit_price_gross_snapshot,
+                minimum_amount_gross=self.minimum_amount_gross_snapshot,
+                maximum_amount_gross=self.maximum_amount_gross_snapshot,
+                formula_config=formula), days, self.quantity)
         elif calculation_type == "PER_DAY":
             price = self.unit_price_gross_snapshot * self.quantity * days
         elif calculation_type == "PER_UNIT":

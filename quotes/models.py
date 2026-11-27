@@ -68,6 +68,7 @@ class Quote(models.Model):
     pickup_country = models.CharField(max_length=100, blank=True)
     return_country = models.CharField(max_length=100, blank=True)
     extra_requests = models.JSONField(default=dict, blank=True)
+    driver_requirements = models.JSONField(default=dict, blank=True)
     driver_count = models.PositiveSmallIntegerField(default=1)
     vehicle_request = models.CharField(max_length=200, blank=True)
     requested_vehicle_classes = models.ManyToManyField(

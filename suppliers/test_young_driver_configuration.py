@@ -23,7 +23,7 @@ class YoungDriverConfigurationTests(TestCase):
     def test_preview_does_not_change_any_tariffs(self):
         self.command()
         self.assertFalse(self.first.extras.exists())
-        self.assertEqual(SupplierExtraRate.objects.count(),1)
+        self.assertEqual(SupplierExtraRate.objects.filter(extra__supplier__in=[self.first,self.second]).count(),1)
 
     def test_apply_is_repeatable_keeps_old_rate_and_reads_requested_amount(self):
         for _ in range(2):
@@ -38,7 +38,7 @@ class YoungDriverConfigurationTests(TestCase):
             self.assertEqual(extra.customer_name_he,'TEST-NAME-HE')
             self.assertEqual(extra.name,'Young/new driver fee')
             self.assertIsNone(rate.maximum_amount_gross)
-        self.assertEqual(SupplierExtraRate.objects.count(),3)
+        self.assertEqual(SupplierExtraRate.objects.filter(extra__supplier__in=[self.first,self.second]).count(),3)
 
     def test_invalid_supplier_rolls_back_whole_configuration(self):
         with self.assertRaisesMessage(CommandError,'Supplier must identify exactly one existing record'):
