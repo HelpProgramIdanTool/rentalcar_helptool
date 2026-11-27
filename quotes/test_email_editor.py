@@ -15,6 +15,16 @@ from .email_tools import seat_guides, child_seat_text, load_email_template
 @override_settings(MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}})
 class EmailEditorTests(TestCase):
     def setUp(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        self.guide_folder = TemporaryDirectory()
+        self.addCleanup(self.guide_folder.cleanup)
+        media = override_settings(MEDIA_ROOT=self.guide_folder.name)
+        media.enable()
+        self.addCleanup(media.disable)
+        guide = Path(self.guide_folder.name)/'customer-guides/Rules_for_transporting_children_KaizenRent_EN.pdf'
+        guide.parent.mkdir()
+        guide.write_bytes(b'%PDF-1.4 TEST-KAIZEN-UPDATED-GUIDE')
         self.user = get_user_model().objects.create_user(username="editor", password="test-pass")
         self.client.force_login(self.user)
         customer = Customer.objects.create(first_name="Test", email="test@example.com")
@@ -131,6 +141,15 @@ class EmailEditorTests(TestCase):
         self.add_option("03")
         self.assertEqual(seat_guides(self.quote), [])
         self.assertNotIn("המצורפים", child_seat_text(self.quote, []))
+
+    def test_kaizen_uses_updated_private_english_document(self):
+        self.quote.extra_requests={'CHILD_SEAT':1}
+        self.quote.save()
+        guide,=seat_guides(self.quote)
+        self.assertTrue(guide['private'])
+        self.assertEqual(guide['path'].name,'Rules_for_transporting_children_KaizenRent_EN.pdf')
+        self.client.post(reverse('quotes:send_quote',args=[self.quote.quote_number]))
+        self.assertEqual(mail.outbox[0].attachments[0].content,b'%PDF-1.4 TEST-KAIZEN-UPDATED-GUIDE')
 
     def test_mm_guide_is_attached_once_only_when_seats_and_mm_are_included(self):
         from pathlib import Path
