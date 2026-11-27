@@ -400,3 +400,5 @@ Cancelled	Anulowana	Cancelled
 Возраст на дату получения, полных лет	Wiek w pełnych latach w dniu odbioru	Age in full years on pickup date
 Стаж на дату получения, полных месяцев	Staż prawa jazdy w pełnych miesiącach w dniu odbioru	Licence experience in full months on pickup date
 Укажите возраст и стаж каждого водителя на дату получения автомобиля.	Podaj wiek i staż każdego kierowcy na dzień odbioru.	Enter each driver’s age and licence experience as of pickup.
+Младше 24 лет или стаж менее 12 месяцев	Poniżej 24 lat lub prawo jazdy krócej niż 12 miesięcy	Under 24 or less than 12 months of licence experience
+Заполните возраст и стаж только у отмеченных молодых или новых водителей.	Podaj wiek i staż tylko zaznaczonych młodych lub nowych kierowców.	Enter age and licence experience only for the marked young or new drivers.

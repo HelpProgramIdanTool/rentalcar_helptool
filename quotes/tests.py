@@ -221,7 +221,7 @@ class FirstInquiryTests(TestCase):
 
     def test_young_driver_selection_is_visible_saved_restored_and_removed(self):
         page = self.client.get(reverse("quotes:new_inquiry"))
-        self.assertContains(page, "права менее 6 месяцев или возраст младше 24 лет")
+        self.assertContains(page, "Есть водитель младше 24 лет или со стажем менее 12 месяцев")
         response = self.client.post(reverse("quotes:new_inquiry"), self.data(
             extra_choices=["YOUNG_DRIVER"], young_driver_quantity=2,
         ))

@@ -364,6 +364,9 @@ msgstr "Zastąp bieżący szkic danymi rezerwacji. Poprzedni tekst pozostanie w 
 msgid "Заметка"
 msgstr "Notatka"
 
+msgid "Заполните возраст и стаж только у отмеченных молодых или новых водителей."
+msgstr "Podaj wiek i staż tylko zaznaczonych młodych lub nowych kierowców."
+
 msgid "Заполните, если отмечен новый или молодой водитель. Каждый человек считается один раз."
 msgstr "Wypełnij dla nowego lub młodego kierowcy. Każda osoba liczona jest raz."
 
@@ -516,6 +519,9 @@ msgstr "Miejsce odbioru"
 
 msgid "Месяц"
 msgstr "Miesiąc"
+
+msgid "Младше 24 лет или стаж менее 12 месяцев"
+msgstr "Poniżej 24 lat lub prawo jazdy krócej niż 12 miesięcy"
 
 msgid "Модели"
 msgstr "Modele"

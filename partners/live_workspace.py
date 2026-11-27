@@ -85,27 +85,40 @@ def notify_owner(record):
 
 
 def confirm_driver_declaration(trip, details, supplier, count):
-    if not trip.get('driver_requirements') and not any(details.get(f'driver_{index}_age') is not None for index in range(1, count + 1)):
+    if details.get('driver_detail_mode') != 'conditional' and not trip.get('driver_requirements') and not any(details.get(f'driver_{index}_age') is not None for index in range(1, count + 1)):
         return {}
     data = {}
     from config.driver_eligibility import assess_supplier_drivers, validate_driver_details
-    rows = []
-    for index in range(1, count + 1):
-        age, months = details.get(f'driver_{index}_age'), details.get(f'driver_{index}_license_months')
-        if age is None or months is None:
-            raise ValidationError('נא למלא גיל וותק רישיון לכל נהג.')
-        from config.driver_eligibility import validate_driver_profile
+    if details.get('driver_detail_mode') == 'conditional':
+        from config.driver_eligibility import conditional_driver_details
         try:
-            validate_driver_profile(age, months)
+            actual = conditional_driver_details(details, count)
         except ValueError:
-            raise ValidationError('נא לבדוק גיל וותק רישיון לכל נהג.')
-        data[f'driver_{index}_age'], data[f'driver_{index}_license_months'] = age, months
-        if age < 24 or months < 12:
-            rows.append({'age': age, 'license_months': months})
-    try:
-        actual = validate_driver_details({'exception': bool(rows), 'drivers': rows}, count)
-    except ValueError:
-        raise ValidationError('פרטי הגיל או ותק הרישיון אינם תקינים.')
+            raise ValidationError('נא למלא גיל וותק רק לנהגים שסומנו כצעירים או חדשים.')
+        for index in range(1, count + 1):
+            marked = details.get(f'driver_{index}_young')
+            data[f'driver_{index}_age'] = details.get(f'driver_{index}_age') if marked else None
+            data[f'driver_{index}_license_months'] = details.get(f'driver_{index}_license_months') if marked else None
+    else:
+        rows = []
+        for index in range(1, count + 1):
+            age, months = details.get(f'driver_{index}_age'), details.get(f'driver_{index}_license_months')
+            if age is None and months is None and not (trip.get('driver_requirements') or {}).get('exception'):
+                continue
+            if age is None or months is None:
+                raise ValidationError('נא למלא גיל וותק רישיון לכל נהג.')
+            from config.driver_eligibility import validate_driver_profile
+            try:
+                validate_driver_profile(age, months)
+            except ValueError:
+                raise ValidationError('נא לבדוק גיל וותק רישיון לכל נהג.')
+            data[f'driver_{index}_age'], data[f'driver_{index}_license_months'] = age, months
+            if age < 24 or months < 12:
+                rows.append({'age': age, 'license_months': months})
+        try:
+            actual = validate_driver_details({'exception': bool(rows), 'drivers': rows}, count)
+        except ValueError:
+            raise ValidationError('פרטי הגיל או ותק הרישיון אינם תקינים.')
     assessment = assess_supplier_drivers(supplier, actual)
     previous = assess_supplier_drivers(supplier, trip.get('driver_requirements') or {'exception':False,'drivers':[]})
     if not assessment.eligible or assessment.charged_drivers != previous.charged_drivers:

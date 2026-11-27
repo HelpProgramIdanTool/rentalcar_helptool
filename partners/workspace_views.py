@@ -52,11 +52,24 @@ class TestOrderForm(forms.Form):
         for index in range(3,self.driver_count+1):
             self.fields[f'driver_{index}_name']=forms.CharField(max_length=200,label=f'שם נהג {index} באנגלית',error_messages={'required':'נא למלא את שם הנהג.'})
         for index in range(1, self.driver_count + 1):
-            self.fields[f'driver_{index}_age'] = forms.IntegerField(min_value=18, max_value=100, required=self.require_driver_details, label=f'נהג {index} — גיל ביום הקבלה')
-            self.fields[f'driver_{index}_license_months'] = forms.IntegerField(min_value=0, max_value=1019, required=self.require_driver_details, label=f'נהג {index} — ותק רישיון בחודשים ביום הקבלה')
+            self.fields[f'driver_{index}_young'] = forms.BooleanField(required=False)
+            conditional = self.data.get('driver_detail_mode') == 'conditional'
+            marked = self.fields[f'driver_{index}_young'].to_python(self.data.get(f'driver_{index}_young'))
+            required = marked if conditional else self.require_driver_details
+            self.fields[f'driver_{index}_age'] = forms.IntegerField(min_value=18, max_value=100, required=required, label=f'נהג {index} — גיל ביום הקבלה')
+            self.fields[f'driver_{index}_license_months'] = forms.IntegerField(min_value=0, max_value=1019, required=required, label=f'נהג {index} — ותק רישיון בחודשים ביום הקבלה')
+            if conditional and not marked:
+                self.fields[f'driver_{index}_age'].disabled = self.fields[f'driver_{index}_license_months'].disabled = True
 
     def clean(self):
         data=super().clean()
+        if self.data.get('driver_detail_mode') == 'conditional':
+            data['driver_detail_mode'] = 'conditional'
+            from config.driver_eligibility import conditional_driver_details
+            try:
+                conditional_driver_details(data, self.driver_count)
+            except ValueError:
+                self.add_error(None, 'נא למלא גיל וותק רק לנהגים שסומנו כצעירים או חדשים.')
         if data.get('invoice'):
             for key in ['invoice_name','invoice_address']:
                 if not data.get(key):self.add_error(key,'יש להשלים את פרטי החשבונית.')
@@ -196,7 +209,7 @@ def workspace_action(request):
             if not price_valid(r.created_at,timezone.now(),r.price_versions.get(key),current):
                 return JsonResponse({'error':'עברו 7 ימים ומחירון החברה השתנה. יש לחשב הצעה חדשה ולאשר את המחיר.'},status=409)
             if not isinstance(data.get('details',{}),dict):return JsonResponse({'error':'נא לבדוק פרטי נהג.'},status=400)
-            form=TestOrderForm(data.get('details',{}),seat_count=int(r.trip.get('seats',0)),driver_count=int(r.trip.get('drivers',1)),require_driver_details=bool(r.trip.get('driver_requirements')))
+            form=TestOrderForm(data.get('details',{}),seat_count=int(r.trip.get('seats',0)),driver_count=int(r.trip.get('drivers',1)),require_driver_details=bool((r.trip.get('driver_requirements') or {}).get('exception')))
             if not form.is_valid():return JsonResponse({'errors':form.errors.get_json_data()},status=400)
             if r.trip.get('driver_requirements') or any(form.cleaned_data.get(f'driver_{index}_age') is not None for index in range(1, int(r.trip.get('drivers', 1)) + 1)):
                 from suppliers.models import Supplier

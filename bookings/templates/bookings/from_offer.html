@@ -25,7 +25,9 @@
 <p id="paste-status" role="status"></p>
 </section>{% endif %}
 <div class="booking-fields">{% for field in form %}{% if field.is_hidden %}{{ field }}{{ field.errors }}{% elif 'driver_' in field.name and field.name != 'driver_count' %}{% elif 'child_seat_' in field.name and field.name != 'child_seat_quantity' %}{% else %}<div data-field="{{ field.name }}" {% if 'invoice_' in field.name and not form.wants_invoice.value %}hidden{% endif %}>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}</div>
-<section class="driver-section"><h2>{% translate "Водители" %}</h2><div class="driver-name-fields">{% for name_field, age_field, experience_field in form.driver_fields %}<div data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<p>{{ age_field.label_tag }}{{ age_field }}{{ age_field.errors }} {{ experience_field.label_tag }}{{ experience_field }}{{ experience_field.errors }}</p></div>{% endfor %}</div><p>Впишите имя и фамилию каждого водителя в одно поле. Укажите возраст и стаж на дату получения машины. Допуск и доплата проверяются по правилам выбранной фирмы.</p></section>
+<link rel="stylesheet" href="{% static 'quotes/booking_drivers.css' %}">
+<section class="driver-section"><h2>{% translate "Водители" %}</h2><div class="driver-name-fields">{% for name_field, young_field, age_field, experience_field in form.driver_fields %}<div data-booking-driver data-driver="{{ forloop.counter }}" data-field="{{ name_field.name }}">{{ name_field.label_tag }}{{ name_field }}{{ name_field.errors }}<label class="booking-driver-toggle">{{ young_field }}<span>{{ young_field.label }}</span></label><div data-driver-extra hidden><label>{% translate "Возраст, полных лет" %}{{ age_field }}{{ age_field.errors }}</label><label>{% translate "Стаж, полных месяцев" %}{{ experience_field }}{{ experience_field.errors }}</label></div></div>{% endfor %}</div></section>
+<script src="{% static 'quotes/booking_driver_fields.js' %}"></script>
 <section class="child-seat-section" {% if not form.child_seat_fields %}hidden{% endif %}><h2>{% translate "Данные детских кресел" %}</h2><div class="child-seat-list">{% for fields in form.child_seat_fields %}<div class="child-seat-row" data-seat="{{ forloop.counter }}"><h3>{% translate "Кресло" %} {{ forloop.counter }}</h3><div class="child-seat-fields">{% for field in fields %}<label>{{ field.label }}{{ field }}{{ field.errors }}</label>{% endfor %}</div></div>{% endfor %}</div><p>Заполните известные данные: возраст, рост и выбранный тип или номер кресла.</p></section>
 <p><button name="action" value="calculate" formnovalidate>{% translate "Пересчитать" %}</button></p>
 {% if deposit_pending %}
@@ -80,20 +82,27 @@ function syncDriverFields(){
     box=document.createElement('div');box.dataset.field=name;
     const caption=document.createElement('label');caption.htmlFor=`id_${name}`;caption.textContent=`Водитель ${index} — имя и фамилия латиницей`;
     const input=document.createElement('input');input.id=`id_${name}`;input.name=name;input.type='text';input.maxLength=201;input.autocomplete='off';
-    box.append(caption,input);
-    {% translate 'Возраст на дату получения, полных лет' as driver_age_caption %}{% translate 'Стаж на дату получения, полных месяцев' as driver_experience_caption %}
+    box.dataset.bookingDriver='';box.append(caption,input);
+    const toggleLabel=document.createElement('label');toggleLabel.className='booking-driver-toggle';
+    const toggle=document.createElement('input');toggle.type='checkbox';toggle.name=`driver_${index}_young`;toggle.dataset.bookingException='';
+    {% translate 'Младше 24 лет или стаж менее 12 месяцев' as driver_exception_caption %}
+    toggleLabel.append(toggle,document.createTextNode('{{ driver_exception_caption|escapejs }}'));box.append(toggleLabel);
+    const extra=document.createElement('div');extra.dataset.driverExtra='';extra.hidden=true;
+    {% translate 'Возраст, полных лет' as driver_age_caption %}{% translate 'Стаж, полных месяцев' as driver_experience_caption %}
     for(const [suffix,label,min,max] of [['age','{{ driver_age_caption|escapejs }}',18,100],['license_months','{{ driver_experience_caption|escapejs }}',0,1019]]){
-      const field=document.createElement('input');field.type='number';field.min=min;field.max=max;field.step=1;field.required=true;field.name=`driver_${index}_${suffix}`;field.id=`id_${field.name}`;
-      const caption=document.createElement('label');caption.htmlFor=field.id;caption.textContent=label;box.append(caption,field);
+      const field=document.createElement('input');field.type='number';field.min=min;field.max=max;field.step=1;field.name=`driver_${index}_${suffix}`;field.id=`id_${field.name}`;
+      const caption=document.createElement('label');caption.textContent=label;caption.append(field);extra.append(caption);
     }
+    box.append(extra);
     fields.append(box);
    }
  }
+ document.dispatchEvent(new Event('bookingdriversloaded'));
  fields.querySelectorAll('[data-field^="driver_"]').forEach(box=>{
   if(box.dataset.field!=='driver_count'&&Number(box.dataset.field.split('_')[1])>count)box.remove();
  });
 }
-document.getElementById('id_driver_count').addEventListener('input',syncDriverFields);
+document.getElementById('id_driver_count').addEventListener('input',()=>{syncDriverFields();document.dispatchEvent(new Event('bookingdriversloaded'));});
 syncDriverFields();
 const childSeatSection=bookingForm.querySelector('.child-seat-section');
 const childSeatList=childSeatSection.querySelector('.child-seat-list');

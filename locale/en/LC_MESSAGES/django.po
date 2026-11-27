@@ -364,6 +364,9 @@ msgstr "Replace the current draft with reservation data. The previous text stays
 msgid "Заметка"
 msgstr "Note"
 
+msgid "Заполните возраст и стаж только у отмеченных молодых или новых водителей."
+msgstr "Enter age and licence experience only for the marked young or new drivers."
+
 msgid "Заполните, если отмечен новый или молодой водитель. Каждый человек считается один раз."
 msgstr "Complete for new or young drivers. Each person is counted once."
 
@@ -516,6 +519,9 @@ msgstr "Pickup location"
 
 msgid "Месяц"
 msgstr "Month"
+
+msgid "Младше 24 лет или стаж менее 12 месяцев"
+msgstr "Under 24 or less than 12 months of licence experience"
 
 msgid "Модели"
 msgstr "Models"

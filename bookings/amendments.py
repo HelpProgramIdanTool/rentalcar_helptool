@@ -49,7 +49,9 @@ def initial_data(booking):
     initial['customer_name'] = booking.customer_name_snapshot
     for index, driver in enumerate(booking.drivers.all(), 1):
         initial[f'driver_{index}_name'] = f'{driver.first_name} {driver.last_name}'.strip()
-        initial[f'driver_{index}_young'] = driver.young_driver_status
+        initial[f'driver_{index}_young'] = driver.young_driver_status or (
+            driver.age_at_pickup is not None and driver.license_months_at_pickup is not None
+            and (driver.age_at_pickup < 24 or driver.license_months_at_pickup < 12))
     if not booking.drivers.exists():
         initial['driver_1_name'] = booking.customer_name_snapshot
     return initial

@@ -30,6 +30,7 @@ from .missing_data import MissingDepositForm, new_deposit_form, apply_deposit
 
 
 class BookingFromOfferForm(FirstInquiryForm):
+    driver_detail_mode = forms.CharField(required=False, initial='conditional', widget=forms.HiddenInput)
     vehicle_note = forms.CharField(label=_("Примечание к автомобилю (например, SEDAN)"), max_length=200, required=False)
     flight_number = forms.CharField(label=_("Номер рейса"), max_length=50, required=False)
     manual_adjustment_label = forms.CharField(label=_("Описание ручной доплаты"), max_length=200, required=False)
@@ -38,6 +39,11 @@ class BookingFromOfferForm(FirstInquiryForm):
         super().__init__(*args, **kwargs)
         young_count = (self.initial.get("young_driver_quantity", 0)
                        if "YOUNG_DRIVER" in self.initial.get("extra_choices", []) else 0)
+        declared_rows = (self.initial.get('driver_requirements') or {}).get('drivers', [])
+        young_count = max(young_count, len(declared_rows))
+        for index, row in enumerate(declared_rows, 1):
+            self.initial.setdefault(f'driver_{index}_age', row['age'])
+            self.initial.setdefault(f'driver_{index}_license_months', row['license_months'])
         # Booking records identify each driver individually, instead of asking
         # for the aggregate count used while preparing an offer.
         self.fields["extra_choices"].choices = [
@@ -61,25 +67,29 @@ class BookingFromOfferForm(FirstInquiryForm):
         for index in range(1, driver_count + 1):
             self.fields[f'driver_{index}_age'] = forms.IntegerField(label=_('Возраст на дату получения, полных лет'), min_value=18, max_value=100, required=False)
             self.fields[f'driver_{index}_license_months'] = forms.IntegerField(label=_('Стаж на дату получения, полных месяцев'), min_value=0, max_value=1019, required=False)
-            for suffix in ('age', 'license_months'):
-                self.fields[f'driver_{index}_{suffix}'].widget.attrs['required'] = True
             self.fields[f"driver_{index}_name"] = forms.CharField(
                 label=f"Водитель {index} — имя и фамилия латиницей",
                 max_length=201,
                 required=False,
             )
             self.fields[f"driver_{index}_young"] = forms.BooleanField(
-                label=_("Новый или молодой водитель — права менее 6 месяцев или возраст младше 24 лет"),
+                label=_("Младше 24 лет или стаж менее 12 месяцев"),
                 required=False,
                 initial=index <= young_count,
+                widget=forms.CheckboxInput(attrs={'data-booking-exception': ''}),
             )
+            if self.is_bound and self.data.get('driver_detail_mode') == 'conditional':
+                marked = self.fields[f'driver_{index}_young'].to_python(self.data.get(f'driver_{index}_young'))
+                for suffix in ('age', 'license_months'):
+                    self.fields[f'driver_{index}_{suffix}'].required = marked
+                    self.fields[f'driver_{index}_{suffix}'].disabled = not marked
         self.driver_name_fields = [self[f"driver_{index}_name"] for index in range(1, driver_count + 1)]
         declaration = self.initial.get('driver_requirements') or {}
         if declaration.get('exception') and not declaration.get('drivers'):
             # Legacy generic flags need the individual booking fields below.
             self.initial['driver_requirements'] = {}
         self.driver_fields = [
-            (self[f"driver_{index}_name"], self[f'driver_{index}_age'], self[f'driver_{index}_license_months'])
+            (self[f"driver_{index}_name"], self[f'driver_{index}_young'], self[f'driver_{index}_age'], self[f'driver_{index}_license_months'])
             for index in range(1, driver_count + 1)
         ]
         selected_extras = (
@@ -125,7 +135,19 @@ class BookingFromOfferForm(FirstInquiryForm):
             self.fields[name].widget = forms.DateInput(format="%d-%m-%Y", attrs={"placeholder": "ДД-ММ-ГГГГ", "autocomplete": "off"})
 
     def clean(self):
+        if self.data.get('driver_detail_mode') == 'conditional':
+            # Named driver checkboxes replace the offer's aggregate declaration.
+            self.cleaned_data['driver_requirements'] = {}
         data = super().clean()
+        if data.get('driver_detail_mode') == 'conditional':
+            from config.driver_eligibility import conditional_driver_details
+            try:
+                data['driver_requirements'] = conditional_driver_details(data, data.get('driver_count') or 1)
+            except ValueError:
+                self.add_error(None, _('Заполните возраст и стаж только у отмеченных молодых или новых водителей.'))
+            for index in range(1, (data.get('driver_count') or 1) + 1):
+                if not data.get(f'driver_{index}_young'):
+                    data[f'driver_{index}_age'] = data[f'driver_{index}_license_months'] = None
         label, amount = data.get("manual_adjustment_label", "").strip(), data.get("manual_adjustment_amount")
         if bool(label) != (amount is not None and amount != 0):
             self.add_error("manual_adjustment_label" if not label else "manual_adjustment_amount", "Заполните описание и сумму ручной доплаты.")
@@ -175,26 +197,27 @@ def calculate(option, data):
         code: data["child_seat_quantity"] if code == "CHILD_SEAT" else 1
         for code in data["extra_choices"]
     }
-    rows = []
-    for index in range(1, data['driver_count'] + 1):
-        age, months = data.get(f'driver_{index}_age'), data.get(f'driver_{index}_license_months')
-        if age is not None and months is not None:
-            from config.driver_eligibility import validate_driver_profile
+    if data.get('driver_detail_mode') != 'conditional':
+        rows = []
+        for index in range(1, data['driver_count'] + 1):
+            age, months = data.get(f'driver_{index}_age'), data.get(f'driver_{index}_license_months')
+            if age is not None and months is not None:
+                from config.driver_eligibility import validate_driver_profile
+                try:
+                    validate_driver_profile(age, months)
+                except ValueError as error:
+                    raise forms.ValidationError(str(error))
+            if inquiry.driver_requirements.get('exception') and (age is None or months is None):
+                raise forms.ValidationError(_('Укажите возраст и стаж каждого водителя на дату получения автомобиля.'))
+            if age is not None and months is not None and (age < 24 or months < 12):
+                rows.append({'age': age, 'license_months': months})
+        if inquiry.driver_requirements:
+            from config.driver_eligibility import validate_driver_details
             try:
-                validate_driver_profile(age, months)
+                inquiry.driver_requirements = validate_driver_details({'exception': bool(rows), 'drivers': rows}, data['driver_count'])
             except ValueError as error:
                 raise forms.ValidationError(str(error))
-        if inquiry.driver_requirements and (age is None or months is None):
-            raise forms.ValidationError(_('Укажите возраст и стаж каждого водителя на дату получения автомобиля.'))
-        if age is not None and months is not None and (age < 24 or months < 12):
-            rows.append({'age': age, 'license_months': months})
-    if inquiry.driver_requirements:
-        from config.driver_eligibility import validate_driver_details
-        try:
-            inquiry.driver_requirements = validate_driver_details({'exception': bool(rows), 'drivers': rows}, data['driver_count'])
-        except ValueError as error:
-            raise forms.ValidationError(str(error))
-        data['driver_requirements'] = inquiry.driver_requirements
+            data['driver_requirements'] = inquiry.driver_requirements
     young_count = 0 if inquiry.driver_requirements else sum(bool(data.get(f"driver_{index}_young")) for index in range(1, data["driver_count"] + 1))
     if young_count:
         young_extra = data["vehicle_group"].supplier.extras.filter(
@@ -370,7 +393,7 @@ def create_draft(option, data, result, snapshot, user, *, existing=None):
                 if data.get('driver_requirements'):
                     from config.driver_eligibility import assess_supplier_drivers
                     age, months = data.get(f'driver_{index}_age'), data.get(f'driver_{index}_license_months')
-                    marked = bool((age < 24 or months < 12) and assess_supplier_drivers(booking.supplier,
+                    marked = bool(age is not None and months is not None and (age < 24 or months < 12) and assess_supplier_drivers(booking.supplier,
                         {'exception': True, 'drivers': [{'age': age, 'license_months': months}]}).charged_drivers)
                 drivers.append(BookingDriver(
                     booking=booking, first_name=parts[0],

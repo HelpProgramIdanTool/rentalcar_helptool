@@ -1,0 +1,10 @@
+[data-booking-driver]{min-width:0;background:#fff;border:1px solid #d4dfed;border-radius:8px;padding:12px;box-sizing:border-box;font:14px/1.45 Arial,sans-serif}
+[data-booking-driver]>label{display:block;font-size:14px;font-weight:600;margin-bottom:5px}
+[data-booking-driver]>input{box-sizing:border-box;width:100%;height:40px;padding:7px 9px;font:15px Arial,sans-serif;border:1px solid #b6c7da;border-radius:6px}
+[data-booking-driver] .booking-driver-toggle{display:flex!important;align-items:flex-start;gap:8px;font-size:13px;font-weight:400;margin:10px 0 0}
+[data-booking-driver] .booking-driver-toggle input{width:18px!important;height:18px!important;min-height:0!important;flex:0 0 18px;margin:0!important;accent-color:#1768ad}
+[data-booking-driver] [data-driver-extra]{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px}
+[data-booking-driver] [hidden]{display:none!important}
+[data-booking-driver] [data-driver-extra] label{display:grid;font-size:12px;font-weight:600;gap:4px;min-width:0}
+[data-booking-driver] [data-driver-extra] input{box-sizing:border-box;width:100%;height:38px;min-height:38px;padding:6px 8px;border:1px solid #b6c7da;border-radius:6px;font:15px Arial,sans-serif}
+.driver-section .driver-count-box{width:160px}.driver-section .driver-count-box label{display:block;font-size:14px}.driver-section .driver-count-box input{height:36px;padding:6px 8px;border:1px solid #b6c7da;border-radius:6px;font:15px Arial,sans-serif}

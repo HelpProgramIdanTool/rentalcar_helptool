@@ -121,7 +121,9 @@ function renderDrivers(){
  const count=Number(state.record.trip.drivers||1);
  $('#order-form [name=additional_driver]').required=count>=2;
  $('#additional-driver-fields').innerHTML=Array.from({length:Math.max(0,count-2)},(_,i)=>`<label>שם נהג ${i+3} באנגלית<input name="driver_${i+3}_name" maxlength="200" required></label>`).join('');
- $('#additional-driver-fields').insertAdjacentHTML('beforeend',Array.from({length:count},(_,i)=>`<div class="fields"><label>נהג ${i+1} — גיל ביום הקבלה<input name="driver_${i+1}_age" type="number" min="18" max="100" step="1" required></label><label>נהג ${i+1} — ותק רישיון בחודשים ביום הקבלה<input name="driver_${i+1}_license_months" type="number" min="0" max="1019" step="1" required></label></div>`).join(''));
+ const affected=state.record.trip.driver_requirements?.drivers||[];
+ $('#additional-driver-fields').insertAdjacentHTML('beforeend',Array.from({length:count},(_,i)=>`<section data-booking-driver><label class="booking-driver-toggle"><input type="checkbox" data-booking-exception name="driver_${i+1}_young" ${affected[i]?'checked':''}><span>נהג ${i+1} — מתחת לגיל 24 או עם רישיון פחות מ־12 חודשים</span></label><div data-driver-extra hidden><label>גיל ביום הקבלה<input name="driver_${i+1}_age" value="${affected[i]?.age??''}" type="number" min="18" max="100" step="1"></label><label>ותק רישיון בחודשים<input name="driver_${i+1}_license_months" value="${affected[i]?.license_months??''}" type="number" min="0" max="1019" step="1"></label></div></section>`).join(''));
+ document.dispatchEvent(new Event('bookingdriversloaded'));
 }
 function renderSeats(){
  const count=Number(state.record.trip.seats||0);

@@ -2,6 +2,18 @@
 from dataclasses import dataclass
 
 
+def conditional_driver_details(data, count):
+    """Only individually marked drivers require numeric facts at booking."""
+    rows = []
+    for index in range(1, count + 1):
+        if not data.get(f'driver_{index}_young'):
+            continue
+        age, months = data.get(f'driver_{index}_age'), data.get(f'driver_{index}_license_months')
+        validate_driver_profile(age, months)
+        rows.append({'age': age, 'license_months': months})
+    return validate_driver_details({'exception': bool(rows), 'drivers': rows}, count)
+
+
 def validate_driver_profile(age, months):
     if type(age) is not int or not 16 <= age <= 100:
         raise ValueError('Enter age in full years, from 16 to 100.')
