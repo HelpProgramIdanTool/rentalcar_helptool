@@ -1,0 +1,11 @@
+[data-driver-editor]{grid-column:1/-1;min-width:0;border:1px solid #c8d9ee;border-inline-start:4px solid #2470b8;border-radius:9px;background:#f4f8fd;padding:12px 14px;margin:6px 0 12px;color:#183c60;font:14px/1.45 Arial,sans-serif}
+[data-driver-editor] [hidden]{display:none!important}
+[data-driver-editor] .driver-toggle{display:flex!important;flex-direction:row;align-items:flex-start;justify-content:flex-start;gap:9px;margin:0;font-size:14px;font-weight:600;line-height:1.5;cursor:pointer}
+[data-driver-editor] .driver-toggle input{flex:0 0 19px!important;width:19px!important;height:19px!important;min-height:0!important;margin:1px 0 0!important;padding:0!important;accent-color:#1768ad}
+[data-driver-editor] small{display:block;font-size:12px!important;font-weight:400!important;color:#52657c;margin:5px 0 0;line-height:1.5}
+[data-driver-editor] .driver-detail-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 32px;align-items:end;gap:10px;border-top:1px solid #dce6f2;padding-top:10px;margin-top:10px}
+[data-driver-editor] .driver-detail-row label{display:grid!important;gap:4px;min-width:0;margin:0;font-size:12px!important;font-weight:600!important}
+[data-driver-editor] .driver-detail-row input{box-sizing:border-box;width:100%!important;max-width:none!important;height:38px!important;min-height:38px!important;border:1px solid #a9bed7;border-radius:6px;background:white;padding:6px 9px!important;font:15px Arial,sans-serif;color:#183c60}
+[data-driver-editor] button{box-sizing:border-box;width:auto!important;min-height:34px!important;padding:6px 11px!important;margin-top:9px;border:1px solid #a8c2df;border-radius:6px;background:white;color:#165b97;font:600 13px Arial,sans-serif;cursor:pointer}
+[data-driver-editor] button.driver-remove{width:32px!important;height:38px!important;margin:0;padding:0!important;font-size:21px;background:transparent;border-color:transparent}
+@media(max-width:480px){[data-driver-editor]{padding:10px}[data-driver-editor] .driver-detail-row{gap:7px;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 28px}}

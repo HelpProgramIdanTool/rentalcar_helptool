@@ -66,7 +66,7 @@
   @media(max-width:800px){.app .work-area{grid-template-columns:minmax(0,1fr);gap:18px}.app .message-panel{width:100%;position:sticky;top:0}.app .message-panel textarea{height:clamp(168.48px,32.4dvh,362.88px)}.app .message-panel small{display:none}.inquiry-header h1{font-size:20px}}
   @media(max-width:700px){.rental-locations{grid-template-columns:1fr}}
 </style>
-<style>.vehicle-price{font-weight:700;color:#155eef;white-space:nowrap}.vehicle-supplier label{flex-wrap:wrap}.vehicle-supplier label input{flex-shrink:0}#price-preview-status{margin:4px 0;font-size:12px;color:#475467}</style>{% if not is_email %}{% include 'application_meta.html' %}{% endif %}</head>
+<style>.vehicle-price{font-weight:700;color:#155eef;white-space:nowrap}.vehicle-supplier label{flex-wrap:wrap}.vehicle-supplier label input{flex-shrink:0}#price-preview-status{margin:4px 0;font-size:12px;color:#475467}</style>{% if not is_email %}{% include 'application_meta.html' %}{% endif %}<link rel="stylesheet" href="{% static 'quotes/driver_details.css' %}?v=20261127-2"></head>
 <body><div class="app">{% include 'quotes/sidebar.html' %}<main>
   <div class="inquiry-header"><h1>{% translate "Новое обращение" %}</h1><a class="icon-button" href="{% url 'quotes:home' %}" title="На главную" aria-label="На главную"><span aria-hidden="true">⌂</span></a></div>
   {% if selected_customer %}<p>{% translate "Оферта для" %}: <strong>{{ selected_customer }}</strong></p>{% endif %}
@@ -145,10 +145,9 @@
       <label>{{ form.driver_count.label }}{{ form.driver_count }}{{ form.driver_count.errors }}</label>
       {% include 'quotes/driver_details.html' %}
       <div class="extras-choice">{{ form.extra_choices.label }}
-        <div>{% for option in form.extra_choices %}<label {% if option.data.value == "YOUNG_DRIVER" %}hidden{% endif %} for="{{ option.id_for_label }}" title="{{ option.choice_label }}">{{ option.tag }}<span>{% if option.data.value == 'YOUNG_DRIVER' %}Молодой / новый водитель{% elif option.data.value == 'CHILD_SEAT' %}{% translate "Кресло" %} / бустер{% elif option.data.value == 'SNOW_CHAINS' %}{% translate "Цепи" %}{% elif option.data.value == 'NAVIGATION' %}GPS{% elif option.data.value == 'WIFI_ROUTER' %}Wi-Fi{% else %}{{ option.choice_label }}{% endif %}</span></label>{% endfor %}</div>
+        <div>{% for option in form.extra_choices %}{% if option.data.value != "YOUNG_DRIVER" %}<label {% if option.data.value == "YOUNG_DRIVER" %}hidden{% endif %} for="{{ option.id_for_label }}" title="{{ option.choice_label }}">{{ option.tag }}<span>{% if option.data.value == 'YOUNG_DRIVER' %}Молодой / новый водитель{% elif option.data.value == 'CHILD_SEAT' %}{% translate "Кресло" %} / бустер{% elif option.data.value == 'SNOW_CHAINS' %}{% translate "Цепи" %}{% elif option.data.value == 'NAVIGATION' %}GPS{% elif option.data.value == 'WIFI_ROUTER' %}Wi-Fi{% else %}{{ option.choice_label }}{% endif %}</span></label>{% endif %}{% endfor %}</div>
         {{ form.extra_choices.errors }}
       </div>
-      <label hidden>{{ form.young_driver_quantity.label }}{{ form.young_driver_quantity }}{{ form.young_driver_quantity.errors }}<small>{{ form.young_driver_quantity.help_text }}</small></label>
       <label id="child-seat-count" hidden>{{ form.child_seat_quantity.label }}{{ form.child_seat_quantity }}{{ form.child_seat_quantity.errors }}</label>
       <label>{{ form.rental_country.label }}{{ form.rental_country }}{{ form.rental_country.help_text }}{{ form.rental_country.errors }}</label><label class="check full">{{ form.cross_border_requested }} {{ form.cross_border_requested.label }}</label>
       <label class="supplier-choice">{{ form.suppliers.label }}{{ form.suppliers }}{{ form.suppliers.errors }}</label>
@@ -368,4 +367,4 @@
   const errorSummary=document.querySelector('#form-errors');
   syncCrossBorder();
   if(errorSummary)errorSummary.focus();
-</script><script src="{% static 'quotes/local_rental_mode.js' %}"></script><script src="{% static 'quotes/price_preview.js' %}?v=20261030-availability"></script><script src="{% static 'quotes/driver_details.js' %}"></script></body></html>
+</script><script src="{% static 'quotes/local_rental_mode.js' %}"></script><script src="{% static 'quotes/price_preview.js' %}?v=20261030-availability"></script><script src="{% static 'quotes/driver_details.js' %}?v=20261127-2"></script></body></html>

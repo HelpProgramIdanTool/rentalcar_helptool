@@ -10,6 +10,7 @@
     const add = root.querySelector('[data-driver-add]');
     let saved = {};
     try { saved = JSON.parse(input.value || '{}'); } catch (_) {}
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) saved = {};
     toggle.checked = saved.exception === true;
     function sync() {
       input.value = JSON.stringify({exception: toggle.checked, drivers: toggle.checked
@@ -19,17 +20,17 @@
     }
     function row(value = {}) {
       const box = document.createElement('div');
-      box.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0';
+      box.className = 'driver-detail-row';
       for (const [key, label, max] of [['age', root.dataset.ageLabel, 100], ['months', root.dataset.monthsLabel, 1019]]) {
         const wrap = document.createElement('label'); wrap.textContent = label + ' ';
         const field = document.createElement('input'); field.type = 'number'; field.min = key === 'age' ? 16 : 0;
         field.max = max; field.step = 1; field.required = toggle.checked;
-        field.style.cssText = 'max-width:100px;min-height:40px'; field.dataset[key] = '';
+        field.dataset[key] = '';
         field.value = value[key === 'age' ? 'age' : 'license_months'] ?? '';
         field.addEventListener('input', sync); wrap.append(field); box.append(wrap);
       }
       const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×';
-      remove.setAttribute('aria-label', root.dataset.removeLabel);
+      remove.className = 'driver-remove'; remove.setAttribute('aria-label', root.dataset.removeLabel);
       remove.addEventListener('click', () => { box.remove(); sync(); }); box.append(remove); rows.append(box);
     }
     function display() {
@@ -37,11 +38,11 @@
       if (toggle.checked && !rows.children.length) row();
       rows.querySelectorAll('input').forEach(field => field.required = toggle.checked);
     }
-    (saved.drivers || []).forEach(row); display();
+    (Array.isArray(saved.drivers) ? saved.drivers : []).forEach(row); display();
     toggle.addEventListener('change', () => { display(); sync(); });
     add.addEventListener('click', () => { if (rows.children.length < 9) { row(); sync(); } });
     // A new form makes an explicit declaration; old saved data remain untouched until editing.
-    if (!input.value || input.value === '{}') sync();
+    if (!input.value || input.value === '{}' || input.value === 'null') sync();
   }
   document.querySelectorAll('[data-driver-editor]').forEach(init);
   document.addEventListener('driverdetailsloaded', () => {
